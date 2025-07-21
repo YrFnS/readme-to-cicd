@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Code Quality Checker",
+  "description": "Ensures code follows project standards, best practices, and maintains high quality through comprehensive checks",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.js",
+      "tests/**/*.ts",
+      "tests/**/*.js",
+      "package.json",
+      "tsconfig.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the code quality guardian for the README-to-CICD system.\n**Context:**\nPerform a comprehensive code quality check on the current implementation.\n**Your Task:**\n1. **Code Standards**: Check TypeScript/JavaScript code style and conventions\n2. **Type Safety**: Validate TypeScript types and interfaces\n3. **Error Handling**: Ensure proper error handling and validation\n4. **Performance**: Identify potential performance issues\n5. **Security**: Check for security vulnerabilities and best practices\n6. **Documentation**: Verify code documentation and comments\n7. **Testing**: Assess test coverage and quality\n**Quality Checklist:**\n### Code Style\n- [ ] Consistent naming conventions (camelCase, PascalCase)\n- [ ] Proper indentation and formatting\n- [ ] No unused imports or variables\n- [ ] Meaningful variable and function names\n### TypeScript\n- [ ] Proper type definitions\n- [ ] No `any` types without justification\n- [ ] Interface definitions for data structures\n- [ ] Generic types where appropriate\n### Error Handling\n- [ ] Try-catch blocks for async operations\n- [ ] Proper error types and messages\n- [ ] Validation of input parameters\n- [ ] Graceful failure handling\n### Performance\n- [ ] Efficient algorithms and data structures\n- [ ] Proper async/await usage\n- [ ] Memory leak prevention\n- [ ] Caching where appropriate\n### Security\n- [ ] Input sanitization\n- [ ] No hardcoded secrets\n- [ ] Secure file operations\n- [ ] Proper authentication/authorization\n### Documentation\n- [ ] JSDoc comments for public APIs\n- [ ] README updates for new features\n- [ ] Inline comments for complex logic\n- [ ] Type documentation\n**Tools to run:**\n```bash\n# Linting\nnpm run lint\n# Type checking\nnpm run type-check\n# Formatting\nnpm run format\n# Security audit\nnpm audit\n# Dependency check\nnpm outdated\n```\nProvide specific, actionable feedback with code examples where helpful."
+  }
+}

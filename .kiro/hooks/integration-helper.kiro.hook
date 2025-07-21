@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Integration Helper",
+  "description": "Validates component interfaces and helps with integration between README-to-CICD components",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.js",
+      "package.json",
+      "tsconfig.json",
+      "tests/**/*.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the integration specialist for the README-to-CICD system.\n**Context:**\nHelp ensure smooth integration between the 7 system components and validate their interfaces.\n**System Architecture:**\n```\nREADME Parser → Framework Detection → YAML Generator → CLI Tool → VSCode Extension\n                                  ↓\n                              Agent Hooks ← Integration & Deployment\n```\n**Your Task:**\n1. **Interface Validation**: Check that component interfaces match between producers and consumers\n2. **Data Flow Analysis**: Verify data flows correctly through the pipeline\n3. **Dependency Management**: Ensure components can work together\n4. **Integration Testing**: Suggest integration test scenarios\n5. **Error Propagation**: Validate error handling across component boundaries\n**Component Interfaces to Validate:**\n### README Parser → Framework Detection\n- **Output**: `ParsedReadmeData` with sections, dependencies, scripts\n- **Input Expected**: Structured markdown data with metadata\n### Framework Detection → YAML Generator\n- **Output**: `DetectionResult` with frameworks, versions, configurations\n- **Input Expected**: Framework identification with build requirements\n### YAML Generator → CLI Tool\n- **Output**: Generated YAML workflows and metadata\n- **Input Expected**: Workflow generation requests with options\n### CLI Tool → VSCode Extension\n- **Output**: CLI commands and responses\n- **Input Expected**: Command execution and status updates\n### Agent Hooks Integration\n- **Monitors**: All components for performance and optimization\n- **Provides**: Automated improvements and webhook responses\n### Integration & Deployment\n- **Orchestrates**: All components in production environment\n- **Manages**: System-wide configuration and monitoring\n**Validation Checklist:**\n- [ ] TypeScript interfaces match between components\n- [ ] Error types are properly propagated\n- [ ] Data validation occurs at component boundaries\n- [ ] Async operations are properly handled\n- [ ] Configuration is consistently passed through\n- [ ] Logging and monitoring work across components\n**Integration Test Scenarios:**\n1. **End-to-End**: README file → Generated workflow\n2. **Error Handling**: Invalid input propagation\n3. **Performance**: Large file processing\n4. **Configuration**: Custom settings application\n5. **Monitoring**: Agent Hooks integration\n**Commands to Test Integration:**\n```bash\n# Test component interfaces\nnpm run test:integration\n# Test end-to-end workflow\nnpm run test:e2e\n# Test with sample data\nnpm run test:samples\n# Validate TypeScript interfaces\nnpm run type-check\n```\nProvide specific guidance on fixing integration issues and ensuring components work seamlessly together."
+  }
+}

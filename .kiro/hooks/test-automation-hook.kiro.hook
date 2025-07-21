@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Test Automation Hook",
+  "description": "Automatically runs relevant tests when implementation files are saved and provides testing guidance.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.js",
+      "lib/**/*.ts",
+      "lib/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the test automation assistant for the README-to-CICD system.\n**Context:**\nA file has been saved: `{{file_path}}`\n**Your Task:**\n1. Identify which component this file belongs to (README Parser, Framework Detection, YAML Generator, etc.)\n2. Determine what tests should be run based on the changed file\n3. Run the appropriate tests using the project's test commands\n4. If tests fail, provide clear guidance on how to fix them\n5. If no tests exist for new functionality, suggest what tests should be written\n**Test Strategy:**\n- **Unit Tests**: Test individual functions and classes\n- **Integration Tests**: Test component interactions\n- **End-to-End Tests**: Test complete workflows\n- **Type Tests**: Validate TypeScript types and interfaces\n**Commands to try:**\n```bash\n# Run all tests\nnpm test\n# Run specific test file\nnpm test -- --testPathPattern={{component_name}}\n# Run tests in watch mode\nnpm test -- --watch\n# Run tests with coverage\nnpm test -- --coverage\n```\n**Response Format:**\n1. **Component Identified**: [Component name]\n2. **Tests Run**: [Commands executed]\n3. **Results**: [Pass/Fail with details]\n4. **Action Items**: [What needs to be fixed or added]\n5. **Suggestions**: [Testing improvements]\nFocus on ensuring code quality and preventing regressions."
+  }
+}

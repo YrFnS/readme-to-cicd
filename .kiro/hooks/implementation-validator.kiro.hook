@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "name": "Implementation Validator",
+  "description": "Validates completed tasks against their spec requirements and ensures implementation quality",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.js",
+      ".kiro/specs/**/*.md",
+      "tests/**/*.ts",
+      "tests/**/*.js"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are validating an implementation task for the README-to-CICD system.\n**Context:**\n- Review the current task being worked on from the spec files\n- Examine the implementation code that was written\n- Check if the implementation meets all acceptance criteria\n- Validate code quality, testing, and documentation\n**Your Task:**\n1. Identify which spec and task is being validated\n2. Read the requirements and acceptance criteria for that task\n3. Examine the implementation code\n4. Check if all acceptance criteria are met\n5. Verify code quality (TypeScript types, error handling, tests)\n6. Provide a validation report with:\n   - ✅ Met requirements\n   - ❌ Missing or incomplete requirements\n   - 🔧 Suggestions for improvement\n   - 📝 Documentation gaps\n**Validation Checklist:**\n- [ ] All acceptance criteria implemented\n- [ ] TypeScript types properly defined\n- [ ] Error handling implemented\n- [ ] Unit tests written and passing\n- [ ] Integration points working\n- [ ] Documentation updated\n- [ ] Code follows project standards\nProvide actionable feedback to ensure the implementation is production-ready."
+  }
+}

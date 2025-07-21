@@ -1,0 +1,76 @@
+{
+  "mcpServers": {
+    "Context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": [
+        "resolve-library-id",
+        "get-library-docs"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "sequentialthinking"
+      ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "puppeteer_navigate",
+        "puppeteer_screenshot",
+        "puppeteer_click",
+        "puppeteer_fill",
+        "puppeteer_select",
+        "puppeteer_hover",
+        "puppeteer_evaluate"
+      ]
+    },
+    "desktop-commander": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@wonderwhy-er/desktop-commander"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "get_config",
+        "set_config_value",
+        "read_file",
+        "read_multiple_files",
+        "write_file",
+        "create_directory",
+        "list_directory",
+        "move_file",
+        "search_files",
+        "search_code",
+        "get_file_info",
+        "edit_block",
+        "start_process",
+        "read_process_output",
+        "interact_with_process",
+        "force_terminate",
+        "list_sessions",
+        "list_processes",
+        "kill_process",
+        "get_usage_stats",
+        "give_feedback_to_desktop_commander"
+      ]
+    }
+  }
+}

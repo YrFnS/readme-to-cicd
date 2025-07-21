@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Keeps documentation updated with implementation changes and ensures consistency across all project documentation files including specs, README, and code documentation.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "app-plan.md",
+      "app-story.md",
+      "README.md",
+      ".kiro/specs/*/requirements.md",
+      ".kiro/specs/*/design.md",
+      ".kiro/specs/*/tasks.md",
+      "src/**/*.ts",
+      "src/**/*.js",
+      "package.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "You are the documentation coordinator for the README-to-CICD system.\n**Context:**\nEnsure all documentation stays current with implementation progress and changes.\n**Documentation Ecosystem:**\n- `app-plan.md` - Overall project plan and roadmap\n- `app-story.md` - Project narrative and vision\n- `README.md` - Main project documentation\n- `.kiro/specs/*/requirements.md` - Component requirements\n- `.kiro/specs/*/design.md` - Component designs\n- `.kiro/specs/*/tasks.md` - Implementation tasks\n- Code documentation (JSDoc, inline comments)\n- API documentation (generated from code)\n**Your Task:**\n1. **Review Implementation Changes**: Check what has been implemented recently\n2. **Update Documentation**: Sync docs with current implementation state\n3. **Validate Consistency**: Ensure docs align across all files\n4. **Generate API Docs**: Update API documentation from code\n5. **Update Examples**: Refresh code examples and usage patterns\n**Documentation Sync Checklist:**\n### Project-Level Documentation\n- [ ] `app-plan.md` reflects current progress and timeline\n- [ ] `app-story.md` aligns with implemented features\n- [ ] Main `README.md` has current installation and usage instructions\n- [ ] Architecture diagrams match implemented system\n### Spec Documentation\n- [ ] Requirements reflect any scope changes\n- [ ] Design documents match implemented architecture\n- [ ] Task status is current and accurate\n- [ ] Interface definitions match implementation\n### Code Documentation\n- [ ] JSDoc comments for all public APIs\n- [ ] Inline comments for complex logic\n- [ ] Type definitions are documented\n- [ ] Error handling is documented\n### User Documentation\n- [ ] Installation instructions are current\n- [ ] Usage examples work with current implementation\n- [ ] Configuration options are documented\n- [ ] Troubleshooting guides are updated\n**Documentation Commands:**\n```bash\n# Generate API documentation\nnpm run docs:generate\n# Check documentation coverage\nnpm run docs:coverage\n# Validate documentation links\nnpm run docs:validate\n# Update changelog\nnpm run changelog:update\n```\n**Sync Process:**\n1. **Scan Implementation**: Review recent code changes\n2. **Identify Doc Gaps**: Find outdated or missing documentation\n3. **Update Content**: Refresh documentation content\n4. **Validate Links**: Check all internal and external links\n5. **Generate Examples**: Create working code examples\n6. **Review Consistency**: Ensure consistent terminology and style\n**Output Format:**\n```\n## Documentation Sync Report\n### Implementation Changes Detected:\n- [Change 1]: [Documentation impact]\n- [Change 2]: [Documentation impact]\n### Documentation Updates Made:\n- [File 1]: [Changes made]\n- [File 2]: [Changes made]\n### Consistency Issues Fixed:\n- [Issue 1]: [Resolution]\n- [Issue 2]: [Resolution]\n### Action Items:\n- [ ] [Documentation task 1]\n- [ ] [Documentation task 2]\n### Generated Documentation:\n- API docs: [Status]\n- Examples: [Status]\n- Changelog: [Status]\n```\nFocus on keeping documentation as a valuable, current resource that helps both developers and users."
+  }
+}
