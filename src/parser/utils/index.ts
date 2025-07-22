@@ -13,3 +13,6 @@ export * from './confidence-calculator';
 
 // Validation utilities
 export * from './validation';
+
+// Result aggregation utilities
+export { ResultAggregator } from './result-aggregator';

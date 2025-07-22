@@ -15,6 +15,7 @@ export { AnalyzerRegistry } from './analyzers/analyzer-registry';
 // Utilities
 export * from './utils/confidence-calculator';
 export * from './utils/validation';
+export { ResultAggregator } from './utils/result-aggregator';
 
 // Default parser instance factory
 import { ReadmeParserImpl } from './readme-parser';
