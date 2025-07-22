@@ -2,8 +2,7 @@
  * Main README Parser implementation
  */
 
-import { promises as fs } from 'fs';
-import { marked, Token } from 'marked';
+import { Token } from 'marked';
 import { 
   ReadmeParser, 
   ParseResult, 
@@ -13,15 +12,21 @@ import {
   ConfidenceScores
 } from './types';
 import { AnalyzerRegistry } from './analyzers/analyzer-registry';
+import { FileReader } from './utils/file-reader';
+import { MarkdownParser } from './utils/markdown-parser';
 
 /**
  * Main README Parser class that orchestrates content analysis
  */
 export class ReadmeParserImpl implements ReadmeParser {
   private analyzerRegistry: AnalyzerRegistry;
+  private fileReader: FileReader;
+  private markdownParser: MarkdownParser;
 
   constructor() {
     this.analyzerRegistry = new AnalyzerRegistry();
+    this.fileReader = new FileReader();
+    this.markdownParser = new MarkdownParser();
   }
 
   /**
@@ -35,46 +40,37 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Parse a README file from the filesystem
    */
   async parseFile(filePath: string): Promise<ParseResult> {
-    try {
-      // Validate file path
-      if (!filePath || typeof filePath !== 'string') {
-        return this.createErrorResult('INVALID_PATH', 'File path is required and must be a string');
-      }
-
-      // Read file content
-      const content = await fs.readFile(filePath, 'utf-8');
-      return await this.parseContent(content);
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('ENOENT')) {
-          return this.createErrorResult('FILE_NOT_FOUND', `File not found: ${filePath}`);
-        }
-        if (error.message.includes('EACCES')) {
-          return this.createErrorResult('PERMISSION_DENIED', `Permission denied: ${filePath}`);
-        }
-        return this.createErrorResult('FILE_READ_ERROR', `Failed to read file: ${error.message}`);
-      }
-      return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred while reading the file');
+    // Use FileReader to read the file
+    const readResult = await this.fileReader.readFile(filePath);
+    
+    if (!readResult.success) {
+      return {
+        success: false,
+        errors: [readResult.error]
+      };
     }
+
+    // Parse the content using the file content
+    return await this.parseContent(readResult.data.content);
   }
 
   /**
    * Parse README content directly
    */
   async parseContent(content: string): Promise<ParseResult> {
+    // Use MarkdownParser to parse the content
+    const parseResult = await this.markdownParser.parseContent(content);
+    
+    if (!parseResult.success) {
+      return {
+        success: false,
+        errors: [parseResult.error]
+      };
+    }
+
+    const { ast, rawContent } = parseResult.data;
+    
     try {
-      // Validate content
-      if (typeof content !== 'string') {
-        return this.createErrorResult('INVALID_CONTENT', 'Content must be a string');
-      }
-
-      if (content.trim().length === 0) {
-        return this.createErrorResult('EMPTY_CONTENT', 'Content cannot be empty');
-      }
-
-      // Parse markdown to AST
-      const ast = marked.lexer(content);
-      
       // Run all analyzers
       const analyzers = this.analyzerRegistry.getAll();
       if (analyzers.length === 0) {
@@ -83,7 +79,7 @@ export class ReadmeParserImpl implements ReadmeParser {
 
       // Execute analyzers in parallel
       const analysisPromises = analyzers.map(analyzer => 
-        this.runAnalyzer(analyzer, ast, content)
+        this.runAnalyzer(analyzer, ast, rawContent)
       );
 
       const analysisResults = await Promise.allSettled(analysisPromises);
@@ -105,9 +101,9 @@ export class ReadmeParserImpl implements ReadmeParser {
 
     } catch (error) {
       if (error instanceof Error) {
-        return this.createErrorResult('PARSE_ERROR', `Failed to parse content: ${error.message}`);
+        return this.createErrorResult('PARSE_ERROR', `Failed to analyze content: ${error.message}`);
       }
-      return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during parsing');
+      return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
     }
   }  /**
    * Run a single analyzer with error handling
