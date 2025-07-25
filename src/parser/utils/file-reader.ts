@@ -2,7 +2,7 @@
  * FileReader - Handles async file reading with comprehensive error handling
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
 import { resolve, isAbsolute } from 'path';
 import { ParseError, Result } from '../types';
 
@@ -52,13 +52,19 @@ export class FileReader {
       const normalizedPath = this.normalizePath(filePath);
       
       // Check file accessibility
-      const accessResult = await this.checkFileAccess(normalizedPath);
-      if (!accessResult.success) {
-        return accessResult;
+      try {
+        await fs.access(normalizedPath, fsConstants.F_OK | fsConstants.R_OK);
+      } catch (error) {
+        return this.handleAccessError(error, normalizedPath);
       }
 
       // Get file stats for size validation
-      const stats = await fs.stat(normalizedPath);
+      let stats;
+      try {
+        stats = await fs.stat(normalizedPath);
+      } catch (error) {
+        return this.handleStatError(error, normalizedPath);
+      }
       
       if (stats.size > FileReader.MAX_FILE_SIZE) {
         return {
@@ -73,7 +79,12 @@ export class FileReader {
       }
 
       // Read file content
-      const content = await fs.readFile(normalizedPath, encoding);
+      let content;
+      try {
+        content = await fs.readFile(normalizedPath, encoding);
+      } catch (error) {
+        return this.handleReadError(error, normalizedPath);
+      }
       
       // Validate content encoding
       const contentValidation = this.validateContent(content);
@@ -164,47 +175,91 @@ export class FileReader {
   }
 
   /**
-   * Check if file exists and is accessible
+   * Handle file access errors
    */
-  private async checkFileAccess(filePath: string): Promise<Result<void, ParseError>> {
-    try {
-      await fs.access(filePath, fs.constants.F_OK | fs.constants.R_OK);
-      return { success: true, data: undefined };
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message.includes('ENOENT')) {
-          return {
-            success: false,
-            error: {
-              code: 'FILE_NOT_FOUND',
-              message: `File does not exist: ${filePath}`,
-              component: 'FileReader',
-              severity: 'error'
-            }
-          };
-        }
-        if (error.message.includes('EACCES')) {
-          return {
-            success: false,
-            error: {
-              code: 'PERMISSION_DENIED',
-              message: `Permission denied accessing file: ${filePath}`,
-              component: 'FileReader',
-              severity: 'error'
-            }
-          };
-        }
+  private handleAccessError(error: unknown, filePath: string): Result<FileReadResult, ParseError> {
+    if (error instanceof Error) {
+      if (error.message.includes('ENOENT')) {
+        return {
+          success: false,
+          error: {
+            code: 'FILE_NOT_FOUND',
+            message: `File does not exist: ${filePath}`,
+            component: 'FileReader',
+            severity: 'error'
+          }
+        };
       }
-      return {
-        success: false,
-        error: {
-          code: 'ACCESS_ERROR',
-          message: `Cannot access file: ${filePath}`,
-          component: 'FileReader',
-          severity: 'error'
-        }
-      };
+      if (error.message.includes('EACCES')) {
+        return {
+          success: false,
+          error: {
+            code: 'PERMISSION_DENIED',
+            message: `Permission denied accessing file: ${filePath}`,
+            component: 'FileReader',
+            severity: 'error'
+          }
+        };
+      }
     }
+    return {
+      success: false,
+      error: {
+        code: 'ACCESS_ERROR',
+        message: `Cannot access file: ${filePath}`,
+        component: 'FileReader',
+        severity: 'error'
+      }
+    };
+  }
+
+  /**
+   * Handle file stat errors
+   */
+  private handleStatError(error: unknown, filePath: string): Result<FileReadResult, ParseError> {
+    if (error instanceof Error) {
+      if (error.message.includes('EISDIR')) {
+        return {
+          success: false,
+          error: {
+            code: 'IS_DIRECTORY',
+            message: `Path is a directory, not a file: ${filePath}`,
+            component: 'FileReader',
+            severity: 'error'
+          }
+        };
+      }
+      if (error.message.includes('EMFILE') || error.message.includes('ENFILE')) {
+        return {
+          success: false,
+          error: {
+            code: 'TOO_MANY_FILES',
+            message: 'Too many open files',
+            component: 'FileReader',
+            severity: 'error'
+          }
+        };
+      }
+      if (error.message.includes('ENOSPC')) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_SPACE',
+            message: 'No space left on device',
+            component: 'FileReader',
+            severity: 'error'
+          }
+        };
+      }
+    }
+    return this.handleFileError(error, filePath);
+  }
+
+  /**
+   * Handle file read errors
+   */
+  private handleReadError(error: unknown, filePath: string): Result<FileReadResult, ParseError> {
+    return this.handleFileError(error, filePath);
   }
 
   /**
@@ -244,32 +299,11 @@ export class FileReader {
    */
   private handleFileError(error: unknown, filePath: string): Result<FileReadResult, ParseError> {
     if (error instanceof Error) {
-      let code = 'FILE_READ_ERROR';
-      let message = error.message;
-
-      // Map specific Node.js error codes to our error codes
-      if (error.message.includes('ENOENT')) {
-        code = 'FILE_NOT_FOUND';
-        message = `File not found: ${filePath}`;
-      } else if (error.message.includes('EACCES')) {
-        code = 'PERMISSION_DENIED';
-        message = `Permission denied: ${filePath}`;
-      } else if (error.message.includes('EISDIR')) {
-        code = 'IS_DIRECTORY';
-        message = `Path is a directory, not a file: ${filePath}`;
-      } else if (error.message.includes('EMFILE') || error.message.includes('ENFILE')) {
-        code = 'TOO_MANY_FILES';
-        message = 'Too many open files';
-      } else if (error.message.includes('ENOSPC')) {
-        code = 'NO_SPACE';
-        message = 'No space left on device';
-      }
-
       return {
         success: false,
         error: {
-          code,
-          message,
+          code: 'FILE_READ_ERROR',
+          message: error.message,
           component: 'FileReader',
           severity: 'error',
           details: {

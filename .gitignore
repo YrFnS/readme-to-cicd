@@ -84,3 +84,5 @@ docs/generated/
 # Kiro specific (keep configuration but ignore logs)
 .kiro/logs/
 .kiro/cache/
+
+draft.md

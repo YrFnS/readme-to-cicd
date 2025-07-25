@@ -4,7 +4,7 @@
   "description": "Ensures code follows project standards, best practices, and maintains high quality through comprehensive checks",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       "src/**/*.ts",
       "src/**/*.js",

@@ -35,7 +35,7 @@ describe('ResultAggregator', () => {
           confidence: 0.9,
           sources: ['text-mention']
         }],
-        ['language', {
+        ['LanguageDetector', {
           data: {
             languages: [
               { name: 'TypeScript', confidence: 0.95, sources: ['code-block'], frameworks: ['Node.js'] },
@@ -45,7 +45,7 @@ describe('ResultAggregator', () => {
           confidence: 0.9,
           sources: ['code-block', 'file-reference']
         }],
-        ['dependency', {
+        ['DependencyExtractor', {
           data: {
             packageFiles: [{ name: 'package.json', type: 'npm', mentioned: true, confidence: 0.9 }],
             installCommands: [{ command: 'npm install', confidence: 0.9 }],
@@ -54,7 +54,7 @@ describe('ResultAggregator', () => {
           confidence: 0.85,
           sources: ['file-reference']
         }],
-        ['command', {
+        ['CommandExtractor', {
           data: {
             build: [{ command: 'npm run build', confidence: 0.9 }],
             test: [{ command: 'npm test', confidence: 0.85 }],
@@ -92,7 +92,7 @@ describe('ResultAggregator', () => {
 
     it('should handle missing analyzer results gracefully', async () => {
       const results = new Map<string, AnalysisResult>([
-        ['language', {
+        ['LanguageDetector', {
           data: {
             languages: [{ name: 'Python', confidence: 0.9, sources: ['code-block'] }]
           },
@@ -115,7 +115,7 @@ describe('ResultAggregator', () => {
 
     it('should handle partial failures with errors', async () => {
       const results = new Map<string, AnalysisResult>([
-        ['language', {
+        ['LanguageDetector', {
           data: {
             languages: [{ name: 'Java', confidence: 0.8, sources: ['pattern-match'] }]
           },
@@ -128,7 +128,7 @@ describe('ResultAggregator', () => {
             severity: 'warning'
           }]
         }],
-        ['dependency', {
+        ['DependencyExtractor', {
           data: null,
           confidence: 0,
           sources: [],
@@ -156,7 +156,7 @@ describe('ResultAggregator', () => {
 
     it('should normalize confidence scores to 0-1 range', async () => {
       const results = new Map<string, AnalysisResult>([
-        ['language', {
+        ['LanguageDetector', {
           data: { languages: [{ name: 'C++', confidence: 1.5, sources: ['code-block'] }] },
           confidence: 1.2, // Over 1.0
           sources: ['code-block']
@@ -222,7 +222,7 @@ describe('ResultAggregator', () => {
 
     it('should handle malformed analyzer data gracefully', async () => {
       const results = new Map<string, AnalysisResult>([
-        ['language', {
+        ['LanguageDetector', {
           data: {
             languages: [
               { name: 'Python' }, // Missing confidence and sources
@@ -312,9 +312,9 @@ describe('ResultAggregator', () => {
   describe('confidence score calculation', () => {
     it('should calculate weighted overall confidence', async () => {
       const results = new Map<string, AnalysisResult>([
-        ['language', { data: {}, confidence: 1.0, sources: [] }],
-        ['dependency', { data: {}, confidence: 0.8, sources: [] }],
-        ['command', { data: {}, confidence: 0.6, sources: [] }],
+        ['LanguageDetector', { data: {}, confidence: 1.0, sources: [] }],
+        ['DependencyExtractor', { data: {}, confidence: 0.8, sources: [] }],
+        ['CommandExtractor', { data: {}, confidence: 0.6, sources: [] }],
         ['testing', { data: {}, confidence: 0.4, sources: [] }],
         ['metadata', { data: {}, confidence: 0.2, sources: [] }]
       ]);

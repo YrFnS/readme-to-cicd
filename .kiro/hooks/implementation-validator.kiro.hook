@@ -4,7 +4,7 @@
   "description": "Validates completed tasks against their spec requirements and ensures implementation quality",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       "src/**/*.ts",
       "src/**/*.js",

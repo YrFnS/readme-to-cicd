@@ -4,7 +4,7 @@
   "description": "Keeps documentation updated with implementation changes and ensures consistency across all project documentation files including specs, README, and code documentation.",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       "app-plan.md",
       "app-story.md",

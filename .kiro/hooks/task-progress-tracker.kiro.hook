@@ -4,7 +4,7 @@
   "description": "Tracks implementation progress and automatically updates task status in spec files",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       ".kiro/specs/*/tasks.md"
     ]

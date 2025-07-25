@@ -4,7 +4,7 @@
   "description": "Keeps task status updated and ensures implementations align with spec requirements",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       ".kiro/specs/**/*.md",
       "src/**/*.ts",

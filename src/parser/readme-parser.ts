@@ -16,6 +16,10 @@ import { AnalyzerRegistry } from './analyzers/analyzer-registry';
 import { FileReader } from './utils/file-reader';
 import { MarkdownParser } from './utils/markdown-parser';
 import { ResultAggregator } from './utils/result-aggregator';
+import { LanguageDetector } from './analyzers/language-detector';
+import { DependencyExtractor } from './analyzers/dependency-extractor';
+import { CommandExtractor } from './analyzers/command-extractor';
+import { TestingDetector } from './analyzers/testing-detector';
 
 /**
  * Main README Parser class that orchestrates content analysis
@@ -31,6 +35,19 @@ export class ReadmeParserImpl implements ReadmeParser {
     this.fileReader = new FileReader();
     this.markdownParser = new MarkdownParser();
     this.resultAggregator = new ResultAggregator();
+    
+    // Auto-register default analyzers
+    this.registerDefaultAnalyzers();
+  }
+
+  /**
+   * Register default analyzers that should always be available
+   */
+  private registerDefaultAnalyzers(): void {
+    this.analyzerRegistry.register(new LanguageDetector());
+    this.analyzerRegistry.register(new DependencyExtractor());
+    this.analyzerRegistry.register(new CommandExtractor());
+    this.analyzerRegistry.register(new TestingDetector());
   }
 
   /**
@@ -38,6 +55,13 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   registerAnalyzer(analyzer: ContentAnalyzer): void {
     this.analyzerRegistry.register(analyzer);
+  }
+
+  /**
+   * Clear all registered analyzers (primarily for testing)
+   */
+  clearAnalyzers(): void {
+    this.analyzerRegistry.clear();
   }
 
   /**

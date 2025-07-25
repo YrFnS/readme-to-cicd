@@ -65,7 +65,8 @@ describe('ResultAggregator Integration', () => {
   });
 
   it('should integrate ResultAggregator with parser when analyzers are registered', async () => {
-    // Register mock analyzers
+    // Clear default analyzers and register mock analyzers
+    parser.clearAnalyzers();
     parser.registerAnalyzer(new MockLanguageAnalyzer());
     parser.registerAnalyzer(new MockDependencyAnalyzer());
     parser.registerAnalyzer(new MockMetadataAnalyzer());
@@ -111,6 +112,8 @@ import { parser } from './src/parser';
       }
     }
 
+    // Clear default analyzers and register test analyzers
+    parser.clearAnalyzers();
     parser.registerAnalyzer(new ErrorAnalyzer());
     parser.registerAnalyzer(new MockLanguageAnalyzer());
 
@@ -127,6 +130,8 @@ import { parser } from './src/parser';
   });
 
   it('should aggregate confidence scores correctly', async () => {
+    // Clear default analyzers and register mock analyzers
+    parser.clearAnalyzers();
     parser.registerAnalyzer(new MockLanguageAnalyzer()); // confidence: 0.9
     parser.registerAnalyzer(new MockDependencyAnalyzer()); // confidence: 0.8
     parser.registerAnalyzer(new MockMetadataAnalyzer()); // confidence: 0.7
@@ -144,7 +149,8 @@ import { parser } from './src/parser';
   });
 
   it('should handle empty analyzer results', async () => {
-    // Don't register any analyzers
+    // Clear all analyzers to test empty scenario
+    parser.clearAnalyzers();
     const result = await parser.parseContent('# Test');
 
     expect(result.success).toBe(false);

@@ -90,6 +90,9 @@ This tests file reading.
   it('should handle no analyzers registered', async () => {
     const content = '# Test';
     
+    // Clear the default analyzers to test the no-analyzers scenario
+    parser.clearAnalyzers();
+    
     const result = await parser.parseContent(content);
     
     expect(result.success).toBe(false);

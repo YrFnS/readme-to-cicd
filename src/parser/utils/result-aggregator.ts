@@ -111,14 +111,22 @@ export class ResultAggregator {
    * Extract and merge language information from analyzer results
    */
   private extractLanguages(results: Map<string, AnalysisResult>): LanguageInfo[] {
-    const languageResult = results.get('language');
+    // Try both possible analyzer names for backward compatibility
+    const languageResult = results.get('LanguageDetector') || results.get('language');
     
-    if (!languageResult?.data?.languages) {
+    if (!languageResult?.data) {
+      return [];
+    }
+
+    // The LanguageDetector returns languages directly in the data field
+    const languages = Array.isArray(languageResult.data) ? languageResult.data : languageResult.data.languages;
+    
+    if (!languages) {
       return [];
     }
 
     // Ensure all language entries have required fields and filter out invalid entries
-    return languageResult.data.languages
+    return languages
       .filter((lang: any) => lang && typeof lang === 'object')
       .map((lang: any) => ({
         name: lang.name || 'Unknown',
@@ -132,7 +140,8 @@ export class ResultAggregator {
    * Extract dependency information from analyzer results
    */
   private extractDependencies(results: Map<string, AnalysisResult>): DependencyInfo {
-    const dependencyResult = results.get('dependency');
+    // Try both possible analyzer names for backward compatibility
+    const dependencyResult = results.get('DependencyExtractor') || results.get('dependency');
     
     if (!dependencyResult?.data) {
       return {
@@ -153,7 +162,7 @@ export class ResultAggregator {
    * Extract command information from analyzer results
    */
   private extractCommands(results: Map<string, AnalysisResult>): CommandInfo {
-    const commandResult = results.get('command');
+    const commandResult = results.get('CommandExtractor');
     
     if (!commandResult?.data) {
       return {
@@ -178,7 +187,7 @@ export class ResultAggregator {
    * Extract testing information from analyzer results
    */
   private extractTesting(results: Map<string, AnalysisResult>): TestingInfo {
-    const testingResult = results.get('testing');
+    const testingResult = results.get('TestingDetector') || results.get('testing');
     
     if (!testingResult?.data) {
       return {
@@ -210,11 +219,11 @@ export class ResultAggregator {
       testing: TestingInfo;
     }
   ): ConfidenceScores {
-    // Get individual analyzer confidence scores
-    const languageConfidence = results.get('language')?.confidence || 0;
-    const dependencyConfidence = results.get('dependency')?.confidence || 0;
-    const commandConfidence = results.get('command')?.confidence || 0;
-    const testingConfidence = results.get('testing')?.confidence || 0;
+    // Get individual analyzer confidence scores (try both naming conventions)
+    const languageConfidence = (results.get('LanguageDetector') || results.get('language'))?.confidence || 0;
+    const dependencyConfidence = (results.get('DependencyExtractor') || results.get('dependency'))?.confidence || 0;
+    const commandConfidence = results.get('CommandExtractor')?.confidence || 0;
+    const testingConfidence = (results.get('TestingDetector') || results.get('testing'))?.confidence || 0;
     const metadataConfidence = results.get('metadata')?.confidence || 0;
 
     // Normalize all scores
