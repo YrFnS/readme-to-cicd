@@ -20,9 +20,28 @@ import { LanguageDetector } from './analyzers/language-detector';
 import { DependencyExtractor } from './analyzers/dependency-extractor';
 import { CommandExtractor } from './analyzers/command-extractor';
 import { TestingDetector } from './analyzers/testing-detector';
+import { MetadataExtractor } from './analyzers/metadata-extractor';
 
 /**
- * Main README Parser class that orchestrates content analysis
+ * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
+ * 
+ * This class provides the primary interface for parsing README files and extracting structured
+ * project information including languages, dependencies, commands, testing frameworks, and metadata.
+ * 
+ * @example
+ * ```typescript
+ * const parser = new ReadmeParserImpl();
+ * 
+ * // Parse from file
+ * const result = await parser.parseFile('README.md');
+ * if (result.success) {
+ *   console.log('Languages:', result.data.languages);
+ *   console.log('Dependencies:', result.data.dependencies);
+ * }
+ * 
+ * // Parse from content
+ * const contentResult = await parser.parseContent(readmeContent);
+ * ```
  */
 export class ReadmeParserImpl implements ReadmeParser {
   private analyzerRegistry: AnalyzerRegistry;
@@ -48,6 +67,7 @@ export class ReadmeParserImpl implements ReadmeParser {
     this.analyzerRegistry.register(new DependencyExtractor());
     this.analyzerRegistry.register(new CommandExtractor());
     this.analyzerRegistry.register(new TestingDetector());
+    this.analyzerRegistry.register(new MetadataExtractor());
   }
 
   /**
@@ -65,7 +85,22 @@ export class ReadmeParserImpl implements ReadmeParser {
   }
 
   /**
-   * Parse a README file from the filesystem
+   * Parse a README file from the filesystem and extract structured project information.
+   * 
+   * @param filePath - Absolute or relative path to the README file
+   * @returns Promise resolving to ParseResult with extracted project information or errors
+   * 
+   * @example
+   * ```typescript
+   * const result = await parser.parseFile('./README.md');
+   * if (result.success) {
+   *   console.log('Project name:', result.data.metadata.name);
+   *   console.log('Languages found:', result.data.languages.map(l => l.name));
+   *   console.log('Overall confidence:', result.data.confidence.overall);
+   * } else {
+   *   console.error('Parse errors:', result.errors);
+   * }
+   * ```
    */
   async parseFile(filePath: string): Promise<ParseResult> {
     // Use FileReader to read the file
@@ -83,9 +118,41 @@ export class ReadmeParserImpl implements ReadmeParser {
   }
 
   /**
-   * Parse README content directly
+   * Parse README content directly from a string and extract structured project information.
+   * 
+   * @param content - Raw README content as a string
+   * @returns Promise resolving to ParseResult with extracted project information or errors
+   * 
+   * @example
+   * ```typescript
+   * const readmeContent = `
+   * # My Project
+   * A Node.js application built with TypeScript.
+   * 
+   * ## Installation
+   * \`\`\`bash
+   * npm install
+   * npm test
+   * \`\`\`
+   * `;
+   * 
+   * const result = await parser.parseContent(readmeContent);
+   * if (result.success) {
+   *   console.log('Languages:', result.data.languages); // [{ name: 'JavaScript', confidence: 0.8, ... }]
+   *   console.log('Commands:', result.data.commands.install); // [{ command: 'npm install', ... }]
+   * }
+   * ```
    */
   async parseContent(content: string): Promise<ParseResult> {
+    // Validate input
+    if (typeof content !== 'string') {
+      return this.createErrorResult('INVALID_INPUT', 'Content must be a string');
+    }
+
+    if (content.trim().length === 0) {
+      return this.createErrorResult('EMPTY_CONTENT', 'Content cannot be empty');
+    }
+
     // Use MarkdownParser to parse the content
     const parseResult = await this.markdownParser.parseContent(content);
     
@@ -99,41 +166,136 @@ export class ReadmeParserImpl implements ReadmeParser {
     const { ast, rawContent } = parseResult.data;
     
     try {
-      // Run all analyzers
+      // Get all registered analyzers
       const analyzers = this.analyzerRegistry.getAll();
       if (analyzers.length === 0) {
         return this.createErrorResult('NO_ANALYZERS', 'No analyzers registered');
       }
 
-      // Execute analyzers in parallel
+      // Execute analyzers in parallel with timeout and error isolation
       const analysisPromises = analyzers.map(async analyzer => {
-        const result = await this.runAnalyzer(analyzer, ast, rawContent);
-        return { analyzerName: analyzer.name, result };
+        try {
+          // Add timeout to prevent hanging analyzers
+          const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
+            setTimeout(() => reject(new Error('Analyzer timeout')), 10000); // 10 second timeout
+          });
+
+          const analysisPromise = this.runAnalyzer(analyzer, ast, rawContent);
+          const result = await Promise.race([analysisPromise, timeoutPromise]);
+          
+          return { 
+            analyzerName: analyzer.name, 
+            result,
+            success: true 
+          };
+        } catch (error) {
+          // Create error result for failed analyzer
+          const errorResult: AnalysisResult = {
+            data: null,
+            confidence: 0,
+            sources: [],
+            errors: [{
+              code: 'ANALYZER_EXECUTION_ERROR',
+              message: error instanceof Error ? error.message : 'Unknown analyzer error',
+              component: analyzer.name,
+              severity: 'error'
+            }]
+          };
+          
+          return { 
+            analyzerName: analyzer.name, 
+            result: errorResult,
+            success: false 
+          };
+        }
       });
 
+      // Wait for all analyzers to complete (or fail)
       const analysisResults = await Promise.allSettled(analysisPromises);
       
       // Prepare results map for aggregation
       const resultsMap = new Map<string, AnalysisResult>();
+      const analyzerErrors: ParseError[] = [];
+      let successfulAnalyzers = 0;
       
       for (const promiseResult of analysisResults) {
-        if (promiseResult.status === 'fulfilled' && promiseResult.value.result) {
-          resultsMap.set(promiseResult.value.analyzerName, promiseResult.value.result);
+        if (promiseResult.status === 'fulfilled') {
+          const { analyzerName, result, success } = promiseResult.value;
+          
+          if (result) {
+            resultsMap.set(analyzerName, result);
+            if (success && result.data !== null) {
+              successfulAnalyzers++;
+            }
+            
+            // Collect analyzer-specific errors
+            if (result.errors) {
+              analyzerErrors.push(...result.errors);
+            }
+          }
+        } else {
+          // Promise was rejected
+          analyzerErrors.push({
+            code: 'ANALYZER_PROMISE_REJECTED',
+            message: `Analyzer promise rejected: ${promiseResult.reason}`,
+            component: 'ReadmeParser',
+            severity: 'error'
+          });
         }
+      }
+      
+      // Check if we have any successful results
+      if (successfulAnalyzers === 0) {
+        return {
+          success: false,
+          errors: [
+            {
+              code: 'ALL_ANALYZERS_FAILED',
+              message: 'All analyzers failed to process the content',
+              component: 'ReadmeParser',
+              severity: 'error'
+            },
+            ...analyzerErrors
+          ]
+        };
       }
       
       // Aggregate results using ResultAggregator
       const projectInfo = await this.resultAggregator.aggregate(resultsMap);
-      const errors = this.resultAggregator.getErrors();
-      const warnings = this.resultAggregator.getWarnings();
+      const aggregatorErrors = this.resultAggregator.getErrors();
+      const aggregatorWarnings = this.resultAggregator.getWarnings();
+
+      // Combine all errors
+      const allErrors = [...analyzerErrors, ...aggregatorErrors];
+      const allWarnings = aggregatorWarnings.map(w => w.message);
+
+      // Add performance metadata
+      const performanceInfo = {
+        analyzersRun: analyzers.length,
+        analyzersSuccessful: successfulAnalyzers,
+        analyzersFailed: analyzers.length - successfulAnalyzers
+      };
 
       const result: ParseResult = {
         success: true,
-        data: projectInfo
+        data: {
+          ...projectInfo,
+          // Add performance metadata to confidence scores
+          confidence: {
+            ...projectInfo.confidence,
+            // Adjust overall confidence based on analyzer success rate
+            overall: projectInfo.confidence.overall * (successfulAnalyzers / analyzers.length)
+          }
+        }
       };
       
-      if (errors.length > 0) result.errors = errors;
-      if (warnings.length > 0) result.warnings = warnings.map(w => w.message);
+      // Add errors and warnings if they exist
+      if (allErrors.length > 0) {
+        result.errors = allErrors;
+      }
+      if (allWarnings.length > 0) {
+        result.warnings = allWarnings;
+      }
       
       return result;
 
@@ -144,15 +306,46 @@ export class ReadmeParserImpl implements ReadmeParser {
       return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
     }
   }  /**
-   * Run a single analyzer with error handling
+   * Run a single analyzer with comprehensive error handling
    */
   private async runAnalyzer(
     analyzer: ContentAnalyzer, 
     ast: Token[], 
     content: string
-  ): Promise<AnalysisResult | null> {
+  ): Promise<AnalysisResult> {
     try {
-      return await analyzer.analyze(ast, content);
+      // Validate analyzer
+      if (!analyzer || typeof analyzer.analyze !== 'function') {
+        throw new Error('Invalid analyzer: missing analyze method');
+      }
+
+      // Validate inputs
+      if (!Array.isArray(ast)) {
+        throw new Error('Invalid AST: must be an array of tokens');
+      }
+
+      if (typeof content !== 'string') {
+        throw new Error('Invalid content: must be a string');
+      }
+
+      // Execute analyzer
+      const result = await analyzer.analyze(ast, content);
+      
+      // Validate result structure
+      if (!result || typeof result !== 'object') {
+        throw new Error('Analyzer returned invalid result structure');
+      }
+
+      // Ensure required properties exist
+      const validatedResult: AnalysisResult = {
+        data: result.data ?? null,
+        confidence: typeof result.confidence === 'number' ? Math.max(0, Math.min(1, result.confidence)) : 0,
+        sources: Array.isArray(result.sources) ? result.sources : [],
+        errors: Array.isArray(result.errors) ? result.errors : []
+      };
+
+      return validatedResult;
+
     } catch (error) {
       // Return error result that can be handled in aggregation
       return {
@@ -163,7 +356,12 @@ export class ReadmeParserImpl implements ReadmeParser {
           code: 'ANALYZER_EXECUTION_ERROR',
           message: error instanceof Error ? error.message : 'Unknown analyzer error',
           component: analyzer.name,
-          severity: 'error'
+          severity: 'error',
+          details: {
+            analyzerName: analyzer.name,
+            errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+            timestamp: new Date().toISOString()
+          }
         }]
       };
     }
@@ -172,16 +370,121 @@ export class ReadmeParserImpl implements ReadmeParser {
 
 
   /**
+   * Get information about registered analyzers
+   */
+  getAnalyzerInfo(): { name: string; registered: boolean }[] {
+    return this.analyzerRegistry.getAll().map(analyzer => ({
+      name: analyzer.name,
+      registered: true
+    }));
+  }
+
+  /**
+   * Check if a specific analyzer is registered
+   */
+  hasAnalyzer(analyzerName: string): boolean {
+    return this.analyzerRegistry.getAll().some(analyzer => analyzer.name === analyzerName);
+  }
+
+  /**
+   * Parse content with specific analyzers only
+   */
+  async parseContentWithAnalyzers(content: string, analyzerNames: string[]): Promise<ParseResult> {
+    // Temporarily store current analyzers
+    const originalAnalyzers = this.analyzerRegistry.getAll();
+    
+    try {
+      // Clear and register only specified analyzers
+      this.analyzerRegistry.clear();
+      
+      for (const analyzerName of analyzerNames) {
+        const analyzer = originalAnalyzers.find(a => a.name === analyzerName);
+        if (analyzer) {
+          this.analyzerRegistry.register(analyzer);
+        }
+      }
+      
+      // Parse with limited analyzers
+      const result = await this.parseContent(content);
+      
+      return result;
+      
+    } finally {
+      // Restore original analyzers
+      this.analyzerRegistry.clear();
+      originalAnalyzers.forEach(analyzer => this.analyzerRegistry.register(analyzer));
+    }
+  }
+
+  /**
+   * Validate README content before parsing
+   */
+  validateContent(content: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!content || typeof content !== 'string') {
+      errors.push('Content must be a non-empty string');
+    } else {
+      if (content.trim().length === 0) {
+        errors.push('Content cannot be empty');
+      }
+
+      if (content.length > 1024 * 1024) { // 1MB limit
+        errors.push('Content exceeds maximum size limit (1MB)');
+      }
+
+      // Check for basic markdown structure
+      if (!content.includes('#') && !content.includes('*') && !content.includes('-')) {
+        errors.push('Content does not appear to contain markdown formatting');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Get parser statistics and health information
+   */
+  getParserInfo(): {
+    analyzersRegistered: number;
+    analyzerNames: string[];
+    version: string;
+    capabilities: string[];
+  } {
+    const analyzers = this.analyzerRegistry.getAll();
+    
+    return {
+      analyzersRegistered: analyzers.length,
+      analyzerNames: analyzers.map(a => a.name),
+      version: '1.0.0', // Could be imported from package.json
+      capabilities: [
+        'language-detection',
+        'dependency-extraction', 
+        'command-extraction',
+        'testing-detection',
+        'metadata-extraction',
+        'parallel-processing',
+        'error-recovery',
+        'confidence-scoring'
+      ]
+    };
+  }
+
+  /**
    * Create a standardized error result
    */
-  private createErrorResult(code: string, message: string): ParseResult {
+  private createErrorResult(code: string, message: string, details?: any): ParseResult {
     return {
       success: false,
       errors: [{
         code,
         message,
         component: 'ReadmeParser',
-        severity: 'error'
+        severity: 'error',
+        details: details ? { ...details, timestamp: new Date().toISOString() } : undefined
       }]
     };
   }

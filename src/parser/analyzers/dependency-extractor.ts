@@ -35,9 +35,24 @@ interface PackageMentionPattern {
 }
 
 /**
- * DependencyExtractor class implementing ContentAnalyzer interface
- * Extracts dependency information from README content including package files,
- * installation commands, and package mentions
+ * DependencyExtractor analyzes README content to extract comprehensive dependency information.
+ * 
+ * Extracts three types of dependency information:
+ * - Package files (package.json, requirements.txt, Cargo.toml, go.mod, etc.)
+ * - Installation commands (npm install, pip install, cargo build, etc.)
+ * - Package mentions with versions (react@18.0.0, pandas==1.4.0)
+ * 
+ * Supports major package managers: npm, yarn, pip, cargo, go, maven, gradle, composer, gem
+ * 
+ * @example
+ * ```typescript
+ * const extractor = new DependencyExtractor();
+ * const result = await extractor.analyze(ast, content);
+ * 
+ * console.log('Package files:', result.data.packageFiles);
+ * console.log('Install commands:', result.data.installCommands);
+ * console.log('Packages:', result.data.packages);
+ * ```
  */
 export class DependencyExtractor extends BaseAnalyzer {
   readonly name = 'DependencyExtractor';

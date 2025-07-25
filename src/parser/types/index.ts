@@ -4,27 +4,55 @@
 
 import { Token } from 'marked';
 
-// Main parser interface
+/**
+ * Main parser interface for analyzing README files and extracting structured project information.
+ */
 export interface ReadmeParser {
+  /**
+   * Parse a README file from the filesystem
+   * @param filePath - Path to the README file
+   * @returns Promise resolving to ParseResult with extracted information
+   */
   parseFile(filePath: string): Promise<ParseResult>;
+  
+  /**
+   * Parse README content directly from a string
+   * @param content - Raw README content
+   * @returns Promise resolving to ParseResult with extracted information
+   */
   parseContent(content: string): Promise<ParseResult>;
 }
 
-// Parse result with success/error handling
+/**
+ * Result of parsing a README file, containing either extracted data or error information.
+ */
 export interface ParseResult {
+  /** Whether the parsing operation succeeded */
   success: boolean;
+  /** Extracted project information (only present if success is true) */
   data?: ProjectInfo;
+  /** Array of errors encountered during parsing */
   errors?: ParseError[];
+  /** Array of warning messages */
   warnings?: string[];
 }
 
-// Main project information schema
+/**
+ * Comprehensive project information extracted from a README file.
+ * Contains all analyzed aspects of the project including metadata, languages, dependencies, etc.
+ */
 export interface ProjectInfo {
+  /** Project metadata (name, description, structure, environment variables) */
   metadata: ProjectMetadata;
+  /** Detected programming languages with confidence scores */
   languages: LanguageInfo[];
+  /** Dependency information (package files, install commands, packages) */
   dependencies: DependencyInfo;
+  /** Extracted commands (build, test, run, install) */
   commands: CommandInfo;
+  /** Testing framework and tool information */
   testing: TestingInfo;
+  /** Confidence scores for each analysis category */
   confidence: ConfidenceScores;
 }
 
@@ -142,8 +170,8 @@ export interface ParseError {
   component: string;
   severity: ErrorSeverity;
   details?: any;
-  line?: number;
-  column?: number;
+  line?: number | undefined;
+  column?: number | undefined;
 }
 
 export type ErrorSeverity = 'error' | 'warning' | 'info';

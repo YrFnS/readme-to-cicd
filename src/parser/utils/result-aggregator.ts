@@ -93,7 +93,7 @@ export class ResultAggregator {
    * Extract metadata information from analyzer results
    */
   private extractMetadata(results: Map<string, AnalysisResult>): ProjectMetadata {
-    const metadataResult = results.get('metadata');
+    const metadataResult = results.get('MetadataExtractor') || results.get('metadata');
     
     if (!metadataResult?.data) {
       return {};
@@ -224,7 +224,7 @@ export class ResultAggregator {
     const dependencyConfidence = (results.get('DependencyExtractor') || results.get('dependency'))?.confidence || 0;
     const commandConfidence = results.get('CommandExtractor')?.confidence || 0;
     const testingConfidence = (results.get('TestingDetector') || results.get('testing'))?.confidence || 0;
-    const metadataConfidence = results.get('metadata')?.confidence || 0;
+    const metadataConfidence = (results.get('MetadataExtractor') || results.get('metadata'))?.confidence || 0;
 
     // Normalize all scores
     const scores = {

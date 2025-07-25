@@ -12,9 +12,19 @@ export { ReadmeParserImpl } from './readme-parser';
 export { BaseAnalyzer } from './analyzers/base-analyzer';
 export { AnalyzerRegistry } from './analyzers/analyzer-registry';
 
-// Utilities
+// Utilities (including enhanced error handling)
 export * from './utils/confidence-calculator';
 export * from './utils/validation';
+export { InputValidator, ValidationResult } from './utils/input-validator';
+export { 
+  ParseErrorImpl, 
+  ErrorFactory, 
+  ErrorRecovery, 
+  ErrorAggregator,
+  ErrorCategory,
+  RecoveryStrategy 
+} from './utils/parse-error';
+export { Logger, LogLevel, logger } from './utils/logger';
 export { ResultAggregator } from './utils/result-aggregator';
 
 // Default parser instance factory
@@ -24,5 +34,17 @@ import { ReadmeParserImpl } from './readme-parser';
  * Create a new README parser instance
  */
 export function createReadmeParser(): ReadmeParserImpl {
+  return new ReadmeParserImpl();
+}
+
+/**
+ * Create a new README parser instance with enhanced error handling
+ */
+export function createReadmeParserWithErrorHandling(logLevel?: LogLevel): ReadmeParserImpl {
+  // Configure logger if log level is provided
+  if (logLevel !== undefined) {
+    logger.updateConfig({ level: logLevel });
+  }
+  
   return new ReadmeParserImpl();
 }

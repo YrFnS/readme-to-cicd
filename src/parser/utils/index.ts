@@ -11,8 +11,33 @@ export { MarkdownParser, MarkdownParseError, MarkdownParseResult, MarkdownParser
 // Confidence calculation utilities
 export * from './confidence-calculator';
 
-// Validation utilities
+// Validation utilities (legacy and enhanced)
 export * from './validation';
+export { InputValidator, ValidationResult } from './input-validator';
+
+// Error handling utilities
+export { 
+  ParseErrorImpl, 
+  ErrorFactory, 
+  ErrorRecovery, 
+  ErrorAggregator,
+  ErrorCategory,
+  RecoveryStrategy,
+  RecoveryContext,
+  RecoveryResult,
+  ErrorSummary
+} from './parse-error';
+
+// Logging utilities
+export { 
+  Logger, 
+  LogLevel, 
+  LogEntry, 
+  PerformanceMetrics, 
+  LoggerConfig, 
+  LoggerStatistics,
+  logger 
+} from './logger';
 
 // Result aggregation utilities
 export { ResultAggregator } from './result-aggregator';

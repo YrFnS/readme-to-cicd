@@ -1,123 +1,238 @@
 /**
- * Input validation utilities
+ * Input validation utilities - Legacy compatibility layer
+ * 
+ * This module provides backward compatibility for existing validation functions
+ * while integrating with the new enhanced error handling system.
  */
 
 import { ProjectInfo, ParseError } from '../types';
+import { InputValidator, ValidationResult } from './input-validator';
+import { ErrorFactory, ParseErrorImpl } from './parse-error';
+import { Logger, logger } from './logger';
 
 /**
- * Validate file path format and security
+ * Validate file path format and security (legacy compatibility)
  */
 export function validateFilePath(filePath: string): ParseError | null {
-  if (!filePath || typeof filePath !== 'string') {
-    return {
-      code: 'INVALID_PATH',
-      message: 'File path must be a non-empty string',
-      component: 'Validation',
-      severity: 'error'
-    };
+  const correlationId = Logger.generateCorrelationId();
+  logger.debug('LegacyValidation', 'Validating file path', { filePath }, correlationId);
+
+  const result = InputValidator.validateFilePath(filePath);
+  
+  if (!result.isValid && result.errors.length > 0) {
+    const error = result.errors[0];
+    logger.logParseError(error, correlationId);
+    return error.toJSON();
   }
 
-  // Check for directory traversal attempts
-  if (filePath.includes('..') || filePath.includes('~')) {
-    return {
-      code: 'UNSAFE_PATH',
-      message: 'File path contains potentially unsafe characters',
-      component: 'Validation',
-      severity: 'error'
-    };
-  }
-
-  return null;
-}
-
-/**
- * Validate content string
- */
-export function validateContent(content: string): ParseError | null {
-  if (typeof content !== 'string') {
-    return {
-      code: 'INVALID_CONTENT_TYPE',
-      message: 'Content must be a string',
-      component: 'Validation',
-      severity: 'error'
-    };
-  }
-
-  if (content.length === 0) {
-    return {
-      code: 'EMPTY_CONTENT',
-      message: 'Content cannot be empty',
-      component: 'Validation',
-      severity: 'warning'
-    };
-  }
-
-  // Check for extremely large content (>10MB)
-  if (content.length > 10 * 1024 * 1024) {
-    return {
-      code: 'CONTENT_TOO_LARGE',
-      message: 'Content exceeds maximum size limit (10MB)',
-      component: 'Validation',
-      severity: 'error'
-    };
-  }
-
-  return null;
-}
-
-/**
- * Validate ProjectInfo structure
- */
-export function validateProjectInfo(projectInfo: ProjectInfo): ParseError[] {
-  const errors: ParseError[] = [];
-
-  // Validate confidence scores are in 0-1 range
-  const confidenceFields = Object.entries(projectInfo.confidence);
-  for (const [field, score] of confidenceFields) {
-    if (typeof score !== 'number' || score < 0 || score > 1) {
-      errors.push({
-        code: 'INVALID_CONFIDENCE',
-        message: `Confidence score for ${field} must be between 0 and 1`,
-        component: 'Validation',
-        severity: 'error'
-      });
-    }
-  }
-
-  // Validate language info
-  projectInfo.languages.forEach((lang, index) => {
-    if (!lang.name || typeof lang.name !== 'string') {
-      errors.push({
-        code: 'INVALID_LANGUAGE_NAME',
-        message: `Language at index ${index} must have a valid name`,
-        component: 'Validation',
-        severity: 'error'
-      });
-    }
+  // Log warnings if any
+  result.warnings.forEach(warning => {
+    logger.logParseError(warning, correlationId);
   });
 
-  return errors;
+  return null;
+}
+
+/**
+ * Validate content string (legacy compatibility)
+ */
+export function validateContent(content: string): ParseError | null {
+  const correlationId = Logger.generateCorrelationId();
+  logger.debug('LegacyValidation', 'Validating content', { contentLength: content?.length }, correlationId);
+
+  const result = InputValidator.validateContent(content);
+  
+  if (!result.isValid && result.errors.length > 0) {
+    const error = result.errors[0];
+    logger.logParseError(error, correlationId);
+    return error.toJSON();
+  }
+
+  // Log warnings if any
+  result.warnings.forEach(warning => {
+    logger.logParseError(warning, correlationId);
+  });
+
+  return null;
+}
+
+/**
+ * Validate ProjectInfo structure (legacy compatibility)
+ */
+export function validateProjectInfo(projectInfo: ProjectInfo): ParseError[] {
+  const correlationId = Logger.generateCorrelationId();
+  logger.debug('LegacyValidation', 'Validating project info structure', { projectInfo }, correlationId);
+
+  const result = InputValidator.validateProjectInfo(projectInfo);
+  
+  const allErrors = [...result.errors, ...result.warnings];
+  
+  // Log all errors and warnings
+  allErrors.forEach(error => {
+    logger.logParseError(error, correlationId);
+  });
+
+  return allErrors.map(error => error.toJSON());
+}
+
+/**
+ * Enhanced validation with full error context
+ */
+export function validateFilePathEnhanced(filePath: string): ValidationResult {
+  const correlationId = Logger.generateCorrelationId();
+  logger.debug('EnhancedValidation', 'Enhanced file path validation', { filePath }, correlationId);
+
+  const result = InputValidator.validateFilePath(filePath);
+  
+  // Log all errors and warnings
+  [...result.errors, ...result.warnings].forEach(error => {
+    logger.logParseError(error, correlationId);
+  });
+
+  return result;
+}
+
+/**
+ * Enhanced content validation with full error context
+ */
+export function validateContentEnhanced(content: string, encoding?: string): ValidationResult {
+  const correlationId = Logger.generateCorrelationId();
+  logger.debug('EnhancedValidation', 'Enhanced content validation', { 
+    contentLength: content?.length, 
+    encoding 
+  }, correlationId);
+
+  const result = InputValidator.validateContent(content, encoding);
+  
+  // Log all errors and warnings
+  [...result.errors, ...result.warnings].forEach(error => {
+    logger.logParseError(error, correlationId);
+  });
+
+  return result;
 }
 
 /**
  * Sanitize string input to prevent injection attacks
  */
 export function sanitizeString(input: string): string {
-  if (typeof input !== 'string') return '';
+  if (typeof input !== 'string') {
+    logger.warn('LegacyValidation', 'Invalid input type for sanitization', { 
+      inputType: typeof input 
+    });
+    return '';
+  }
   
-  return input
+  const sanitized = input
     .replace(/[<>]/g, '') // Remove potential HTML tags
     .replace(/['"]/g, '') // Remove quotes
     .trim();
+
+  if (sanitized !== input) {
+    logger.debug('LegacyValidation', 'String was sanitized', { 
+      original: input.substring(0, 100), 
+      sanitized: sanitized.substring(0, 100) 
+    });
+  }
+
+  return sanitized;
 }
 
 /**
  * Check if a string is a valid package name
  */
 export function isValidPackageName(name: string): boolean {
-  if (!name || typeof name !== 'string') return false;
+  if (!name || typeof name !== 'string') {
+    logger.debug('LegacyValidation', 'Invalid package name type', { 
+      name, 
+      type: typeof name 
+    });
+    return false;
+  }
   
   // Basic package name validation (alphanumeric, hyphens, underscores, dots)
   const packageNameRegex = /^[a-zA-Z0-9._-]+$/;
-  return packageNameRegex.test(name) && name.length <= 100;
+  const isValid = packageNameRegex.test(name) && name.length <= 100;
+
+  if (!isValid) {
+    logger.debug('LegacyValidation', 'Package name validation failed', { 
+      name, 
+      length: name.length,
+      regexMatch: packageNameRegex.test(name)
+    });
+  }
+
+  return isValid;
+}
+
+/**
+ * Comprehensive validation for all parser inputs
+ */
+export function validateParserInputs(
+  filePath?: string,
+  content?: string,
+  encoding?: string
+): {
+  isValid: boolean;
+  errors: ParseErrorImpl[];
+  warnings: ParseErrorImpl[];
+  sanitizedInputs?: {
+    filePath?: string;
+    content?: string;
+  };
+} {
+  const correlationId = Logger.generateCorrelationId();
+  const trackingId = logger.startPerformanceTracking('validateParserInputs', correlationId);
+
+  logger.info('ComprehensiveValidation', 'Starting comprehensive input validation', {
+    hasFilePath: !!filePath,
+    hasContent: !!content,
+    encoding
+  }, correlationId);
+
+  const allErrors: ParseErrorImpl[] = [];
+  const allWarnings: ParseErrorImpl[] = [];
+  const sanitizedInputs: any = {};
+
+  // Validate file path if provided
+  if (filePath) {
+    const pathResult = InputValidator.validateFilePath(filePath);
+    allErrors.push(...pathResult.errors);
+    allWarnings.push(...pathResult.warnings);
+    if (pathResult.sanitizedValue) {
+      sanitizedInputs.filePath = pathResult.sanitizedValue;
+    }
+  }
+
+  // Validate content if provided
+  if (content) {
+    const contentResult = InputValidator.validateContent(content, encoding);
+    allErrors.push(...contentResult.errors);
+    allWarnings.push(...contentResult.warnings);
+    if (contentResult.sanitizedValue) {
+      sanitizedInputs.content = contentResult.sanitizedValue;
+    }
+  }
+
+  // Log all errors and warnings
+  [...allErrors, ...allWarnings].forEach(error => {
+    logger.logParseError(error, correlationId);
+  });
+
+  const isValid = allErrors.length === 0;
+  
+  logger.info('ComprehensiveValidation', 'Completed comprehensive input validation', {
+    isValid,
+    errorCount: allErrors.length,
+    warningCount: allWarnings.length
+  }, correlationId);
+
+  logger.endPerformanceTracking(trackingId, correlationId);
+
+  return {
+    isValid,
+    errors: allErrors,
+    warnings: allWarnings,
+    sanitizedInputs: Object.keys(sanitizedInputs).length > 0 ? sanitizedInputs : undefined
+  };
 }

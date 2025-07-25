@@ -8,3 +8,4 @@ export { LanguageDetector } from './language-detector';
 export { DependencyExtractor } from './dependency-extractor';
 export { CommandExtractor } from './command-extractor';
 export { TestingDetector } from './testing-detector';
+export { MetadataExtractor } from './metadata-extractor';

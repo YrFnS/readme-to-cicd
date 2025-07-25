@@ -27,8 +27,24 @@ interface LanguageDetectionResult {
 }
 
 /**
- * LanguageDetector class implementing ContentAnalyzer interface
- * Detects programming languages from README content using multiple strategies
+ * LanguageDetector analyzes README content to detect programming languages using multiple strategies.
+ * 
+ * Detection strategies include:
+ * - Code block language identifiers (```javascript, ```python, etc.)
+ * - Pattern matching for language-specific syntax
+ * - Text analysis for language mentions in prose
+ * - File reference detection (.js, .py, package.json, etc.)
+ * 
+ * @example
+ * ```typescript
+ * const detector = new LanguageDetector();
+ * const result = await detector.analyze(ast, content);
+ * 
+ * // Result contains detected languages with confidence scores
+ * result.data.forEach(lang => {
+ *   console.log(`${lang.name}: ${lang.confidence} (sources: ${lang.sources.join(', ')})`);
+ * });
+ * ```
  */
 export class LanguageDetector extends BaseAnalyzer {
   readonly name = 'LanguageDetector';
@@ -185,7 +201,17 @@ export class LanguageDetector extends BaseAnalyzer {
   ]);
 
   /**
-   * Analyze markdown content to detect programming languages
+   * Analyze markdown content to detect programming languages using multiple detection strategies.
+   * 
+   * @param ast - Parsed markdown AST tokens
+   * @param rawContent - Raw markdown content string
+   * @returns Promise resolving to AnalysisResult containing detected languages with confidence scores
+   * 
+   * The analysis combines:
+   * - Code block language extraction (```javascript, ```python)
+   * - Pattern matching for language-specific syntax
+   * - Text mentions of languages in prose
+   * - File reference detection (.js, .py, package.json)
    */
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
     try {
