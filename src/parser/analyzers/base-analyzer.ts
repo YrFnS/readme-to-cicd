@@ -1,79 +1,96 @@
 /**
- * Base analyzer interface and utilities
+ * Base analyzer class with common functionality
  */
 
-import { ContentAnalyzer, AnalysisResult, ParseError, MarkdownAST } from '../types';
+import { MarkdownAST } from '../../shared/markdown-parser';
+import { AnalyzerResult, ParseError } from '../types';
+import { Analyzer } from './registry';
 
 /**
- * Abstract base class for content analyzers
- * Provides common functionality and enforces interface compliance
+ * Abstract base class for all analyzers
  */
-export abstract class BaseAnalyzer implements ContentAnalyzer {
+export abstract class BaseAnalyzer<T> implements Analyzer<T> {
   abstract readonly name: string;
 
   /**
-   * Analyze markdown content and return structured results
+   * Main analysis method that subclasses must implement
    */
-  abstract analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult>;
+  abstract analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<T>>;
 
   /**
-   * Create a standardized error for this analyzer
+   * Create a successful result
+   */
+  protected createSuccessResult(data: T, confidence: number, sources: string[] = []): AnalyzerResult<T> {
+    return {
+      success: true,
+      data,
+      confidence,
+      sources
+    };
+  }
+
+  /**
+   * Create an error result
+   */
+  protected createErrorResult(error: ParseError, confidence: number = 0): AnalyzerResult<T> {
+    return {
+      success: false,
+      confidence,
+      errors: [error]
+    };
+  }
+
+  /**
+   * Create a parse error
    */
   protected createError(
-    code: string, 
-    message: string, 
-    details?: any,
-    line?: number
+    code: string,
+    message: string,
+    severity: 'error' | 'warning' | 'info' = 'error',
+    details?: any
   ): ParseError {
-    const error: ParseError = {
-      code,
-      message,
-      component: this.name,
-      severity: 'error'
-    };
-    
-    if (details !== undefined) error.details = details;
-    if (line !== undefined) error.line = line;
-    
-    return error;
-  }
-
-  /**
-   * Create a standardized warning for this analyzer
-   */
-  protected createWarning(
-    code: string, 
-    message: string, 
-    details?: any,
-    line?: number
-  ): ParseError {
-    const warning: ParseError = {
-      code,
-      message,
-      component: this.name,
-      severity: 'warning'
-    };
-    
-    if (details !== undefined) warning.details = details;
-    if (line !== undefined) warning.line = line;
-    
-    return warning;
-  }
-
-  /**
-   * Create a successful analysis result
-   */
-  protected createResult(
-    data: any, 
-    confidence: number, 
-    sources: string[] = [],
-    errors: ParseError[] = []
-  ): AnalysisResult {
     return {
-      data,
-      confidence: Math.max(0, Math.min(1, confidence)), // Clamp between 0-1
-      sources,
-      errors
+      code,
+      message,
+      component: this.name,
+      severity,
+      details
     };
+  }
+
+  /**
+   * Safely extract text from content with error handling
+   */
+  protected safeExtract<R>(
+    operation: () => R,
+    fallback: R,
+    errorCode: string = 'EXTRACTION_ERROR'
+  ): R {
+    try {
+      return operation();
+    } catch (error) {
+      console.warn(`${this.name}: ${errorCode}:`, error);
+      return fallback;
+    }
+  }
+
+  /**
+   * Calculate confidence based on multiple factors
+   */
+  protected calculateConfidence(factors: { weight: number; score: number }[]): number {
+    if (factors.length === 0) return 0;
+
+    const totalWeight = factors.reduce((sum, factor) => sum + factor.weight, 0);
+    if (totalWeight === 0) return 0;
+
+    const weightedSum = factors.reduce((sum, factor) => sum + (factor.weight * factor.score), 0);
+    return Math.min(1, Math.max(0, weightedSum / totalWeight));
+  }
+
+  /**
+   * Normalize confidence score to 0-1 range
+   */
+  protected normalizeConfidence(score: number): number {
+    return Math.min(1, Math.max(0, score));
   }
 }

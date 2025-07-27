@@ -1,692 +1,552 @@
-/**
- * DependencyExtractor - Analyzes README content to extract dependency information
- */
-
+import { AnalyzerResult, DependencyInfo, Dependency, PackageManagerType } from '../types';
+import { MarkdownAST, MarkdownUtils } from '../../shared/markdown-parser';
 import { BaseAnalyzer } from './base-analyzer';
-import { AnalysisResult, DependencyInfo, PackageFile, Package, Command, PackageManagerType, MarkdownAST } from '../types';
 
 /**
- * Package file detection patterns
+ * Extracts dependency information from README content
  */
-interface PackageFilePattern {
-  name: string;
-  type: PackageManagerType;
-  patterns: RegExp[];
-  confidence: number;
-}
-
-/**
- * Installation command patterns
- */
-interface InstallCommandPattern {
-  manager: PackageManagerType;
-  patterns: RegExp[];
-  confidence: number;
-  extractPackages?: (match: string) => string[];
-}
-
-/**
- * Package mention patterns for extracting package names and versions
- */
-interface PackageMentionPattern {
-  manager: PackageManagerType;
-  patterns: RegExp[];
-  confidence: number;
-}
-
-/**
- * DependencyExtractor analyzes README content to extract comprehensive dependency information.
- * 
- * Extracts three types of dependency information:
- * - Package files (package.json, requirements.txt, Cargo.toml, go.mod, etc.)
- * - Installation commands (npm install, pip install, cargo build, etc.)
- * - Package mentions with versions (react@18.0.0, pandas==1.4.0)
- * 
- * Supports major package managers: npm, yarn, pip, cargo, go, maven, gradle, composer, gem
- * 
- * @example
- * ```typescript
- * const extractor = new DependencyExtractor();
- * const result = await extractor.analyze(ast, content);
- * 
- * console.log('Package files:', result.data.packageFiles);
- * console.log('Install commands:', result.data.installCommands);
- * console.log('Packages:', result.data.packages);
- * ```
- */
-export class DependencyExtractor extends BaseAnalyzer {
+export class DependencyExtractor extends BaseAnalyzer<DependencyInfo> {
   readonly name = 'DependencyExtractor';
 
-  // Package file detection patterns
-  private readonly packageFilePatterns: PackageFilePattern[] = [
-    {
-      name: 'package.json',
-      type: 'npm',
-      patterns: [
-        /\bpackage\.json\b/gi,
-        /\bpackage-lock\.json\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'yarn.lock',
-      type: 'yarn',
-      patterns: [
-        /\byarn\.lock\b/gi,
-        /\b\.yarnrc\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'requirements.txt',
-      type: 'pip',
-      patterns: [
-        /\brequirements\.txt\b/gi,
-        /\brequirements-dev\.txt\b/gi,
-        /\brequirements\/.*\.txt\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'setup.py',
-      type: 'pip',
-      patterns: [
-        /\bsetup\.py\b/gi,
-        /\bsetup\.cfg\b/gi
-      ],
-      confidence: 0.8
-    },
-    {
-      name: 'Pipfile',
-      type: 'pip',
-      patterns: [
-        /\bPipfile\b/g,
-        /\bPipfile\.lock\b/g
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'pyproject.toml',
-      type: 'pip',
-      patterns: [
-        /\bpyproject\.toml\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'Cargo.toml',
-      type: 'cargo',
-      patterns: [
-        /\bCargo\.toml\b/g,
-        /\bCargo\.lock\b/g
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'go.mod',
-      type: 'go',
-      patterns: [
-        /\bgo\.mod\b/gi,
-        /\bgo\.sum\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'pom.xml',
-      type: 'maven',
-      patterns: [
-        /\bpom\.xml\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'build.gradle',
-      type: 'gradle',
-      patterns: [
-        /\bbuild\.gradle\b/gi,
-        /\bbuild\.gradle\.kts\b/gi,
-        /\bsettings\.gradle\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'composer.json',
-      type: 'composer',
-      patterns: [
-        /\bcomposer\.json\b/gi,
-        /\bcomposer\.lock\b/gi
-      ],
-      confidence: 0.9
-    },
-    {
-      name: 'Gemfile',
-      type: 'gem',
-      patterns: [
-        /\bGemfile\b/g,
-        /\bGemfile\.lock\b/g
-      ],
-      confidence: 0.9
-    }
+  private packageFilePatterns = [
+    { name: 'package.json', type: 'npm', pattern: /package\.json/gi },
+    { name: 'requirements.txt', type: 'pip', pattern: /requirements\.txt/gi },
+    { name: 'setup.py', type: 'pip', pattern: /setup\.py/gi },
+    { name: 'pyproject.toml', type: 'pip', pattern: /pyproject\.toml/gi },
+    { name: 'Cargo.toml', type: 'cargo', pattern: /Cargo\.toml/gi },
+    { name: 'go.mod', type: 'go', pattern: /go\.mod/gi },
+    { name: 'pom.xml', type: 'maven', pattern: /pom\.xml/gi },
+    { name: 'build.gradle', type: 'gradle', pattern: /build\.gradle/gi },
+    { name: 'composer.json', type: 'composer', pattern: /composer\.json/gi },
+    { name: 'Gemfile', type: 'gem', pattern: /Gemfile/gi }
   ];
 
-  // Installation command patterns
-  private readonly installCommandPatterns: InstallCommandPattern[] = [
-    {
-      manager: 'npm',
-      patterns: [
-        /npm\s+install(?:\s+([^\s\n\r;]+(?:\s+[^\s\n\r;]+)*))?/gm,
-        /npm\s+i(?:\s+([^\s\n\r;]+(?:\s+[^\s\n\r;]+)*))?/gm,
-        /npm\s+ci/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/npm\s+(?:install|i)\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'install' && pkg !== 'i' && this.isValidPackageName(pkg, 'npm')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'yarn',
-      patterns: [
-        /yarn\s+install/gm,
-        /yarn\s+add(?:\s+([^\n\r;]+))?/gm,
-        /yarn(?:\s+([^\n\r;]+))?/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/yarn\s+add\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'add' && this.isValidPackageName(pkg, 'yarn')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'pip',
-      patterns: [
-        /pip\s+install(?:\s+([^\n\r;]+))?/gm,
-        /pip3\s+install(?:\s+([^\n\r;]+))?/gm,
-        /python\s+-m\s+pip\s+install(?:\s+([^\n\r;]+))?/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/pip3?\s+install\s+([^\n\r;]+)/i) || 
-                           match.match(/python\s+-m\s+pip\s+install\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'install' && this.isValidPackageName(pkg, 'pip')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'cargo',
-      patterns: [
-        /cargo\s+install(?:\s+([^\n\r;]+))?/gm,
-        /cargo\s+build/gm,
-        /cargo\s+add(?:\s+([^\n\r;]+))?/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/cargo\s+(?:install|add)\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'install' && pkg !== 'add' && this.isValidPackageName(pkg, 'cargo')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'go',
-      patterns: [
-        /go\s+get(?:\s+([^\n\r;]+))?/gm,
-        /go\s+mod\s+download/gm,
-        /go\s+install(?:\s+([^\n\r;]+))?/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/go\s+(?:get|install)\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'get' && pkg !== 'install' && this.isValidPackageName(pkg, 'go')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'maven',
-      patterns: [
-        /mvn\s+install/gm,
-        /mvn\s+compile/gm,
-        /mvn\s+dependency:resolve/gm,
-        /maven\s+install/gm
-      ],
-      confidence: 0.8
-    },
-    {
-      manager: 'gradle',
-      patterns: [
-        /gradle\s+build/gm,
-        /gradle\s+install/gm,
-        /\.\/gradlew\s+build/gm,
-        /gradlew\s+build/gm
-      ],
-      confidence: 0.8
-    },
-    {
-      manager: 'composer',
-      patterns: [
-        /composer\s+install/gm,
-        /composer\s+require(?:\s+([^\n\r;]+))?/gm,
-        /composer\s+update/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/composer\s+require\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'require' && this.isValidPackageName(pkg, 'composer')
-          );
-        }
-        return [];
-      }
-    },
-    {
-      manager: 'gem',
-      patterns: [
-        /gem\s+install(?:\s+([^\n\r;]+))?/gm,
-        /bundle\s+install/gm,
-        /bundle\s+exec/gm
-      ],
-      confidence: 0.9,
-      extractPackages: (match: string) => {
-        const packageMatch = match.match(/gem\s+install\s+([^\n\r;]+)/i);
-        if (packageMatch && packageMatch[1]) {
-          return packageMatch[1].trim().split(/\s+/).filter(pkg => 
-            pkg && !pkg.startsWith('-') && pkg !== 'install' && this.isValidPackageName(pkg, 'gem')
-          );
-        }
-        return [];
-      }
-    }
+  private dependencyPatterns = [
+    // npm/yarn dependencies
+    { pattern: /"([^"]+)"\s*:\s*"([^"]+)"/g, type: 'npm' },
+    // pip requirements
+    { pattern: /^([a-zA-Z0-9-_]+)([>=<~!]+[0-9.]+)?$/gm, type: 'pip' },
+    // cargo dependencies
+    { pattern: /([a-zA-Z0-9-_]+)\s*=\s*"([^"]+)"/g, type: 'cargo' }
   ];
 
-  // Package mention patterns for extracting specific packages
-  private readonly packageMentionPatterns: PackageMentionPattern[] = [
-    {
-      manager: 'npm',
-      patterns: [
-        /"([^"]+)":\s*"([^"]+)"/g, // JSON-style dependencies
-        /npm\s+install\s+([^\s\n\r;]+)(?:@([^\s\n\r;]+))?/gi,
-        /require\(['"]([^'"]+)['"]\)/g
-      ],
-      confidence: 0.7
-    },
-    {
-      manager: 'pip',
-      patterns: [
-        /pip\s+install\s+([^\s\n\r;=]+)(?:==([^\s\n\r;]+))?/gi,
-        /import\s+([^\s\n\r;.]+)/g,
-        /from\s+([^\s\n\r;.]+)\s+import/g
-      ],
-      confidence: 0.6
-    },
-    {
-      manager: 'cargo',
-      patterns: [
-        /\[dependencies\][\s\S]*?([a-zA-Z_][a-zA-Z0-9_-]*)\s*=\s*"([^"]+)"/g,
-        /cargo\s+add\s+([^\s\n\r;]+)(?:@([^\s\n\r;]+))?/gi
-      ],
-      confidence: 0.7
-    },
-    {
-      manager: 'go',
-      patterns: [
-        /go\s+get\s+([^\s\n\r;]+)(?:@([^\s\n\r;]+))?/gi,
-        /import\s+"([^"]+)"/g,
-        /require\s+([^\s\n\r;]+)\s+([^\s\n\r;]+)/g
-      ],
-      confidence: 0.7
-    }
-  ];
-
-  /**
-   * Analyze markdown content to extract dependency information
-   */
-  async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
+  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<DependencyInfo>> {
     try {
-      const packageFiles: PackageFile[] = [];
-      const installCommands: Command[] = [];
-      const packages: Package[] = [];
-
-      // 1. Detect package files
-      this.detectPackageFiles(rawContent, packageFiles);
-
-      // 2. Extract installation commands from code blocks
-      this.extractInstallCommands(ast, rawContent, installCommands, packages);
-
-      // 3. Extract package mentions
-      this.extractPackageMentions(rawContent, packages);
-
-      // 4. Create dependency info object
-      const dependencyInfo: DependencyInfo = {
-        packageFiles,
-        installCommands,
-        packages: this.deduplicatePackages(packages)
-      };
-
-      // 5. Calculate confidence
-      const confidence = this.calculateConfidence(dependencyInfo);
-
-      return this.createResult(
-        dependencyInfo,
-        confidence,
-        this.extractSources(dependencyInfo)
-      );
-
+      const sources: string[] = [];
+      const dependencyInfo = this.extractDependencies(ast, content, sources);
+      const confidence = this.calculateDependencyConfidence(dependencyInfo);
+      
+      return this.createSuccessResult(dependencyInfo, confidence, sources);
     } catch (error) {
       const parseError = this.createError(
         'DEPENDENCY_EXTRACTION_ERROR',
-        `Failed to extract dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        { error: error instanceof Error ? error.message : error }
+        `Failed to extract dependencies: ${(error as Error).message}`,
+        'error'
       );
-
-      return this.createResult({
-        packageFiles: [],
-        installCommands: [],
-        packages: []
-      }, 0, [], [parseError]);
+      return this.createErrorResult(parseError);
     }
   }
 
-  /**
-   * Detect package files mentioned in the README
-   */
-  private detectPackageFiles(content: string, packageFiles: PackageFile[]): void {
-    for (const pattern of this.packageFilePatterns) {
-      let mentioned = false;
+  private extractDependencies(ast: MarkdownAST, content: string, sources: string[]): DependencyInfo {
+    const dependencyInfo: DependencyInfo = {
+      packageFiles: [],
+      installCommands: [],
+      packages: [],
+      dependencies: [],
+      devDependencies: []
+    };
+
+    // Extract package files mentioned
+    if (this.extractPackageFiles(content, dependencyInfo)) {
+      sources.push('package-files');
+    }
+    
+    // Extract dependencies from code blocks
+    if (this.extractFromCodeBlocks(ast, dependencyInfo)) {
+      sources.push('code-blocks');
+    }
+    
+    // Extract dependencies from install commands
+    if (this.extractFromInstallCommands(content, dependencyInfo)) {
+      sources.push('install-commands');
+    }
+    
+    // Extract package mentions from text content
+    if (this.extractPackageMentions(content, dependencyInfo)) {
+      sources.push('package-mentions');
+    }
+
+    return dependencyInfo;
+  }
+
+  private extractPackageFiles(content: string, dependencyInfo: DependencyInfo): boolean {
+    let found = false;
+    for (const packageFile of this.packageFilePatterns) {
+      const matches = content.match(packageFile.pattern);
+      if (matches) {
+        const exists = dependencyInfo.packageFiles.some(pf => pf.name === packageFile.name);
+        if (!exists) {
+          dependencyInfo.packageFiles.push({
+            name: packageFile.name,
+            type: packageFile.type as PackageManagerType,
+            mentioned: true,
+            confidence: 0.9
+          });
+          found = true;
+        }
+      }
+    }
+    return found;
+  }
+
+  private extractFromCodeBlocks(ast: MarkdownAST, dependencyInfo: DependencyInfo): boolean {
+    let found = false;
+    
+    // Find all code blocks in the AST
+    const codeBlocks = MarkdownUtils.findCodeBlocks(ast);
+    
+    for (const node of codeBlocks) {
+      const codeValue = MarkdownUtils.getCodeValue(node);
+      if (codeValue) {
+        const lang = ('lang' in node && typeof node.lang === 'string') ? node.lang.toLowerCase() : '';
+        
+        // Extract install commands from bash/shell code blocks
+        if (lang === 'bash' || lang === 'shell' || lang === 'sh' || lang === '') {
+          if (this.extractInstallCommandsFromCode(codeValue, dependencyInfo)) {
+            found = true;
+          }
+        }
+        
+        // JSON code blocks (likely package.json)
+        if (lang === 'json' || lang === 'javascript') {
+          if (this.extractFromJSON(codeValue, dependencyInfo)) {
+            found = true;
+          }
+        }
+        
+        // TOML code blocks (likely Cargo.toml)
+        if (lang === 'toml') {
+          if (this.extractFromTOML(codeValue, dependencyInfo)) {
+            found = true;
+          }
+        }
+        
+        // Requirements format
+        if (lang === 'txt' || lang === 'requirements') {
+          if (this.extractFromRequirements(codeValue, dependencyInfo)) {
+            found = true;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  private extractFromJSON(jsonContent: string, dependencyInfo: DependencyInfo): boolean {
+    try {
+      const parsed = JSON.parse(jsonContent);
       
-      for (const regex of pattern.patterns) {
-        if (regex.test(content)) {
-          mentioned = true;
+      if (parsed.dependencies) {
+        for (const [name, version] of Object.entries(parsed.dependencies)) {
+          this.addDependency(dependencyInfo.dependencies, {
+            name,
+            version: version as string,
+            type: 'production',
+            manager: 'npm',
+            confidence: 0.9,
+            source: 'package.json'
+          });
+        }
+      }
+      
+      if (parsed.devDependencies) {
+        for (const [name, version] of Object.entries(parsed.devDependencies)) {
+          this.addDependency(dependencyInfo.devDependencies, {
+            name,
+            version: version as string,
+            type: 'development',
+            manager: 'npm',
+            confidence: 0.9,
+            source: 'package.json'
+          });
+        }
+      }
+      return true;
+    } catch {
+      // Not valid JSON, try to extract patterns
+      return this.extractDependencyPatterns(jsonContent, dependencyInfo, 'npm');
+    }
+  }
+
+  private extractFromTOML(tomlContent: string, dependencyInfo: DependencyInfo): boolean {
+    let found = false;
+    // Simple TOML parsing for dependencies section
+    const dependenciesSection = tomlContent.match(/\[dependencies\]([\s\S]*?)(?=\[|$)/);
+    if (dependenciesSection && dependenciesSection[1]) {
+      if (this.extractDependencyPatterns(dependenciesSection[1], dependencyInfo, 'cargo')) {
+        found = true;
+      }
+    }
+    
+    const devDependenciesSection = tomlContent.match(/\[dev-dependencies\]([\s\S]*?)(?=\[|$)/);
+    if (devDependenciesSection && devDependenciesSection[1]) {
+      if (this.extractDependencyPatterns(devDependenciesSection[1], dependencyInfo, 'cargo', true)) {
+        found = true;
+      }
+    }
+    return found;
+  }
+
+  private extractFromRequirements(requirementsContent: string, dependencyInfo: DependencyInfo): boolean {
+    const lines = requirementsContent.split('\n');
+    let found = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed && !trimmed.startsWith('#')) {
+        const match = trimmed.match(/^([a-zA-Z0-9-_]+)([>=<~!]+[0-9.]+)?/);
+        if (match) {
+          if (match[1]) {
+            this.addDependency(dependencyInfo.dependencies, {
+              name: match[1],
+              version: match[2],
+              type: 'production',
+              manager: 'pip',
+              confidence: 0.8,
+              source: 'requirements.txt'
+            });
+            found = true;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  private extractDependencyPatterns(content: string, dependencyInfo: DependencyInfo, type: string, isDev = false): boolean {
+    const targetArray = isDev ? dependencyInfo.devDependencies : dependencyInfo.dependencies;
+    let found = false;
+    
+    for (const pattern of this.dependencyPatterns) {
+      if (pattern.type === type) {
+        let match;
+        while ((match = pattern.pattern.exec(content)) !== null) {
+          if (match[1]) {
+            this.addDependency(targetArray, {
+              name: match[1],
+              version: match[2],
+              type: isDev ? 'development' : 'production',
+              manager: type as PackageManagerType,
+              confidence: 0.7,
+              source: `${type} pattern`
+            });
+            found = true;
+          }
+        }
+        pattern.pattern.lastIndex = 0; // Reset regex state
+      }
+    }
+    return found;
+  }
+
+  private extractInstallCommandsFromCode(codeContent: string, dependencyInfo: DependencyInfo): boolean {
+    const lines = codeContent.split('\n');
+    let found = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      
+      // Extract various install commands
+      const installPatterns = [
+        // npm commands
+        { pattern: /^(npm\s+(?:install|i|ci)(?:\s+.+)?)/i, manager: 'npm' as PackageManagerType },
+        // yarn commands  
+        { pattern: /^(yarn\s+(?:add|install)(?:\s+.+)?)/i, manager: 'yarn' as PackageManagerType },
+        // pip commands
+        { pattern: /^(pip\s+install(?:\s+.+)?)/i, manager: 'pip' as PackageManagerType },
+        { pattern: /^(pip3\s+install(?:\s+.+)?)/i, manager: 'pip' as PackageManagerType },
+        { pattern: /^(python\s+-m\s+pip\s+install(?:\s+.+)?)/i, manager: 'pip' as PackageManagerType },
+        // cargo commands
+        { pattern: /^(cargo\s+(?:add|install|build)(?:\s+.+)?)/i, manager: 'cargo' as PackageManagerType },
+        // go commands
+        { pattern: /^(go\s+(?:get|install|mod\s+(?:tidy|download))(?:\s+.+)?)/i, manager: 'go' as PackageManagerType },
+        // java commands
+        { pattern: /^(mvn\s+(?:install|compile)(?:\s+.+)?)/i, manager: 'maven' as PackageManagerType },
+        { pattern: /^(gradle\s+(?:build|install)(?:\s+.+)?)/i, manager: 'gradle' as PackageManagerType },
+        { pattern: /^(\.\/gradlew\s+(?:build|install)(?:\s+.+)?)/i, manager: 'gradle' as PackageManagerType },
+        // php/ruby commands
+        { pattern: /^(composer\s+(?:install|require)(?:\s+.+)?)/i, manager: 'composer' as PackageManagerType },
+        { pattern: /^(gem\s+install(?:\s+.+)?)/i, manager: 'gem' as PackageManagerType },
+        { pattern: /^(bundle\s+install(?:\s+.+)?)/i, manager: 'bundler' as PackageManagerType }
+      ];
+      
+      for (const { pattern, manager } of installPatterns) {
+        const match = trimmed.match(pattern);
+        if (match && match[1]) {
+          const command = match[1].trim();
+          
+          // Check if this command already exists to avoid duplicates
+          const exists = dependencyInfo.installCommands.some(cmd => cmd.command === command);
+          if (!exists) {
+            // Add to install commands
+            dependencyInfo.installCommands.push({
+              command,
+              confidence: 0.9,
+              context: 'code-block'
+            });
+            
+            // Extract package names from the command
+            this.extractPackagesFromCommand(command, manager, dependencyInfo);
+            found = true;
+          }
           break;
         }
       }
-
-      if (mentioned) {
-        packageFiles.push({
-          name: pattern.name,
-          type: pattern.type,
-          mentioned: true,
-          confidence: pattern.confidence
-        });
-      }
     }
+    return found;
   }
 
-  /**
-   * Extract installation commands from code blocks
-   */
-  private extractInstallCommands(
-    ast: MarkdownAST, 
-    content: string, 
-    installCommands: Command[], 
-    packages: Package[]
-  ): void {
-    // Extract from code blocks
-    const codeBlocks = ast.filter(token => token.type === 'code');
+  private extractPackagesFromCommand(command: string, manager: PackageManagerType, dependencyInfo: DependencyInfo): void {
+    // Extract package names from install commands
+    const packagePatterns = [
+      // npm install package1 package2
+      { pattern: /npm\s+(?:install|i)\s+(.+)/i, manager: 'npm' },
+      // yarn add package1 package2
+      { pattern: /yarn\s+add\s+(.+)/i, manager: 'yarn' },
+      // pip install package1 package2
+      { pattern: /pip(?:3)?\s+install\s+(.+)/i, manager: 'pip' },
+      { pattern: /python\s+-m\s+pip\s+install\s+(.+)/i, manager: 'pip' },
+      // cargo add/install package1
+      { pattern: /cargo\s+(?:add|install)\s+(.+)/i, manager: 'cargo' },
+      // go get/install package1
+      { pattern: /go\s+(?:get|install)\s+(.+)/i, manager: 'go' },
+      // composer require package1
+      { pattern: /composer\s+require\s+(.+)/i, manager: 'composer' },
+      // gem install package1
+      { pattern: /gem\s+install\s+(.+)/i, manager: 'gem' }
+    ];
     
-    for (const block of codeBlocks) {
-      const codeToken = block as any;
-      const codeContent = codeToken.text || '';
-      
-      this.processCodeBlockForCommands(codeContent, installCommands, packages);
-    }
-
-    // Also check inline code and general content
-    this.processContentForCommands(content, installCommands, packages);
-  }
-
-  /**
-   * Process code block content for installation commands
-   */
-  private processCodeBlockForCommands(
-    codeContent: string, 
-    installCommands: Command[], 
-    packages: Package[]
-  ): void {
-    // Split content into lines to process each command separately
-    const lines = codeContent.split('\n').map(line => line.trim()).filter(line => line);
-    
-    for (const line of lines) {
-      for (const pattern of this.installCommandPatterns) {
-        for (const regex of pattern.patterns) {
-          // Reset regex lastIndex for each line
-          const lineRegex = new RegExp(regex.source, regex.flags);
-          const match = lineRegex.exec(line);
+    for (const { pattern, manager: patternManager } of packagePatterns) {
+      if (manager === patternManager || (manager === 'bundler' && patternManager === 'gem')) {
+        const match = command.match(pattern);
+        if (match && match[1]) {
+          const packageString = match[1].trim();
+          // Split by spaces and filter out flags
+          const packages = packageString.split(/\s+/).filter(pkg => 
+            pkg && !pkg.startsWith('-') && !pkg.startsWith('--') && pkg !== 'install'
+          );
           
-          if (match) {
-            const command = match[0].trim();
-            
-            installCommands.push({
-              command,
-              confidence: pattern.confidence,
-              context: 'code-block'
-            });
-
-            // Extract packages if pattern supports it
-            if (pattern.extractPackages) {
-              const extractedPackages = pattern.extractPackages(command);
-              for (const packageName of extractedPackages) {
-                packages.push({
+          for (const packageName of packages) {
+            if (packageName && !this.isCommonFalsePositive(packageName)) {
+              // Check for duplicates
+              const exists = dependencyInfo.packages.some(pkg => 
+                pkg.name === packageName && pkg.manager === manager
+              );
+              
+              if (!exists) {
+                dependencyInfo.packages.push({
                   name: packageName,
-                  manager: pattern.manager,
-                  confidence: pattern.confidence * 0.8 // Slightly lower confidence for extracted packages
+                  manager: manager,
+                  confidence: 0.8
                 });
               }
             }
           }
         }
+        break;
       }
     }
   }
 
-  /**
-   * Process general content for installation commands
-   */
-  private processContentForCommands(
-    content: string, 
-    installCommands: Command[], 
-    packages: Package[]
-  ): void {
-    const lines = content.split('\n').map(line => line.trim()).filter(line => line);
-    
-    for (const line of lines) {
-      for (const pattern of this.installCommandPatterns) {
-        for (const regex of pattern.patterns) {
-          const lineRegex = new RegExp(regex.source, regex.flags);
-          const match = lineRegex.exec(line);
-          
-          if (match) {
-            const command = match[0].trim();
-            
-            // Avoid duplicates from code blocks
-            const exists = installCommands.some(cmd => cmd.command === command);
-            if (!exists) {
-              installCommands.push({
-                command,
-                confidence: pattern.confidence * 0.7, // Lower confidence for non-code-block commands
-                context: 'text-mention'
-              });
-
-              // Extract packages if pattern supports it
-              if (pattern.extractPackages) {
-                const extractedPackages = pattern.extractPackages(command);
-                for (const packageName of extractedPackages) {
-                  packages.push({
-                    name: packageName,
-                    manager: pattern.manager,
-                    confidence: pattern.confidence * 0.6
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+  private isCommonFalsePositive(packageName: string): boolean {
+    const falsePositives = [
+      'install', 'build', 'test', 'requirements', 'setup',
+      'run', 'start', 'dev', 'prod', 'production', 'development',
+      'config', 'configure', 'init', 'create', 'new', 'add',
+      'remove', 'delete', 'update', 'upgrade', 'clean'
+    ];
+    return falsePositives.includes(packageName.toLowerCase());
   }
 
-  /**
-   * Extract package mentions from content
-   */
-  private extractPackageMentions(content: string, packages: Package[]): void {
-    for (const pattern of this.packageMentionPatterns) {
-      for (const regex of pattern.patterns) {
-        const matches = content.matchAll(new RegExp(regex.source, regex.flags));
-        
-        for (const match of matches) {
-          if (match[1]) {
-            const packageName = match[1].trim();
-            const version = match[2]?.trim();
-            
-            // Skip common false positives
-            if (this.isValidPackageName(packageName, pattern.manager)) {
-              const packageInfo: Package = {
-                name: packageName,
-                manager: pattern.manager,
-                confidence: pattern.confidence
-              };
-              
-              // Only add version if it's defined
-              if (version) {
-                packageInfo.version = version;
-              }
-              
-              packages.push(packageInfo);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Validate package names to avoid false positives
-   */
-  private isValidPackageName(name: string, manager: PackageManagerType): boolean {
-    // Skip common false positives
-    const commonFalsePositives = [
-      'install', 'build', 'test', 'run', 'start', 'dev', 'prod',
-      'main', 'index', 'app', 'src', 'lib', 'dist', 'node_modules',
-      'package', 'json', 'lock', 'config', 'setup', 'requirements'
+  private extractFromInstallCommands(content: string, dependencyInfo: DependencyInfo): boolean {
+    // This method now focuses on extracting from general text content (not code blocks)
+    const installPatterns = [
+      /npm install\s+([a-zA-Z0-9@/-]+)/g,
+      /yarn add\s+([a-zA-Z0-9@/-]+)/g,
+      /pip install\s+([a-zA-Z0-9-_]+)/g,
+      /cargo add\s+([a-zA-Z0-9-_]+)/g
     ];
 
-    if (commonFalsePositives.includes(name.toLowerCase())) {
-      return false;
-    }
-
-    // Basic validation based on package manager
-    switch (manager) {
-      case 'npm':
-      case 'yarn':
-        return /^[@a-zA-Z0-9][@a-zA-Z0-9._-]*$/.test(name) && name.length > 1;
-      case 'pip':
-        return /^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$/.test(name) && name.length > 1;
-      case 'cargo':
-        return /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name) && name.length > 1;
-      case 'go':
-        return name.includes('/') || /^[a-zA-Z][a-zA-Z0-9._-]*$/.test(name);
-      default:
-        return name.length > 1 && !/^\d+$/.test(name);
-    }
-  }
-
-  /**
-   * Remove duplicate packages
-   */
-  private deduplicatePackages(packages: Package[]): Package[] {
-    const packageMap = new Map<string, Package>();
-
-    for (const pkg of packages) {
-      const key = `${pkg.manager}:${pkg.name}`;
-      const existing = packageMap.get(key);
-
-      if (!existing || pkg.confidence > existing.confidence) {
-        packageMap.set(key, pkg);
-      } else if (existing && !existing.version && pkg.version) {
-        // Keep version information if available
-        packageMap.set(key, { ...existing, version: pkg.version });
+    let found = false;
+    for (const pattern of installPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        const packageName = match[1];
+        const source = match[0].startsWith('npm') ? 'npm install' :
+                      match[0].startsWith('yarn') ? 'yarn add' :
+                      match[0].startsWith('pip') ? 'pip install' : 'cargo add';
+        
+        if (packageName) {
+          this.addDependency(dependencyInfo.dependencies, {
+            name: packageName,
+            type: 'production',
+            manager: this.inferManagerFromSource(source),
+            confidence: 0.6,
+            source
+          });
+          found = true;
+        }
       }
+      pattern.lastIndex = 0; // Reset regex state
     }
-
-    return Array.from(packageMap.values()).sort((a, b) => b.confidence - a.confidence);
+    return found;
   }
 
-  /**
-   * Calculate overall confidence for dependency extraction
-   */
-  private calculateConfidence(dependencyInfo: DependencyInfo): number {
-    const { packageFiles, installCommands, packages } = dependencyInfo;
+  private inferManagerFromSource(source: string): PackageManagerType {
+    if (source.includes('npm')) return 'npm';
+    if (source.includes('yarn')) return 'yarn';
+    if (source.includes('pip')) return 'pip';
+    if (source.includes('cargo')) return 'cargo';
+    return 'other';
+  }
+
+  private addDependency(targetArray: Dependency[], dependency: Dependency): void {
+    // Avoid duplicates
+    const exists = targetArray.some(existing => 
+      existing.name === dependency.name && existing.source === dependency.source
+    );
     
-    if (packageFiles.length === 0 && installCommands.length === 0 && packages.length === 0) {
-      return 0;
+    if (!exists) {
+      targetArray.push(dependency);
     }
-
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    // Weight package files highly
-    if (packageFiles.length > 0) {
-      const avgConfidence = packageFiles.reduce((sum, file) => sum + file.confidence, 0) / packageFiles.length;
-      weightedSum += avgConfidence * 0.4;
-      totalWeight += 0.4;
-    }
-
-    // Weight install commands
-    if (installCommands.length > 0) {
-      const avgConfidence = installCommands.reduce((sum, cmd) => sum + cmd.confidence, 0) / installCommands.length;
-      weightedSum += avgConfidence * 0.4;
-      totalWeight += 0.4;
-    }
-
-    // Weight packages
-    if (packages.length > 0) {
-      const avgConfidence = packages.reduce((sum, pkg) => sum + pkg.confidence, 0) / packages.length;
-      weightedSum += avgConfidence * 0.2;
-      totalWeight += 0.2;
-    }
-
-    return totalWeight > 0 ? weightedSum / totalWeight : 0;
   }
 
-  /**
-   * Extract sources from dependency information
-   */
-  private extractSources(dependencyInfo: DependencyInfo): string[] {
-    const sources = new Set<string>();
 
-    if (dependencyInfo.packageFiles.length > 0) {
-      sources.add('package-files');
+
+  private extractPackageMentions(content: string, dependencyInfo: DependencyInfo): boolean {
+    let found = false;
+    
+    // Patterns to detect package mentions in text
+    const mentionPatterns = [
+      // "Dependencies include express and lodash packages"
+      /dependencies\s+include\s+([^.]+?)\s+packages?/gi,
+      // "Uses express, lodash, and react packages"
+      /uses?\s+([^.]+?)\s+(?:packages?|libraries?|modules?)/gi,
+      // "Built with express and lodash"
+      /built\s+with\s+([^.]+?)(?:\s+(?:packages?|libraries?|modules?))?/gi,
+      // "Requires express, lodash"
+      /requires?\s+([^.]+?)(?:\s+(?:packages?|libraries?|modules?))?/gi
+    ];
+    
+    for (const pattern of mentionPatterns) {
+      let match;
+      while ((match = pattern.exec(content)) !== null) {
+        if (match[1]) {
+          const packageString = match[1].trim();
+          // Extract individual package names from the string
+          const packages = this.parsePackageList(packageString);
+          
+          for (const packageName of packages) {
+            if (packageName && !this.isCommonFalsePositive(packageName)) {
+              // Try to infer the package manager from context or use 'other'
+              const manager = this.inferManagerFromContext(content, packageName);
+              
+              // Check for duplicates - but allow different sources
+              const exists = dependencyInfo.packages.some(pkg => 
+                pkg.name === packageName && pkg.manager === manager
+              );
+              
+              if (!exists) {
+                dependencyInfo.packages.push({
+                  name: packageName,
+                  manager: manager,
+                  confidence: 0.6
+                });
+              }
+              found = true; // Mark as found even if duplicate exists
+            }
+          }
+        }
+      }
+      pattern.lastIndex = 0; // Reset regex state
     }
+    
+    return found;
+  }
 
-    if (dependencyInfo.installCommands.length > 0) {
-      sources.add('install-commands');
+  private parsePackageList(packageString: string): string[] {
+    // Split by common delimiters and clean up
+    return packageString
+      .split(/[,\s]+(?:and\s+)?|(?:\s+and\s+)/)
+      .map(pkg => pkg.trim())
+      .filter(pkg => pkg && pkg.length > 1 && !['and', 'or', 'with'].includes(pkg.toLowerCase()));
+  }
+
+  private inferManagerFromContext(content: string, packageName: string): PackageManagerType {
+    // Look for context clues to determine the package manager
+    const lowerContent = content.toLowerCase();
+    
+    // Check for npm/node context
+    if (lowerContent.includes('npm') || lowerContent.includes('node') || lowerContent.includes('javascript')) {
+      return 'npm';
     }
-
-    if (dependencyInfo.packages.length > 0) {
-      sources.add('package-mentions');
+    
+    // Check for python context
+    if (lowerContent.includes('pip') || lowerContent.includes('python')) {
+      return 'pip';
     }
+    
+    // Check for rust context
+    if (lowerContent.includes('cargo') || lowerContent.includes('rust')) {
+      return 'cargo';
+    }
+    
+    // Check for go context
+    if (lowerContent.includes('go ') || lowerContent.includes('golang')) {
+      return 'go';
+    }
+    
+    // Default to 'other' if we can't determine
+    return 'other';
+  }
 
-    return Array.from(sources);
+  private calculateDependencyConfidence(dependencyInfo: DependencyInfo): number {
+    let confidence = 0;
+    
+    // Package files boost confidence significantly
+    confidence += dependencyInfo.packageFiles.length * 0.3;
+    
+    // Install commands boost confidence significantly
+    confidence += Math.min(dependencyInfo.installCommands.length * 0.2, 0.5);
+    
+    // Packages found boost confidence
+    confidence += Math.min(dependencyInfo.packages.length * 0.1, 0.3);
+    
+    // Dependencies found boost confidence
+    const totalDeps = dependencyInfo.dependencies.length + dependencyInfo.devDependencies.length;
+    confidence += Math.min(totalDeps * 0.1, 0.4);
+    
+    // Having both runtime and dev dependencies is a good sign
+    if (dependencyInfo.dependencies.length > 0 && dependencyInfo.devDependencies.length > 0) {
+      confidence += 0.15;
+    }
+    
+    // Base confidence if we found anything at all
+    const hasAnyInfo = dependencyInfo.packageFiles.length > 0 || 
+                      dependencyInfo.installCommands.length > 0 || 
+                      dependencyInfo.packages.length > 0 || 
+                      totalDeps > 0;
+    
+    if (hasAnyInfo) {
+      confidence = Math.max(confidence, 0.4); // Minimum confidence when we find something
+    }
+    
+    // Boost confidence if we have both package files and install commands
+    if (dependencyInfo.packageFiles.length > 0 && dependencyInfo.installCommands.length > 0) {
+      confidence += 0.2;
+    }
+    
+    return Math.min(confidence, 1.0);
   }
 }

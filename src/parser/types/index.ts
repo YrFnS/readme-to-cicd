@@ -79,6 +79,17 @@ export interface DependencyInfo {
   packageFiles: PackageFile[];
   installCommands: Command[];
   packages: Package[];
+  dependencies: Dependency[];
+  devDependencies: Dependency[];
+}
+
+export interface Dependency {
+  name: string;
+  version?: string | undefined;
+  type: 'production' | 'development' | 'runtime';
+  manager: PackageManagerType;
+  confidence: number;
+  source?: string | undefined;
 }
 
 export interface PackageFile {
@@ -98,6 +109,7 @@ export type PackageManagerType =
   | 'gradle' 
   | 'composer' 
   | 'gem' 
+  | 'bundler'
   | 'other';
 
 export interface Package {
@@ -112,6 +124,7 @@ export interface CommandInfo {
   run: Command[];
   install: Command[];
   other: Command[];
+  deploy?: Command[];
 }
 
 export interface Command {
@@ -128,6 +141,15 @@ export interface TestingInfo {
   tools: TestingTool[];
   configFiles: string[];
   confidence: number;
+  testFiles: string[];
+  commands: Command[];
+  coverage: CoverageInfo;
+}
+
+export interface CoverageInfo {
+  enabled: boolean;
+  threshold?: number;
+  tools: string[];
 }
 
 export interface TestingFramework {
@@ -135,6 +157,7 @@ export interface TestingFramework {
   language: string;
   confidence: number;
   configFiles?: string[];
+  testPatterns?: string[];
 }
 
 export interface TestingTool {
@@ -172,6 +195,8 @@ export interface ParseError {
   details?: any;
   line?: number | undefined;
   column?: number | undefined;
+  category?: string;
+  isRecoverable?: boolean;
 }
 
 export type ErrorSeverity = 'error' | 'warning' | 'info';
@@ -188,6 +213,11 @@ export interface AnalysisResult {
   sources: string[];
   errors?: ParseError[];
 }
+
+// Generic analyzer result type
+export type AnalyzerResult<T = any> = 
+  | { success: true; data: T; confidence: number; sources?: string[]; }
+  | { success: false; confidence: number; errors?: ParseError[]; sources?: string[]; };
 
 // Markdown AST type alias for clarity
 export type MarkdownAST = Token[];

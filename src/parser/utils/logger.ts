@@ -29,6 +29,15 @@ export interface LogEntry {
   performance?: PerformanceMetrics;
 }
 
+// Import Node.js types
+type MemoryUsage = {
+  rss: number;
+  heapUsed: number;
+  heapTotal: number;
+  external: number;
+  arrayBuffers: number;
+};
+
 /**
  * Performance metrics interface
  */
@@ -36,7 +45,7 @@ export interface PerformanceMetrics {
   startTime: number;
   endTime?: number;
   duration?: number;
-  memoryUsage?: NodeJS.MemoryUsage;
+  memoryUsage?: MemoryUsage;
   operationName: string;
 }
 
@@ -130,7 +139,7 @@ export class Logger {
       line: parseError.line,
       column: parseError.column,
       details: parseError.details,
-      isRecoverable: parseError.isRecoverable()
+      isRecoverable: parseError.isRecoverable
     }, undefined, correlationId);
   }
 
@@ -143,10 +152,11 @@ export class Logger {
     }
 
     const trackingId = `${operationName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const memoryUsage = this.config.enableMemoryTracking ? process.memoryUsage() : undefined;
     const metrics: PerformanceMetrics = {
       startTime: Date.now(),
       operationName,
-      memoryUsage: this.config.enableMemoryTracking ? process.memoryUsage() : undefined
+      ...(memoryUsage && { memoryUsage })
     };
 
     this.performanceTrackers.set(trackingId, metrics);
@@ -264,9 +274,9 @@ export class Logger {
       level,
       component,
       message,
-      data,
-      error,
-      correlationId
+      ...(data !== undefined && { data }),
+      ...(error && { error }),
+      ...(correlationId && { correlationId })
     };
 
     // Add to in-memory log entries
@@ -382,8 +392,8 @@ export class Logger {
       levelCounts: Object.fromEntries(levelCounts),
       componentCounts: Object.fromEntries(componentCounts),
       activePerformanceTrackers: this.performanceTrackers.size,
-      oldestEntry: this.logEntries.length > 0 ? this.logEntries[0].timestamp : null,
-      newestEntry: this.logEntries.length > 0 ? this.logEntries[this.logEntries.length - 1].timestamp : null
+      oldestEntry: this.logEntries.length > 0 ? this.logEntries[0]?.timestamp || null : null,
+      newestEntry: this.logEntries.length > 0 ? this.logEntries[this.logEntries.length - 1]?.timestamp || null : null
     };
   }
 

@@ -40,9 +40,10 @@ export function createReadmeParser(): ReadmeParserImpl {
 /**
  * Create a new README parser instance with enhanced error handling
  */
-export function createReadmeParserWithErrorHandling(logLevel?: LogLevel): ReadmeParserImpl {
+export function createReadmeParserWithErrorHandling(logLevel?: import('./utils/logger').LogLevel): ReadmeParserImpl {
   // Configure logger if log level is provided
   if (logLevel !== undefined) {
+    const { logger } = require('./utils/logger');
     logger.updateConfig({ level: logLevel });
   }
   

@@ -6,6 +6,7 @@ This is a modern JavaScript project built with Node.js and Express.
 
 ```bash
 npm install
+npm install express cors
 ```
 
 ## Usage

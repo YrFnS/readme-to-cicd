@@ -6,6 +6,9 @@ import { promises as fs, constants as fsConstants } from 'fs';
 import { resolve, isAbsolute } from 'path';
 import { ParseError, Result } from '../types';
 
+// Import Node.js types
+type BufferEncoding = 'ascii' | 'utf8' | 'utf-8' | 'utf16le' | 'ucs2' | 'ucs-2' | 'base64' | 'base64url' | 'latin1' | 'binary' | 'hex';
+
 /**
  * Custom error class for file reading operations
  */

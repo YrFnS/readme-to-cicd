@@ -88,7 +88,6 @@ export class InputValidator {
         'NON_README_FILE',
         'File does not appear to be a README file',
         'InputValidator',
-        'warning',
         { path: trimmedPath }
       ));
     }
@@ -222,7 +221,6 @@ export class InputValidator {
         'LONG_LINES',
         `Found ${longLines.length} lines longer than 1000 characters`,
         'InputValidator',
-        'warning',
         { longLineCount: longLines.length, maxLineLength: Math.max(...longLines.map(l => l.length)) }
       ));
     }
@@ -277,7 +275,6 @@ export class InputValidator {
           'HIGH_TIMEOUT',
           'Timeout value is very high and may cause performance issues',
           'InputValidator',
-          'warning',
           { timeout: config.timeout }
         ));
       }
@@ -380,7 +377,6 @@ export class InputValidator {
           'LOW_CONFIDENCE',
           `Very low confidence score for ${score}: ${value}`,
           'InputValidator',
-          'warning',
           { score, value }
         ));
       }

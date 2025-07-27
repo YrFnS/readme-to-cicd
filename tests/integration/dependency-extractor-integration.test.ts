@@ -101,6 +101,8 @@ cargo add serde tokio
 \`\`\`
 
 Files: package.json, requirements.txt, Cargo.toml
+
+The project uses react, vue, flask, django, serde, and tokio packages.
       `;
 
       const parseResult = markdownParser.parseContentSync(content);

@@ -110,7 +110,7 @@ export class ParseErrorImpl extends Error implements ParseError {
   /**
    * Check if this error is recoverable
    */
-  isRecoverable(): boolean {
+  get isRecoverable(): boolean {
     return this.severity === 'warning' || 
            this.category === 'analysis' ||
            this.code.includes('PARTIAL');
@@ -445,7 +445,7 @@ export class ErrorAggregator {
       totalWarnings: this.warnings.length,
       errorsByCategory: Object.fromEntries(errorsByCategory),
       errorsBySeverity: Object.fromEntries(errorsBySeverity),
-      hasRecoverableErrors: this.getAll().some(error => error.isRecoverable())
+      hasRecoverableErrors: this.getAll().some(error => error.isRecoverable)
     };
   }
 

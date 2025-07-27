@@ -41,3 +41,16 @@ export {
 
 // Result aggregation utilities
 export { ResultAggregator } from './result-aggregator';
+
+// Performance optimization utilities
+export { ASTCache, globalASTCache, createASTCache } from './ast-cache';
+export { PerformanceMonitor, globalPerformanceMonitor, createPerformanceMonitor, timed } from './performance-monitor';
+export { StreamingFileReader } from './streaming-file-reader';
+export { 
+  OptimizedLanguagePatterns, 
+  OptimizedTextMentions, 
+  OptimizedFilePatterns, 
+  OptimizedConfigPatterns,
+  RegexUtils,
+  PatternCache 
+} from './regex-optimizer';

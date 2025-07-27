@@ -147,14 +147,18 @@ export class ResultAggregator {
       return {
         packageFiles: [],
         installCommands: [],
-        packages: []
+        packages: [],
+        dependencies: [],
+        devDependencies: []
       };
     }
 
     return {
       packageFiles: dependencyResult.data.packageFiles || [],
       installCommands: dependencyResult.data.installCommands || [],
-      packages: dependencyResult.data.packages || []
+      packages: dependencyResult.data.packages || [],
+      dependencies: dependencyResult.data.dependencies || [],
+      devDependencies: dependencyResult.data.devDependencies || []
     };
   }
 
@@ -194,7 +198,10 @@ export class ResultAggregator {
         frameworks: [],
         tools: [],
         configFiles: [],
-        confidence: 0
+        confidence: 0,
+        testFiles: [],
+        commands: [],
+        coverage: { enabled: false, tools: [] }
       };
     }
 
@@ -202,7 +209,10 @@ export class ResultAggregator {
       frameworks: testingResult.data.frameworks || [],
       tools: testingResult.data.tools || [],
       configFiles: testingResult.data.configFiles || [],
-      confidence: normalizeConfidence(testingResult.confidence)
+      confidence: normalizeConfidence(testingResult.confidence),
+      testFiles: testingResult.data.testFiles || [],
+      commands: testingResult.data.commands || [],
+      coverage: testingResult.data.coverage || { enabled: false, tools: [] }
     };
   }
 

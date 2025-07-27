@@ -21,8 +21,10 @@ export function validateFilePath(filePath: string): ParseError | null {
   
   if (!result.isValid && result.errors.length > 0) {
     const error = result.errors[0];
-    logger.logParseError(error, correlationId);
-    return error.toJSON();
+    if (error) {
+      logger.logParseError(error, correlationId);
+      return error.toJSON();
+    }
   }
 
   // Log warnings if any
@@ -44,8 +46,10 @@ export function validateContent(content: string): ParseError | null {
   
   if (!result.isValid && result.errors.length > 0) {
     const error = result.errors[0];
-    logger.logParseError(error, correlationId);
-    return error.toJSON();
+    if (error) {
+      logger.logParseError(error, correlationId);
+      return error.toJSON();
+    }
   }
 
   // Log warnings if any

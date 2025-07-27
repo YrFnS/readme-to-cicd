@@ -16,11 +16,16 @@ import { AnalyzerRegistry } from './analyzers/analyzer-registry';
 import { FileReader } from './utils/file-reader';
 import { MarkdownParser } from './utils/markdown-parser';
 import { ResultAggregator } from './utils/result-aggregator';
-import { LanguageDetector } from './analyzers/language-detector';
-import { DependencyExtractor } from './analyzers/dependency-extractor';
-import { CommandExtractor } from './analyzers/command-extractor';
-import { TestingDetector } from './analyzers/testing-detector';
+import { 
+  LanguageDetectorAdapter,
+  DependencyExtractorAdapter,
+  CommandExtractorAdapter,
+  TestingDetectorAdapter
+} from './analyzers/analyzer-adapters';
 import { MetadataExtractor } from './analyzers/metadata-extractor';
+import { ASTCache, globalASTCache } from './utils/ast-cache';
+import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
+import { StreamingFileReader } from './utils/streaming-file-reader';
 
 /**
  * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
@@ -46,14 +51,32 @@ import { MetadataExtractor } from './analyzers/metadata-extractor';
 export class ReadmeParserImpl implements ReadmeParser {
   private analyzerRegistry: AnalyzerRegistry;
   private fileReader: FileReader;
+  private streamingFileReader: StreamingFileReader;
   private markdownParser: MarkdownParser;
   private resultAggregator: ResultAggregator;
+  private astCache: ASTCache;
+  private performanceMonitor: PerformanceMonitor;
 
-  constructor() {
+  constructor(options?: {
+    enableCaching?: boolean;
+    enablePerformanceMonitoring?: boolean;
+    cacheOptions?: any;
+    performanceOptions?: any;
+  }) {
     this.analyzerRegistry = new AnalyzerRegistry();
     this.fileReader = new FileReader();
+    this.streamingFileReader = new StreamingFileReader();
     this.markdownParser = new MarkdownParser();
     this.resultAggregator = new ResultAggregator();
+    
+    // Initialize performance features
+    this.astCache = options?.enableCaching !== false ? 
+      (options?.cacheOptions ? new ASTCache(options.cacheOptions) : globalASTCache) : 
+      new ASTCache({ maxEntries: 0 }); // Disabled cache
+      
+    this.performanceMonitor = options?.enablePerformanceMonitoring !== false ?
+      (options?.performanceOptions ? new PerformanceMonitor(options.performanceOptions) : globalPerformanceMonitor) :
+      new PerformanceMonitor({ enabled: false });
     
     // Auto-register default analyzers
     this.registerDefaultAnalyzers();
@@ -63,10 +86,10 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Register default analyzers that should always be available
    */
   private registerDefaultAnalyzers(): void {
-    this.analyzerRegistry.register(new LanguageDetector());
-    this.analyzerRegistry.register(new DependencyExtractor());
-    this.analyzerRegistry.register(new CommandExtractor());
-    this.analyzerRegistry.register(new TestingDetector());
+    this.analyzerRegistry.register(new LanguageDetectorAdapter());
+    this.analyzerRegistry.register(new DependencyExtractorAdapter());
+    this.analyzerRegistry.register(new CommandExtractorAdapter());
+    this.analyzerRegistry.register(new TestingDetectorAdapter());
     this.analyzerRegistry.register(new MetadataExtractor());
   }
 
@@ -103,18 +126,38 @@ export class ReadmeParserImpl implements ReadmeParser {
    * ```
    */
   async parseFile(filePath: string): Promise<ParseResult> {
-    // Use FileReader to read the file
-    const readResult = await this.fileReader.readFile(filePath);
-    
-    if (!readResult.success) {
-      return {
-        success: false,
-        errors: [readResult.error]
-      };
-    }
+    return this.performanceMonitor.timeOperation('parseFile', async () => {
+      // Check if we should use streaming for large files
+      const shouldStream = await this.streamingFileReader.shouldUseStreaming(filePath);
+      
+      if (shouldStream) {
+        // Use streaming file reader for large files
+        const readResult = await this.streamingFileReader.readFileStreaming(filePath);
+        
+        if (!readResult.success) {
+          return {
+            success: false,
+            errors: [readResult.error]
+          };
+        }
 
-    // Parse the content using the file content
-    return await this.parseContent(readResult.data.content);
+        // Parse the content using the file content
+        return await this.parseContent(readResult.data.content);
+      } else {
+        // Use regular FileReader for small files
+        const readResult = await this.fileReader.readFile(filePath);
+        
+        if (!readResult.success) {
+          return {
+            success: false,
+            errors: [readResult.error]
+          };
+        }
+
+        // Parse the content using the file content
+        return await this.parseContent(readResult.data.content);
+      }
+    }, { filePath });
   }
 
   /**
@@ -144,26 +187,48 @@ export class ReadmeParserImpl implements ReadmeParser {
    * ```
    */
   async parseContent(content: string): Promise<ParseResult> {
-    // Validate input
-    if (typeof content !== 'string') {
-      return this.createErrorResult('INVALID_INPUT', 'Content must be a string');
-    }
+    return this.performanceMonitor.timeOperation('parseContent', async () => {
+      // Validate input
+      if (typeof content !== 'string') {
+        return this.createErrorResult('INVALID_INPUT', 'Content must be a string');
+      }
 
-    if (content.trim().length === 0) {
-      return this.createErrorResult('EMPTY_CONTENT', 'Content cannot be empty');
-    }
+      if (content.trim().length === 0) {
+        // Empty content should be treated as an error
+        return this.createErrorResult('EMPTY_CONTENT', 'Content cannot be empty or contain only whitespace');
+      }
 
-    // Use MarkdownParser to parse the content
-    const parseResult = await this.markdownParser.parseContent(content);
-    
-    if (!parseResult.success) {
-      return {
-        success: false,
-        errors: [parseResult.error]
-      };
-    }
+      // Check cache first
+      const cachedEntry = this.astCache.get(content);
+      let ast: Token[];
+      let rawContent: string;
+      let parseTime: number;
 
-    const { ast, rawContent } = parseResult.data;
+      if (cachedEntry) {
+        // Use cached AST
+        ast = cachedEntry.ast;
+        rawContent = cachedEntry.rawContent;
+        parseTime = 0; // No parsing time since we used cache
+      } else {
+        // Parse content and cache result
+        const parseResult = await this.performanceMonitor.timeOperation('markdownParse', async () => {
+          return this.markdownParser.parseContent(content);
+        });
+        
+        if (!parseResult.success) {
+          return {
+            success: false,
+            errors: [parseResult.error]
+          };
+        }
+
+        ast = parseResult.data.ast;
+        rawContent = parseResult.data.rawContent;
+        parseTime = parseResult.data.processingTime;
+
+        // Cache the parsed AST
+        this.astCache.set(content, ast, parseTime);
+      }
     
     try {
       // Get all registered analyzers
@@ -172,42 +237,44 @@ export class ReadmeParserImpl implements ReadmeParser {
         return this.createErrorResult('NO_ANALYZERS', 'No analyzers registered');
       }
 
-      // Execute analyzers in parallel with timeout and error isolation
+      // Execute analyzers in parallel with optimized timeout and error isolation
       const analysisPromises = analyzers.map(async analyzer => {
-        try {
-          // Add timeout to prevent hanging analyzers
-          const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
-            setTimeout(() => reject(new Error('Analyzer timeout')), 10000); // 10 second timeout
-          });
+        return this.performanceMonitor.timeOperation(`analyzer_${analyzer.name}`, async () => {
+          try {
+            // Reduced timeout for better performance (5 seconds instead of 10)
+            const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
+              setTimeout(() => reject(new Error('Analyzer timeout')), 5000);
+            });
 
-          const analysisPromise = this.runAnalyzer(analyzer, ast, rawContent);
-          const result = await Promise.race([analysisPromise, timeoutPromise]);
-          
-          return { 
-            analyzerName: analyzer.name, 
-            result,
-            success: true 
-          };
-        } catch (error) {
-          // Create error result for failed analyzer
-          const errorResult: AnalysisResult = {
-            data: null,
-            confidence: 0,
-            sources: [],
-            errors: [{
-              code: 'ANALYZER_EXECUTION_ERROR',
-              message: error instanceof Error ? error.message : 'Unknown analyzer error',
-              component: analyzer.name,
-              severity: 'error'
-            }]
-          };
-          
-          return { 
-            analyzerName: analyzer.name, 
-            result: errorResult,
-            success: false 
-          };
-        }
+            const analysisPromise = this.runAnalyzer(analyzer, ast, rawContent);
+            const result = await Promise.race([analysisPromise, timeoutPromise]);
+            
+            return { 
+              analyzerName: analyzer.name, 
+              result,
+              success: true 
+            };
+          } catch (error) {
+            // Create error result for failed analyzer
+            const errorResult: AnalysisResult = {
+              data: null,
+              confidence: 0,
+              sources: [],
+              errors: [{
+                code: 'ANALYZER_EXECUTION_ERROR',
+                message: error instanceof Error ? error.message : 'Unknown analyzer error',
+                component: analyzer.name,
+                severity: 'error'
+              }]
+            };
+            
+            return { 
+              analyzerName: analyzer.name, 
+              result: errorResult,
+              success: false 
+            };
+          }
+        }, { analyzerName: analyzer.name });
       });
 
       // Wait for all analyzers to complete (or fail)
@@ -261,7 +328,9 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
       
       // Aggregate results using ResultAggregator
-      const projectInfo = await this.resultAggregator.aggregate(resultsMap);
+      const projectInfo = await this.performanceMonitor.timeOperation('resultAggregation', async () => {
+        return this.resultAggregator.aggregate(resultsMap);
+      });
       const aggregatorErrors = this.resultAggregator.getErrors();
       const aggregatorWarnings = this.resultAggregator.getWarnings();
 
@@ -305,6 +374,7 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
       return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
     }
+    }, { contentLength: content ? content.length : 0 });
   }  /**
    * Run a single analyzer with comprehensive error handling
    */
@@ -453,6 +523,8 @@ export class ReadmeParserImpl implements ReadmeParser {
     analyzerNames: string[];
     version: string;
     capabilities: string[];
+    performance: any;
+    cache: any;
   } {
     const analyzers = this.analyzerRegistry.getAll();
     
@@ -468,9 +540,43 @@ export class ReadmeParserImpl implements ReadmeParser {
         'metadata-extraction',
         'parallel-processing',
         'error-recovery',
-        'confidence-scoring'
-      ]
+        'confidence-scoring',
+        'ast-caching',
+        'performance-monitoring',
+        'streaming-support'
+      ],
+      performance: this.performanceMonitor.getAllStats(),
+      cache: this.astCache.getStats()
     };
+  }
+
+  /**
+   * Get performance statistics
+   */
+  getPerformanceStats() {
+    return this.performanceMonitor.getAllStats();
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return this.astCache.getStats();
+  }
+
+  /**
+   * Clear performance and cache data
+   */
+  clearPerformanceData(): void {
+    this.performanceMonitor.clear();
+    this.astCache.clear();
+  }
+
+  /**
+   * Get current memory usage
+   */
+  getMemoryUsage(): string {
+    return this.performanceMonitor.getFormattedMemoryUsage();
   }
 
   /**

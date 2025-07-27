@@ -39,15 +39,9 @@ describe('Edge Case Parsing Tests', () => {
     it('should handle empty README gracefully', async () => {
       const result = await parser.parseContent('');
       
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-
-      const data = result.data!;
-      
-      // Should return empty but valid structure
-      expect(data.languages).toHaveLength(0);
-      expect(data.commands.build).toHaveLength(0);
-      expect(data.commands.test).toHaveLength(0);
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+      expect(result.errors![0].code).toBe('EMPTY_CONTENT');
       expect(data.dependencies.packageFiles).toHaveLength(0);
       expect(data.confidence.overall).toBe(0);
     });
