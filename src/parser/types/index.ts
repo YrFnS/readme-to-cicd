@@ -135,6 +135,54 @@ export interface Command {
   context?: string;
 }
 
+/**
+ * Command associated with language context for context-aware extraction
+ */
+export interface AssociatedCommand extends Command {
+  /** Language context associated with this command */
+  languageContext: import('../../shared/types/language-context').LanguageContext;
+  /** Confidence score for the context association */
+  contextConfidence: number;
+}
+
+/**
+ * Result of context-aware command extraction
+ */
+export interface CommandExtractionResult {
+  /** Commands with their associated language contexts */
+  commands: AssociatedCommand[];
+  /** Mappings between contexts and command locations */
+  contextMappings: ContextMapping[];
+  /** Metadata about the extraction process */
+  extractionMetadata: ExtractionMetadata;
+}
+
+/**
+ * Mapping between language context and command locations
+ */
+export interface ContextMapping {
+  /** The language context */
+  context: import('../../shared/types/language-context').LanguageContext;
+  /** Commands found in this context */
+  commands: Command[];
+  /** Source range where this context applies */
+  sourceRange: import('../../shared/types/language-context').SourceRange;
+}
+
+/**
+ * Metadata about the command extraction process
+ */
+export interface ExtractionMetadata {
+  /** Total number of commands extracted */
+  totalCommands: number;
+  /** Number of different languages detected */
+  languagesDetected: number;
+  /** Number of context boundaries detected */
+  contextBoundaries: number;
+  /** Timestamp when extraction was performed */
+  extractionTimestamp: Date;
+}
+
 // Testing framework information
 export interface TestingInfo {
   frameworks: TestingFramework[];
@@ -214,6 +262,21 @@ export interface AnalysisResult {
   errors?: ParseError[];
 }
 
+// Enhanced analyzer result interface for integration
+export interface EnhancedAnalyzerResult {
+  analyzerName: string;
+  data: any;
+  confidence: number;
+  sources: string[];
+  errors?: ParseError[];
+  warnings?: ParseError[];
+  metadata?: {
+    processingTime?: number;
+    dataQuality?: number;
+    completeness?: number;
+  };
+}
+
 // Generic analyzer result type
 export type AnalyzerResult<T = any> = 
   | { success: true; data: T; confidence: number; sources?: string[]; }
@@ -226,3 +289,50 @@ export type MarkdownAST = Token[];
 export type Result<T, E = ParseError> = 
   | { success: true; data: T }
   | { success: false; error: E };
+
+// Integration-specific types for enhanced ResultAggregator
+export interface AggregatedResult {
+  languages: LanguageInfo[];
+  commands: CommandInfo;
+  dependencies: DependencyInfo;
+  testing: TestingInfo;
+  metadata: ProjectMetadata;
+  confidence: ConfidenceScores;
+  integrationMetadata: IntegrationMetadata;
+  validationStatus: ValidationStatus;
+}
+
+export interface IntegrationMetadata {
+  analyzersUsed: string[];
+  processingTime: number;
+  dataQuality: number;
+  completeness: number;
+  conflictsResolved: ConflictResolution[];
+  dataFlowValidation?: {
+    sequenceExecuted: string[];
+    dependenciesResolved: number;
+    validationsPassed: number;
+    totalValidations: number;
+    averageDataIntegrity: number;
+  };
+}
+
+export interface ValidationStatus {
+  isValid: boolean;
+  completeness: number;
+  issues: ValidationIssue[];
+}
+
+export interface ValidationIssue {
+  type: 'missing_data' | 'low_confidence' | 'conflict' | 'incomplete';
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  component: string;
+}
+
+export interface ConflictResolution {
+  conflictType: string;
+  conflictingAnalyzers: string[];
+  resolution: string;
+  confidence: number;
+}

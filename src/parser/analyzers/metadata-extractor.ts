@@ -106,7 +106,7 @@ export class MetadataExtractor implements ContentAnalyzer {
     // Look for blockquotes first (common for project descriptions)
     const blockquotes = MarkdownUtils.findNodesByType(ast, 'blockquote');
     for (const quote of blockquotes) {
-      if (quote.text) {
+      if ('text' in quote && typeof quote.text === 'string') {
         const description = quote.text.trim();
         if (this.isValidDescription(description)) {
           return description;
@@ -163,7 +163,7 @@ export class MetadataExtractor implements ContentAnalyzer {
     // Extract from code blocks that look like directory structures
     const codeBlocks = MarkdownUtils.findCodeBlocks(ast);
     for (const block of codeBlocks) {
-      const code = block.text || '';
+      const code = ('text' in block && typeof block.text === 'string') ? block.text : '';
       
       // Look for directory tree patterns and file mentions
       const lines = code.split('\n');
@@ -262,10 +262,11 @@ export class MetadataExtractor implements ContentAnalyzer {
             if (name && name.length > 1) {
               const existing = envVars.find(env => env.name === name);
               if (!existing) {
+                const description = this.getEnvVarDescription(name);
                 envVars.push({
                   name,
                   required: this.isRequiredEnvVar(name),
-                  description: this.getEnvVarDescription(name)
+                  ...(description && { description })
                 });
               }
             }
@@ -278,11 +279,13 @@ export class MetadataExtractor implements ContentAnalyzer {
           if (name && name.length > 1) {
             const existing = envVars.find(env => env.name === name);
             if (!existing) {
+              const description = this.getEnvVarDescription(name);
+              const processedDefaultValue = defaultValue && defaultValue !== name ? defaultValue.replace(/['"]/g, '') : undefined;
               envVars.push({
                 name,
                 required: this.isRequiredEnvVar(name),
-                description: this.getEnvVarDescription(name),
-                defaultValue: defaultValue && defaultValue !== name ? defaultValue.replace(/['"]/g, '') : undefined
+                ...(description && { description }),
+                ...(processedDefaultValue && { defaultValue: processedDefaultValue })
               });
             } else if (defaultValue && !existing.defaultValue && defaultValue !== name) {
               existing.defaultValue = defaultValue.replace(/['"]/g, '');

@@ -50,7 +50,6 @@
   - ✅ Implemented installation command extraction from code blocks (npm install, pip install, cargo build)
   - ✅ Added package name and version extraction from mentioned dependencies
   - ✅ Written tests covering all major package management systems (19/25 tests passing)
-  - ⚠️ Has 6 failing tests: Go/Java command extraction, Cargo/Go package extraction, false positive filtering, and missing 'package-mentions' source
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [x] 6. Implement command extraction analyzer
@@ -77,7 +76,6 @@
   - ✅ Added directory structure parsing from mentioned file organization
   - ✅ Implemented environment variable detection from configuration sections
   - ✅ Written tests for various README formats and metadata patterns (27/27 tests passing)
-  - ⚠️ Has 5 TypeScript compilation errors: Token.text property access and exactOptionalPropertyTypes issues with EnvironmentVariable
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
 - [x] 9. Implement main parser orchestration

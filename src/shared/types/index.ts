@@ -561,6 +561,10 @@ export type ScanType =
   | 'code-quality' 
   | 'container-security';
 
+// Language Context Infrastructure
+export * from './language-context';
+export * from './context-manager';
+
 // Import parser types for compatibility
 import { 
   ProjectInfo, 

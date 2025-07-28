@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run validate:integration && tsc",
+    "build:fast": "tsc",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,9 +21,14 @@
     "test:all": "npm run test:unit && npm run test:integration && npm run test:performance",
     "test:generate-samples": "node tests/fixtures/performance/large-readme-generator.js",
     "validate:interfaces": "node scripts/validate-interfaces.js",
+    "validate:integration": "node scripts/integration-validation.js",
+    "validate:integration:fast": "node scripts/integration-validation.js --fast",
+    "validate:build": "npm run type-check && npm run validate:integration:fast",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "ci": "npm run lint && npm run validate:build && npm run test:all",
+    "precommit": "npm run lint && npm run type-check && npm run test:unit"
   },
   "keywords": [
     "github-actions",
