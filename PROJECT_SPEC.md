@@ -42,14 +42,22 @@
 - Error and warning collection with severity handling
 - Graceful handling of partial analyzer failures
 
-### 🚧 In Progress Components
+### ⚠️ Integration Issues Detected
 
-#### 3. Content Analyzers (Tasks 4-8)
-- Language detection analyzer (pending)
-- Dependency extraction analyzer (pending)
-- Command extraction analyzer (pending)
-- Testing framework detection analyzer (pending)
-- Metadata extraction analyzer (pending)
+#### 3. Core Integration Problems
+- **CommandExtractor Language Association**: Commands are not being properly associated with programming languages
+- **Test Suite Failures**: 176/751 tests failing, primarily in command-extractor and language-detector integration
+- **Pipeline Integration**: IntegrationPipeline exists but isn't connected to main ReadmeParserImpl
+- **Context Inheritance**: Language contexts from LanguageDetector aren't reaching CommandExtractor properly
+
+### ✅ Completed Components (With Issues)
+
+#### 3. Content Analyzers (Tasks 4-8) - COMPLETED BUT BROKEN
+- ✅ Language detection analyzer (implemented but confidence scoring issues)
+- ✅ Dependency extraction analyzer (implemented)
+- ✅ Command extraction analyzer (implemented but language association broken)
+- ✅ Testing framework detection analyzer (implemented but pattern matching issues)
+- ✅ Metadata extraction analyzer (implemented)
 
 ### 📋 Pending Components
 
@@ -93,15 +101,38 @@ interface ProjectInfo {
 - **Build**: TypeScript compiler
 - **Quality**: ESLint, Prettier
 
-## Next Steps
+## Critical Issues Requiring Immediate Attention
 
-1. **Complete Content Analyzers** (Tasks 3-8)
-2. **Implement Framework Detection** 
-3. **Build YAML Generator**
-4. **Create CLI Interface**
-5. **Develop VSCode Extension**
-6. **Add Agent Hooks Intelligence**
-7. **Deploy Integration System**
+### 🚨 High Priority Fixes Needed
+
+1. **Fix CommandExtractor Language Association** (URGENT)
+   - Commands are not inheriting language context from LanguageDetector
+   - 176 test failures primarily due to missing `language` property on commands
+   - Integration pipeline exists but isn't being used
+
+2. **Resolve Integration Pipeline Disconnect** (URGENT)
+   - IntegrationPipeline class exists but ReadmeParserImpl doesn't use it
+   - Components are isolated instead of properly integrated
+   - Data flow between analyzers is broken
+
+3. **Fix Confidence Scoring Issues** (HIGH)
+   - LanguageDetector confidence scores too low (expecting >0.8, getting ~0.5-0.7)
+   - Pattern matching not working correctly
+   - Framework detection alongside language detection broken
+
+### Next Implementation Steps
+
+1. **Fix Core Integration** (Week 1)
+   - Connect IntegrationPipeline to ReadmeParserImpl
+   - Fix CommandExtractor language context inheritance
+   - Resolve test suite failures
+
+2. **Implement Framework Detection** (Week 2)
+3. **Build YAML Generator** (Week 3)
+4. **Create CLI Interface** (Week 4)
+5. **Develop VSCode Extension** (Week 5)
+6. **Add Agent Hooks Intelligence** (Week 6)
+7. **Deploy Integration System** (Week 7)
 
 ## Quality Standards
 

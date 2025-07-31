@@ -131,43 +131,87 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
 
   private commandPatterns = {
     install: [
-      /npm install/gi,
-      /yarn install/gi,
-      /pip install/gi,
-      /composer install/gi,
-      /go get/gi,
-      /cargo install/gi
+      /npm\s+install/gi,
+      /npm\s+i\b/gi,
+      /yarn\s+install/gi,
+      /yarn\s+add/gi,
+      /pip\s+install/gi,
+      /pip3\s+install/gi,
+      /composer\s+install/gi,
+      /go\s+get/gi,
+      /cargo\s+install/gi
     ],
     build: [
-      /npm run build/gi,
-      /yarn build/gi,
-      /make build/gi,
-      /gradle build/gi,
-      /mvn compile/gi,
-      /cargo build/gi
+      /npm\s+run\s+build/gi,
+      /npm\s+run\s+build:prod/gi,
+      /yarn\s+build/gi,
+      /make\b/gi,
+      /make\s+all/gi,
+      /make\s+build/gi,
+      /gradle\s+build/gi,
+      /gradlew\s+build/gi,
+      /mvn\s+compile/gi,
+      /mvn\s+package/gi,
+      /mvn\s+install/gi,
+      /maven\s+compile/gi,
+      /cargo\s+build/gi,
+      /cargo\s+build\s+--release/gi,
+      /go\s+build/gi,
+      /go\s+install/gi,
+      /cmake\s+--build/gi,
+      /cmake\s+\./gi,
+      /python\s+setup\.py\s+build/gi,
+      /python\s+-m\s+build/gi,
+      /pip\s+install\s+\./gi
     ],
     test: [
-      /npm test/gi,
-      /yarn test/gi,
+      /npm\s+test/gi,
+      /npm\s+run\s+test/gi,
+      /yarn\s+test/gi,
+      /yarn\s+run\s+test/gi,
       /pytest/gi,
-      /mvn test/gi,
-      /cargo test/gi,
-      /go test/gi
+      /python\s+-m\s+pytest/gi,
+      /python\s+-m\s+unittest/gi,
+      /python\s+test/gi,
+      /mvn\s+test/gi,
+      /maven\s+test/gi,
+      /gradle\s+test/gi,
+      /gradlew\s+test/gi,
+      /cargo\s+test/gi,
+      /cargo\s+test\s+--release/gi,
+      /go\s+test/gi,
+      /go\s+test\s+\./gi,
+      /make\s+test/gi,
+      /make\s+check/gi,
+      /bundle\s+exec\s+rspec/gi,
+      /rspec/gi,
+      /rake\s+test/gi
     ],
     run: [
-      /npm start/gi,
-      /yarn start/gi,
-      /python.*\.py/gi,
-      /node.*\.js/gi,
-      /java.*\.jar/gi,
-      /cargo run/gi
+      /npm\s+start/gi,
+      /npm\s+run\s+start/gi,
+      /npm\s+run\s+dev/gi,
+      /yarn\s+start/gi,
+      /yarn\s+dev/gi,
+      /python\s+[\w\-\.\/]+\.py/gi,
+      /python3\s+[\w\-\.\/]+\.py/gi,
+      /python\s+-m\s+\w+/gi,
+      /node\s+[\w\-\.\/]+\.js/gi,
+      /java\s+-jar\s+[\w\-\.\/]+\.jar/gi,
+      /java\s+[\w\-\.\/]+/gi,
+      /cargo\s+run/gi,
+      /cargo\s+run\s+--release/gi,
+      /go\s+run\s+[\w\-\.\/]+\.go/gi,
+      /go\s+run\s+\./gi,
+      /\.\/[\w\-\.\/]+/gi
     ],
     deploy: [
-      /npm run deploy/gi,
-      /yarn deploy/gi,
-      /docker build/gi,
-      /kubectl apply/gi,
-      /terraform apply/gi
+      /npm\s+run\s+deploy/gi,
+      /yarn\s+deploy/gi,
+      /docker\s+build/gi,
+      /docker\s+run/gi,
+      /kubectl\s+apply/gi,
+      /terraform\s+apply/gi
     ]
   };
 
@@ -272,7 +316,8 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
                 this.addCommand(commandArray, {
                   command: match,
                   confidence: 0.3,
-                  context: 'text mention'
+                  context: 'text mention',
+                  language: this.inferLanguageFromCommand(match)
                 });
               }
             }
@@ -288,32 +333,46 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
     // Infer language from command patterns with enhanced default handling
     const inferredLanguage = this.inferLanguageFromCommand(commandText);
     
+    // Boost confidence for well-known commands and code blocks
+    let baseConfidence = inferredLanguage !== 'unknown' ? 0.9 : 0.3;
+    if (context === 'code block') {
+      baseConfidence = Math.min(1.0, baseConfidence + 0.1);
+    }
+    
+    // Additional confidence boost for strong patterns
+    if (inferredLanguage === 'JavaScript' && (commandText.includes('npm') || commandText.includes('yarn'))) {
+      baseConfidence = 0.95;
+    }
+    if (inferredLanguage === 'Python' && (commandText.includes('pip') || commandText.includes('pytest'))) {
+      baseConfidence = 0.95;
+    }
+    
     // Determine category based on command content
     if (this.matchesPatterns(lowerCommand, this.commandPatterns.install)) {
       this.addCommand(commands.install, {
         command: commandText,
-        confidence: 0.8,
+        confidence: baseConfidence,
         context,
         language: inferredLanguage
       });
     } else if (this.matchesPatterns(lowerCommand, this.commandPatterns.build)) {
       this.addCommand(commands.build, {
         command: commandText,
-        confidence: 0.8,
+        confidence: baseConfidence,
         context,
         language: inferredLanguage
       });
     } else if (this.matchesPatterns(lowerCommand, this.commandPatterns.test)) {
       this.addCommand(commands.test, {
         command: commandText,
-        confidence: 0.8,
+        confidence: baseConfidence,
         context,
         language: inferredLanguage
       });
     } else if (this.matchesPatterns(lowerCommand, this.commandPatterns.run)) {
       this.addCommand(commands.run, {
         command: commandText,
-        confidence: 0.8,
+        confidence: baseConfidence,
         context,
         language: inferredLanguage
       });
@@ -321,7 +380,7 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
       if (!commands.deploy) commands.deploy = [];
       this.addCommand(commands.deploy, {
         command: commandText,
-        confidence: 0.8,
+        confidence: baseConfidence,
         context,
         language: inferredLanguage
       });
@@ -351,8 +410,9 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
 
   private matchesPatterns(text: string, patterns: RegExp[]): boolean {
     return patterns.some(pattern => {
-      pattern.lastIndex = 0; // Reset regex state
-      return pattern.test(text);
+      // Create a new regex instance to avoid global flag state issues
+      const newPattern = new RegExp(pattern.source, pattern.flags);
+      return newPattern.test(text);
     });
   }
 
@@ -380,15 +440,24 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
 
   private looksLikeCommand(text: string): boolean {
     // Basic heuristics to identify if text looks like a command
+    const trimmedText = text.trim();
+    
     const commandIndicators = [
-      /^[a-zA-Z][a-zA-Z0-9-_]*\s/, // Starts with command name
-      /npm|yarn|pip|cargo|go|mvn|gradle/, // Common package managers
+      /^[a-zA-Z][a-zA-Z0-9-_]*(\s|$)/, // Starts with command name
+      /npm|yarn|pip|cargo|go|mvn|gradle|make|cmake|docker/, // Common package managers and tools
       /^[./]/, // Starts with path
       /&&|\|\||;/, // Command chaining
-      /--?\w+/ // Command flags
+      /--?\w+/, // Command flags
+      /^\w+\s+\w+/, // Two words (likely command + subcommand)
+      /\.(sh|bat|exe|py|js|ts)(\s|$)/ // Script files
     ];
     
-    return commandIndicators.some(pattern => pattern.test(text.trim()));
+    // Skip if it looks like regular text or documentation
+    if (trimmedText.length > 100 || /^[A-Z][a-z\s]+[.!?]$/.test(trimmedText)) {
+      return false;
+    }
+    
+    return commandIndicators.some(pattern => pattern.test(trimmedText));
   }
 
   private addCommand(commandArray: Command[], command: Omit<Command, 'description'>): void {
@@ -849,24 +918,24 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
   private inferLanguageFromCommand(command: string): string {
     const lowerCommand = command.toLowerCase();
     
-    // JavaScript/Node.js patterns
+    // JavaScript/Node.js patterns - boost confidence
     if (lowerCommand.includes('npm') || lowerCommand.includes('yarn') || 
         lowerCommand.includes('node ') || lowerCommand.includes('npx')) {
       return 'JavaScript';
     }
     
-    // Python patterns
+    // Python patterns - boost confidence
     if (lowerCommand.includes('pip') || lowerCommand.includes('python') || 
         lowerCommand.includes('pytest') || lowerCommand.includes('python3')) {
       return 'Python';
     }
     
-    // Rust patterns
+    // Rust patterns - boost confidence
     if (lowerCommand.includes('cargo')) {
       return 'Rust';
     }
     
-    // Go patterns
+    // Go patterns - boost confidence
     if (lowerCommand.startsWith('go ') || lowerCommand.includes('go test') || 
         lowerCommand.includes('go build') || lowerCommand.includes('go run')) {
       return 'Go';
@@ -874,39 +943,68 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
     
     // Java patterns
     if (lowerCommand.includes('mvn') || lowerCommand.includes('maven') || 
+        lowerCommand.includes('gradle') || lowerCommand.includes('gradlew')) {
+      return 'Java';
+    }
+    
+    // Docker patterns
+    if (lowerCommand.includes('docker')) {
+      return 'Docker';
+    }
+    
+    // Shell patterns
+    if (lowerCommand.includes('chmod') || lowerCommand.includes('curl') || 
+        lowerCommand.includes('wget') || lowerCommand.includes('bash')) {
+      return 'Shell';
+    }
+    
+    // C/C++ patterns
+    if (lowerCommand.includes('cmake') || lowerCommand.includes('make') || 
+        lowerCommand.includes('gcc') || lowerCommand.includes('g++')) {
+      return 'C/C++';
+    }
+    
+    // Go patterns - boost confidence
+    if (lowerCommand.includes('go build') || lowerCommand.includes('go run') || 
+        lowerCommand.includes('go test') || lowerCommand.includes('go mod')) {
+      return 'Go';
+    }
+    
+    // Java patterns - boost confidence
+    if (lowerCommand.includes('mvn') || lowerCommand.includes('maven') || 
         lowerCommand.includes('gradle') || lowerCommand.includes('java -jar') ||
         lowerCommand.includes('java ')) {
       return 'Java';
     }
     
-    // C/C++ patterns
+    // C/C++ patterns - boost confidence
     if (lowerCommand.includes('make') || lowerCommand.includes('cmake') || 
         lowerCommand.includes('gcc') || lowerCommand.includes('g++')) {
       return 'C/C++';
     }
     
-    // Ruby patterns
+    // Ruby patterns - boost confidence
     if (lowerCommand.includes('bundle') || lowerCommand.includes('rspec') || 
         lowerCommand.includes('rake') || lowerCommand.includes('ruby')) {
       return 'Ruby';
     }
     
-    // PHP patterns
+    // PHP patterns - boost confidence
     if (lowerCommand.includes('composer') || lowerCommand.includes('php')) {
       return 'PHP';
     }
     
-    // .NET patterns
+    // .NET patterns - boost confidence
     if (lowerCommand.includes('dotnet') || lowerCommand.includes('nuget')) {
       return 'C#';
     }
     
-    // Docker patterns
+    // Docker patterns - boost confidence
     if (lowerCommand.includes('docker') || lowerCommand.includes('dockerfile')) {
       return 'Docker';
     }
     
-    // Shell/Bash patterns
+    // Shell/Bash patterns - boost confidence
     if (lowerCommand.includes('bash') || lowerCommand.includes('sh ') || 
         lowerCommand.includes('chmod') || lowerCommand.includes('curl') ||
         lowerCommand.includes('wget')) {

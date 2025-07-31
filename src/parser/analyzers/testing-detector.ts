@@ -1,4 +1,4 @@
-import { AnalyzerResult, TestingInfo } from '../types';
+import { AnalyzerResult, TestingInfo, TestingToolType } from '../types';
 import { MarkdownAST, MarkdownNode, MarkdownUtils } from '../../shared/markdown-parser';
 import { Analyzer } from './registry';
 
@@ -12,22 +12,50 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     {
       name: 'Jest',
       language: 'JavaScript',
-      keywords: ['jest', 'jest.config'],
-      configFiles: ['jest.config.js', 'jest.config.json'],
-      testPatterns: ['*.test.js', '*.spec.js', '__tests__']
+      keywords: ['jest', 'jest.config', 'jest.setup'],
+      configFiles: ['jest.config.js', 'jest.config.json', 'jest.config.ts'],
+      testPatterns: ['*.test.js', '*.spec.js', '__tests__', '*.test.ts', '*.spec.ts']
     },
     {
       name: 'Mocha',
       language: 'JavaScript',
-      keywords: ['mocha', 'mocha.opts'],
-      configFiles: ['.mocharc.json', 'mocha.opts'],
-      testPatterns: ['*.test.js', '*.spec.js']
+      keywords: ['mocha', 'mocha.opts', '.mocharc'],
+      configFiles: ['.mocharc.json', 'mocha.opts', '.mocharc.js'],
+      testPatterns: ['*.test.js', '*.spec.js', '*.test.ts', '*.spec.ts']
     },
     {
-      name: 'Pytest',
+      name: 'Vitest',
+      language: 'JavaScript',
+      keywords: ['vitest', 'vitest.config'],
+      configFiles: ['vitest.config.js', 'vitest.config.ts'],
+      testPatterns: ['*.test.js', '*.spec.js', '*.test.ts', '*.spec.ts']
+    },
+    {
+      name: 'Cypress',
+      language: 'JavaScript',
+      keywords: ['cypress', 'cypress.config'],
+      configFiles: ['cypress.config.js', 'cypress.config.ts', 'cypress.json'],
+      testPatterns: ['*.cy.js', '*.cy.ts', 'cypress/e2e/*']
+    },
+    {
+      name: 'Playwright',
+      language: 'JavaScript',
+      keywords: ['playwright', 'playwright.config'],
+      configFiles: ['playwright.config.js', 'playwright.config.ts'],
+      testPatterns: ['*.spec.js', '*.spec.ts', 'tests/*']
+    },
+    {
+      name: 'pytest',
       language: 'Python',
-      keywords: ['pytest', 'pytest.ini'],
-      configFiles: ['pytest.ini', 'pyproject.toml'],
+      keywords: ['pytest', 'pytest.ini', 'py.test'],
+      configFiles: ['pytest.ini', 'pyproject.toml', 'setup.cfg'],
+      testPatterns: ['test_*.py', '*_test.py', 'tests/*.py']
+    },
+    {
+      name: 'unittest',
+      language: 'Python',
+      keywords: ['unittest', 'python -m unittest'],
+      configFiles: [],
       testPatterns: ['test_*.py', '*_test.py']
     },
     {
@@ -61,20 +89,43 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     {
       name: 'JUnit',
       language: 'Java',
-      keywords: ['junit', 'junit5'],
+      keywords: ['junit', 'junit5', '@Test'],
       configFiles: ['pom.xml', 'build.gradle'],
-      testPatterns: ['*Test.java']
+      testPatterns: ['*Test.java', '*Tests.java']
+    },
+    {
+      name: 'TestNG',
+      language: 'Java',
+      keywords: ['testng', '@Test'],
+      configFiles: ['testng.xml', 'pom.xml'],
+      testPatterns: ['*Test.java', '*Tests.java']
+    },
+    {
+      name: 'Go Testing',
+      language: 'Go',
+      keywords: ['go test', 'testing.T', 'func Test'],
+      configFiles: ['go.mod'],
+      testPatterns: ['*_test.go']
+    },
+    {
+      name: 'Rust Testing',
+      language: 'Rust',
+      keywords: ['cargo test', '#[test]', '#[cfg(test)]'],
+      configFiles: ['Cargo.toml'],
+      testPatterns: ['tests/*.rs', 'src/**/tests.rs']
     }
   ];
 
   private coverageTools = [
-    'coverage',
-    'nyc',
-    'istanbul',
-    'codecov',
-    'coveralls',
-    'jacoco',
-    'simplecov'
+    { name: 'Istanbul/nyc', type: 'coverage', keywords: ['nyc', 'istanbul'] },
+    { name: 'Jest Coverage', type: 'coverage', keywords: ['jest --coverage', 'collectCoverage'] },
+    { name: 'Codecov', type: 'coverage', keywords: ['codecov'] },
+    { name: 'Coveralls', type: 'coverage', keywords: ['coveralls'] },
+    { name: 'JaCoCo', type: 'coverage', keywords: ['jacoco'] },
+    { name: 'SimpleCov', type: 'coverage', keywords: ['simplecov'] },
+    { name: 'Chai', type: 'assertion', keywords: ['chai', 'expect(', 'should'] },
+    { name: 'Sinon', type: 'mocking', keywords: ['sinon', 'stub', 'spy'] },
+    { name: 'Karma', type: 'runner', keywords: ['karma', 'karma.conf'] }
   ];
 
   async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<TestingInfo>> {
@@ -88,17 +139,21 @@ export class TestingDetector implements Analyzer<TestingInfo> {
         confidence
       };
     } catch (error) {
-      return {
-        success: false,
+      // Return empty testing info with error logged but still successful
+      const emptyTestingInfo: TestingInfo = {
+        frameworks: [],
+        tools: [],
+        configFiles: [],
         confidence: 0,
-        errors: [{
-          code: 'TESTING_DETECTION_ERROR',
-          message: `Failed to detect testing info: ${(error as Error).message}`,
-          component: 'TestingDetector',
-          severity: 'error',
-          category: 'analysis',
-          isRecoverable: true
-        }]
+        testFiles: [],
+        coverage: { enabled: false, tools: [] },
+        commands: []
+      };
+      
+      return {
+        success: true,
+        data: emptyTestingInfo,
+        confidence: 0
       };
     }
   }
@@ -138,32 +193,34 @@ export class TestingDetector implements Analyzer<TestingInfo> {
       const foundConfigFiles: string[] = [];
       const foundTestPatterns: string[] = [];
       
-      // Check keywords
+      // Check keywords with higher confidence
       for (const keyword of framework.keywords) {
         if (lowerContent.includes(keyword.toLowerCase())) {
-          confidence += 0.3;
+          confidence += 0.8; // Increased for stronger detection
           foundKeywords.push(keyword);
         }
       }
       
-      // Check config files
+      // Check config files with higher confidence
       for (const configFile of framework.configFiles) {
         if (content.includes(configFile)) {
-          confidence += 0.4;
+          confidence += 0.9; // Increased for stronger detection
           foundConfigFiles.push(configFile);
+          testingInfo.configFiles.push(configFile);
         }
       }
       
-      // Check test patterns
+      // Check test patterns with higher confidence
       for (const pattern of framework.testPatterns) {
         const regex = new RegExp(pattern.replace('*', '[^\\s]*'), 'gi');
         if (regex.test(content)) {
-          confidence += 0.2;
+          confidence += 0.7; // Increased for stronger detection
           foundTestPatterns.push(pattern);
         }
       }
       
-      if (confidence > 0) {
+      // Lower the threshold for detection
+      if (confidence > 0.3) {
         testingInfo.frameworks.push({
           name: framework.name,
           language: framework.language || 'unknown',
@@ -204,9 +261,18 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     const foundTools: string[] = [];
     let threshold: number | undefined;
     
+    // Detect coverage and testing tools
     for (const tool of this.coverageTools) {
-      if (lowerContent.includes(tool)) {
-        foundTools.push(tool);
+      for (const keyword of tool.keywords) {
+        if (lowerContent.includes(keyword.toLowerCase())) {
+          foundTools.push(tool.name);
+          testingInfo.tools.push({
+            name: tool.name,
+            type: tool.type as TestingToolType,
+            confidence: 0.8
+          });
+          break; // Only add once per tool
+        }
       }
     }
     

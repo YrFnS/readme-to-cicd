@@ -214,7 +214,7 @@ export interface TestingTool {
   confidence: number;
 }
 
-export type TestingToolType = 'runner' | 'coverage' | 'reporter' | 'assertion' | 'mock' | 'other';
+export type TestingToolType = 'runner' | 'coverage' | 'reporter' | 'assertion' | 'mocking' | 'other';
 
 // Environment variables
 export interface EnvironmentVariable {

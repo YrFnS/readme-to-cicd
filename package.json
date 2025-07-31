@@ -40,9 +40,11 @@
   "author": "README-to-CICD Team",
   "license": "MIT",
   "dependencies": {
-    "marked": "^9.1.6"
+    "marked": "^9.1.6",
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/marked": "^6.0.0",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

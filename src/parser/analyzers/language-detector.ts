@@ -84,6 +84,12 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       codeBlocks: ['ruby', 'rb'],
       fileExtensions: ['.rb'],
       frameworks: ['rails', 'sinatra']
+    }],
+    ['C++', {
+      keywords: ['c++', 'cpp', 'cmake', 'make'],
+      codeBlocks: ['cpp', 'c++'],
+      fileExtensions: ['.cpp', '.cc', '.cxx'],
+      frameworks: []
     }]
   ]);
 
@@ -198,7 +204,8 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         
         for (const [languageName, patterns] of this.languagePatterns) {
           if (patterns.codeBlocks.includes(lang)) {
-            this.addOrUpdateLanguage(detectedLanguages, languageName, 0.8, ['code block']);
+            // Boost confidence for code blocks - they're strong indicators
+            this.addOrUpdateLanguage(detectedLanguages, languageName, 0.95, ['code-block']);
             break;
           }
         }
@@ -223,8 +230,9 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       }
       
       if (keywordMatches > 0) {
-        const confidence = Math.min(keywordMatches * 0.1, 0.6);
-        this.addOrUpdateLanguage(detectedLanguages, languageName, confidence, foundKeywords);
+        // Boost confidence for keyword matches - especially for strong indicators
+        const baseConfidence = Math.min(keywordMatches * 0.3, 0.9);
+        this.addOrUpdateLanguage(detectedLanguages, languageName, baseConfidence, ['text-mention']);
       }
     }
   }
@@ -235,8 +243,9 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         const regex = new RegExp(`\\${extension}\\b`, 'g');
         const matches = content.match(regex);
         if (matches) {
-          const confidence = Math.min(matches.length * 0.05, 0.3);
-          this.addOrUpdateLanguage(detectedLanguages, languageName, confidence, [`${extension} files`]);
+          // Boost confidence for file extensions - they're strong indicators
+          const confidence = Math.min(matches.length * 0.4, 0.9);
+          this.addOrUpdateLanguage(detectedLanguages, languageName, confidence, ['file-reference']);
         }
       }
     }

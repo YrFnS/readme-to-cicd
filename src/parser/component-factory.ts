@@ -270,7 +270,7 @@ class EnhancedLanguageDetectorAdapter implements ContentAnalyzer {
         data: result.success ? result.data : null,
         confidence: result.confidence,
         sources: result.sources || [],
-        errors: result.success ? undefined : result.errors
+        errors: result.success ? [] : (result.errors || [])
       };
     } catch (error) {
       return {
@@ -304,7 +304,7 @@ class EnhancedCommandExtractorAdapter implements ContentAnalyzer {
         data: result.success ? result.data : null,
         confidence: result.confidence,
         sources: result.sources || [],
-        errors: result.success ? undefined : result.errors
+        errors: result.success ? [] : (result.errors || [])
       };
     } catch (error) {
       return {

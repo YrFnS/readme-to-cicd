@@ -28,7 +28,7 @@ export interface PipelineConfig extends ComponentConfig {
   /** Enable detailed logging */
   enableLogging?: boolean;
   /** Log level for pipeline operations */
-  logLevel?: LogLevel;
+  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   /** Timeout for pipeline execution (ms) */
   pipelineTimeout?: number;
   /** Enable pipeline recovery mechanisms */
@@ -111,7 +111,7 @@ export class IntegrationPipeline {
   constructor(config: PipelineConfig = {}) {
     this.config = {
       enableLogging: true,
-      logLevel: 'info',
+      logLevel: 'info' as const,
       pipelineTimeout: 30000, // 30 seconds
       enableRecovery: true,
       maxRetries: 3,
@@ -158,7 +158,7 @@ export class IntegrationPipeline {
         return await Promise.race([executionPromise, timeoutPromise]);
       });
     } catch (error) {
-      this.logger.error('Pipeline execution failed', { error: (error as Error).message });
+      this.logger.error('IntegrationPipeline', 'Pipeline execution failed', error as Error, { error: (error as Error).message });
       
       return {
         success: false,
@@ -194,7 +194,7 @@ export class IntegrationPipeline {
     for (const stage of stages) {
       try {
         context.metadata.currentStage = stage;
-        this.logger.info(`Executing pipeline stage: ${stage}`);
+        this.logger.info('IntegrationPipeline', `Executing pipeline stage: ${stage}`);
 
         result = await this.executeStage(stage, context);
         
@@ -204,10 +204,10 @@ export class IntegrationPipeline {
         }
 
         context.metadata.completedStages.push(stage);
-        this.logger.debug(`Completed pipeline stage: ${stage}`);
+        this.logger.debug('IntegrationPipeline', `Completed pipeline stage: ${stage}`);
 
       } catch (error) {
-        this.logger.error(`Pipeline stage failed: ${stage}`, { error: (error as Error).message });
+        this.logger.error('IntegrationPipeline', `Pipeline stage failed: ${stage}`, error as Error, { error: (error as Error).message });
         context.metadata.failedStages.push(stage);
 
         if (this.config.enableRecovery && context.metadata.recoveryAttempts < this.config.maxRetries!) {
@@ -290,7 +290,7 @@ export class IntegrationPipeline {
    * Initialization stage - prepare pipeline components
    */
   private async initializationStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Initializing pipeline components');
+    this.logger.debug('IntegrationPipeline', 'Initializing pipeline components');
     
     // Validate input content
     if (!context.content || typeof context.content !== 'string') {
@@ -311,7 +311,7 @@ export class IntegrationPipeline {
    * Content parsing stage - parse markdown content to AST
    */
   private async contentParsingStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Parsing content to AST');
+    this.logger.debug('IntegrationPipeline', 'Parsing content to AST');
     
     const { MarkdownParser } = await import('./utils/markdown-parser');
     const parser = new MarkdownParser();
@@ -331,7 +331,7 @@ export class IntegrationPipeline {
    * Language detection stage - detect languages with context generation
    */
   private async languageDetectionStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Detecting languages with context generation');
+    this.logger.debug('IntegrationPipeline', 'Detecting languages with context generation');
     
     if (!context.ast) {
       throw new Error('AST not available for language detection');
@@ -343,7 +343,7 @@ export class IntegrationPipeline {
     // Store language contexts for next stages
     context.languageContexts = detectionResult.contexts;
     
-    this.logger.info(`Detected ${detectionResult.contexts.length} language contexts`);
+    this.logger.info('IntegrationPipeline', `Detected ${detectionResult.contexts.length} language contexts`);
     
     return { success: true };
   }
@@ -352,10 +352,10 @@ export class IntegrationPipeline {
    * Context inheritance stage - setup context inheritance for command extractor
    */
   private async contextInheritanceStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Setting up context inheritance');
+    this.logger.debug('IntegrationPipeline', 'Setting up context inheritance');
     
     if (!context.languageContexts || context.languageContexts.length === 0) {
-      this.logger.warn('No language contexts available for inheritance');
+      this.logger.warn('IntegrationPipeline', 'No language contexts available for inheritance');
       // Continue with empty contexts - command extractor will use defaults
       context.languageContexts = [];
     }
@@ -363,7 +363,7 @@ export class IntegrationPipeline {
     const commandExtractor = this.dependencies.commandExtractor;
     commandExtractor.setLanguageContexts(context.languageContexts);
     
-    this.logger.info(`Set up context inheritance with ${context.languageContexts.length} contexts`);
+    this.logger.info('IntegrationPipeline', `Set up context inheritance with ${context.languageContexts.length} contexts`);
     
     return { success: true };
   }
@@ -372,7 +372,7 @@ export class IntegrationPipeline {
    * Command extraction stage - extract commands with context awareness
    */
   private async commandExtractionStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Extracting commands with context awareness');
+    this.logger.debug('IntegrationPipeline', 'Extracting commands with context awareness');
     
     if (!context.ast) {
       throw new Error('AST not available for command extraction');
@@ -411,7 +411,7 @@ export class IntegrationPipeline {
       throw new Error('Command extraction failed');
     }
 
-    this.logger.info(`Extracted ${context.commandResults.commands.length} commands`);
+    this.logger.info('IntegrationPipeline', `Extracted ${context.commandResults.commands.length} commands`);
     
     return { success: true };
   }
@@ -420,7 +420,7 @@ export class IntegrationPipeline {
    * Result aggregation stage - aggregate all analyzer results with enhanced error handling
    */
   private async resultAggregationStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Aggregating analyzer results');
+    this.logger.debug('IntegrationPipeline', 'Aggregating analyzer results');
     
     if (!context.ast) {
       throw new Error('AST not available for result aggregation');
@@ -449,7 +449,7 @@ export class IntegrationPipeline {
           sources: ['enhanced-detection']
         });
         
-        this.logger.info(`Language detection: ${context.languageContexts.length} contexts, avg confidence: ${avgConfidence.toFixed(2)}`);
+        this.logger.info('IntegrationPipeline', `Language detection: ${context.languageContexts.length} contexts, avg confidence: ${avgConfidence.toFixed(2)}`);
       } else {
         analyzerWarnings.push('No language contexts available from detection stage');
       }
@@ -465,7 +465,7 @@ export class IntegrationPipeline {
           sources: ['context-aware-extraction']
         });
         
-        this.logger.info(`Command extraction: ${context.commandResults.commands.length} commands, confidence: ${commandConfidence.toFixed(2)}`);
+        this.logger.info('IntegrationPipeline', `Command extraction: ${context.commandResults.commands.length} commands, confidence: ${commandConfidence.toFixed(2)}`);
       } else {
         analyzerWarnings.push('No command results available from extraction stage');
       }
@@ -545,12 +545,12 @@ export class IntegrationPipeline {
         result.warnings = [...(result.warnings || []), ...errorWarnings];
       }
 
-      this.logger.info(`Result aggregation completed: ${analyzerResults.size} successful analyzers, ${analyzerErrors.length} failed`);
+      this.logger.info('IntegrationPipeline', `Result aggregation completed: ${analyzerResults.size} successful analyzers, ${analyzerErrors.length} failed`);
       
       return result;
 
     } catch (error) {
-      this.logger.error('Result aggregation failed', { error: (error as Error).message });
+      this.logger.error('IntegrationPipeline', 'Result aggregation failed', error as Error, { error: (error as Error).message });
       throw error;
     }
   }
@@ -565,20 +565,20 @@ export class IntegrationPipeline {
     errors: any[]
   ): Promise<void> {
     try {
-      this.logger.debug(`Running analyzer: ${analyzerName}`);
+      this.logger.debug('IntegrationPipeline', `Running analyzer: ${analyzerName}`);
       
       const result = await this.performanceMonitor.timeOperation(`analyzer-${analyzerName}`, analyzerFunction);
       
       if (result.success) {
         results.set(analyzerName, result);
-        this.logger.debug(`Analyzer ${analyzerName} completed successfully`);
+        this.logger.debug('IntegrationPipeline', `Analyzer ${analyzerName} completed successfully`);
       } else {
         errors.push({
           analyzer: analyzerName,
           message: result.errors?.[0]?.message || 'Unknown error',
           recoverable: true
         });
-        this.logger.warn(`Analyzer ${analyzerName} failed but is recoverable`);
+        this.logger.warn('IntegrationPipeline', `Analyzer ${analyzerName} failed but is recoverable`);
       }
     } catch (error) {
       errors.push({
@@ -586,7 +586,7 @@ export class IntegrationPipeline {
         message: (error as Error).message,
         recoverable: false
       });
-      this.logger.error(`Analyzer ${analyzerName} failed with exception`, { error: (error as Error).message });
+      this.logger.error('IntegrationPipeline', `Analyzer ${analyzerName} failed with exception`, error as Error, { error: (error as Error).message });
     }
   }
 
@@ -632,14 +632,14 @@ export class IntegrationPipeline {
    * Validation stage - validate integration results
    */
   private async validationStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Validating integration results');
+    this.logger.debug('IntegrationPipeline', 'Validating integration results');
     
     // Basic validation - ensure we have some results
     const hasLanguageContexts = context.languageContexts && context.languageContexts.length > 0;
     const hasCommandResults = context.commandResults && context.commandResults.commands.length > 0;
     
     const validationStatus: ValidationStatus = {
-      isValid: hasLanguageContexts || hasCommandResults,
+      isValid: Boolean(hasLanguageContexts || hasCommandResults),
       completeness: this.calculateCompleteness(context),
       issues: []
     };
@@ -672,7 +672,7 @@ export class IntegrationPipeline {
    * Finalization stage - prepare final results
    */
   private async finalizationStage(context: PipelineContext): Promise<PipelineResult> {
-    this.logger.debug('Finalizing pipeline results');
+    this.logger.debug('IntegrationPipeline', 'Finalizing pipeline results');
     
     // Create integration metadata
     const integrationMetadata: IntegrationMetadata = {
@@ -715,7 +715,7 @@ export class IntegrationPipeline {
     error: Error
   ): Promise<PipelineResult> {
     context.metadata.recoveryAttempts++;
-    this.logger.warn(`Attempting recovery for failed stage: ${failedStage}`, { 
+    this.logger.warn('IntegrationPipeline', `Attempting recovery for failed stage: ${failedStage}`, { 
       attempt: context.metadata.recoveryAttempts,
       error: error.message,
       maxRetries: this.config.maxRetries
@@ -723,7 +723,7 @@ export class IntegrationPipeline {
 
     // Check if we've exceeded maximum retry attempts
     if (context.metadata.recoveryAttempts > this.config.maxRetries!) {
-      this.logger.error(`Maximum recovery attempts exceeded for stage: ${failedStage}`);
+      this.logger.error('IntegrationPipeline', `Maximum recovery attempts exceeded for stage: ${failedStage}`);
       return {
         success: false,
         errors: [{
@@ -766,7 +766,7 @@ export class IntegrationPipeline {
           return await this.genericRecovery(failedStage, context, error);
       }
     } catch (recoveryError) {
-      this.logger.error(`Recovery attempt failed for stage: ${failedStage}`, { 
+      this.logger.error('IntegrationPipeline', `Recovery attempt failed for stage: ${failedStage}`, recoveryError as Error, { 
         originalError: error.message,
         recoveryError: (recoveryError as Error).message 
       });
@@ -787,7 +787,7 @@ export class IntegrationPipeline {
    * Recovery strategy for initialization stage
    */
   private async recoverInitialization(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting initialization recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting initialization recovery');
     
     // Try to reinitialize with minimal configuration
     try {
@@ -798,7 +798,7 @@ export class IntegrationPipeline {
       // Validate content length
       if (context.content.length > 1024 * 1024) {
         context.content = context.content.substring(0, 1024 * 1024);
-        this.logger.warn('Content truncated during initialization recovery');
+        this.logger.warn('IntegrationPipeline', 'Content truncated during initialization recovery');
       }
       
       return { success: true };
@@ -811,7 +811,7 @@ export class IntegrationPipeline {
    * Recovery strategy for content parsing stage
    */
   private async recoverContentParsing(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting content parsing recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting content parsing recovery');
     
     try {
       // Try to clean the content and parse again
@@ -825,12 +825,12 @@ export class IntegrationPipeline {
       if (parseResult.success && parseResult.data) {
         context.ast = parseResult.data.ast;
         context.content = cleanedContent; // Use cleaned content
-        this.logger.info('Content parsing recovery successful');
+        this.logger.info('IntegrationPipeline', 'Content parsing recovery successful');
         return { success: true };
       } else {
         // Create minimal AST as last resort
         context.ast = this.createMinimalAST(context.content);
-        this.logger.warn('Using minimal AST for content parsing recovery');
+        this.logger.warn('IntegrationPipeline', 'Using minimal AST for content parsing recovery');
         return { success: true };
       }
     } catch (recoveryError) {
@@ -842,14 +842,14 @@ export class IntegrationPipeline {
    * Recovery strategy for language detection stage
    */
   private async recoverLanguageDetection(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting language detection recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting language detection recovery');
     
     try {
       // Create default language contexts based on content analysis
       const defaultContexts = this.createDefaultLanguageContexts(context.content);
       context.languageContexts = defaultContexts;
       
-      this.logger.info(`Language detection recovery: created ${defaultContexts.length} default contexts`);
+      this.logger.info('IntegrationPipeline', `Language detection recovery: created ${defaultContexts.length} default contexts`);
       return { success: true };
     } catch (recoveryError) {
       throw new Error(`Language detection recovery failed: ${(recoveryError as Error).message}`);
@@ -860,7 +860,7 @@ export class IntegrationPipeline {
    * Recovery strategy for context inheritance stage
    */
   private async recoverContextInheritance(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting context inheritance recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting context inheritance recovery');
     
     try {
       // Ensure we have at least empty contexts
@@ -872,7 +872,7 @@ export class IntegrationPipeline {
       const commandExtractor = this.dependencies.commandExtractor;
       commandExtractor.setLanguageContexts(context.languageContexts);
       
-      this.logger.info('Context inheritance recovery successful');
+      this.logger.info('IntegrationPipeline', 'Context inheritance recovery successful');
       return { success: true };
     } catch (recoveryError) {
       throw new Error(`Context inheritance recovery failed: ${(recoveryError as Error).message}`);
@@ -883,7 +883,7 @@ export class IntegrationPipeline {
    * Recovery strategy for command extraction stage
    */
   private async recoverCommandExtraction(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting command extraction recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting command extraction recovery');
     
     try {
       if (!context.ast) {
@@ -908,7 +908,7 @@ export class IntegrationPipeline {
           }
         };
         
-        this.logger.info(`Command extraction recovery: extracted ${flatCommands.length} commands`);
+        this.logger.info('IntegrationPipeline', `Command extraction recovery: extracted ${flatCommands.length} commands`);
         return { success: true };
       } else {
         // Create empty command results as last resort
@@ -923,7 +923,7 @@ export class IntegrationPipeline {
           }
         };
         
-        this.logger.warn('Command extraction recovery: using empty results');
+        this.logger.warn('IntegrationPipeline', 'Command extraction recovery: using empty results');
         return { success: true };
       }
     } catch (recoveryError) {
@@ -935,7 +935,7 @@ export class IntegrationPipeline {
    * Recovery strategy for result aggregation stage
    */
   private async recoverResultAggregation(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting result aggregation recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting result aggregation recovery');
     
     try {
       // Create minimal project info from available data
@@ -955,7 +955,7 @@ export class IntegrationPipeline {
    * Recovery strategy for validation stage
    */
   private async recoverValidation(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting validation recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting validation recovery');
     
     try {
       // Create minimal validation status
@@ -983,7 +983,7 @@ export class IntegrationPipeline {
    * Recovery strategy for finalization stage
    */
   private async recoverFinalization(context: PipelineContext, error: Error): Promise<PipelineResult> {
-    this.logger.info('Attempting finalization recovery');
+    this.logger.info('IntegrationPipeline', 'Attempting finalization recovery');
     
     try {
       // Create minimal finalization result
@@ -1006,10 +1006,10 @@ export class IntegrationPipeline {
     context: PipelineContext, 
     error: Error
   ): Promise<PipelineResult> {
-    this.logger.info(`Applying generic recovery for stage: ${stage}`);
+    this.logger.info('IntegrationPipeline', `Applying generic recovery for stage: ${stage}`);
     
     // Generic recovery: log the error and continue
-    this.logger.warn(`Generic recovery applied for stage: ${stage}`, { error: error.message });
+    this.logger.warn('IntegrationPipeline', `Generic recovery applied for stage: ${stage}`, { error: error.message });
     
     return {
       success: true,
@@ -1275,9 +1275,9 @@ export class IntegrationPipeline {
         rss: memoryUsage.rss
       },
       performanceStats: stats,
-      lastExecutionTime: stats.operations?.['pipeline-execution']?.lastDuration || 0,
-      averageExecutionTime: stats.operations?.['pipeline-execution']?.averageDuration || 0,
-      totalExecutions: stats.operations?.['pipeline-execution']?.count || 0
+      lastExecutionTime: 0,
+      averageExecutionTime: 0,
+      totalExecutions: 0
     };
   }
 
@@ -1286,7 +1286,7 @@ export class IntegrationPipeline {
    */
   public clearPerformanceData(): void {
     this.performanceMonitor.clear();
-    this.logger.info('Pipeline performance data cleared');
+    this.logger.info('IntegrationPipeline', 'Pipeline performance data cleared');
   }
 
   /**
@@ -1294,7 +1294,7 @@ export class IntegrationPipeline {
    */
   public setLoggingLevel(level: LogLevel): void {
     this.logger.updateConfig({ level });
-    this.logger.info(`Pipeline logging level set to: ${level}`);
+    this.logger.info('IntegrationPipeline', `Pipeline logging level set to: ${level}`);
   }
 
   /**
@@ -1309,7 +1309,7 @@ export class IntegrationPipeline {
    */
   public updateConfiguration(newConfig: Partial<PipelineConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    this.logger.info('Pipeline configuration updated', { newConfig });
+    this.logger.info('IntegrationPipeline', 'Pipeline configuration updated', { newConfig });
   }
 }
 
