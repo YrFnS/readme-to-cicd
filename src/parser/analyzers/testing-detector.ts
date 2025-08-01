@@ -136,7 +136,8 @@ export class TestingDetector implements Analyzer<TestingInfo> {
       return {
         success: true,
         data: testingInfo,
-        confidence
+        confidence,
+        sources: ['content-analysis']
       };
     } catch (error) {
       // Return empty testing info with error logged but still successful
@@ -153,7 +154,8 @@ export class TestingDetector implements Analyzer<TestingInfo> {
       return {
         success: true,
         data: emptyTestingInfo,
-        confidence: 0
+        confidence: 0,
+        sources: []
       };
     }
   }
@@ -172,6 +174,9 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     // Detect testing frameworks
     this.detectFrameworks(content, testingInfo);
     
+    // Detect testing tools
+    this.detectTestingTools(content, testingInfo);
+    
     // Extract test files mentioned
     this.extractTestFiles(content, testingInfo);
     
@@ -181,58 +186,334 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     // Extract test commands
     this.extractTestCommands(ast, content, testingInfo);
 
+    // Calculate and set confidence on the testingInfo object
+    testingInfo.confidence = this.calculateConfidence(testingInfo);
+
     return testingInfo;
   }
 
   private detectFrameworks(content: string, testingInfo: TestingInfo): void {
-    const lowerContent = content.toLowerCase();
-    
-    for (const framework of this.testingFrameworks) {
-      let confidence = 0;
-      const foundKeywords: string[] = [];
-      const foundConfigFiles: string[] = [];
-      const foundTestPatterns: string[] = [];
-      
-      // Check keywords with higher confidence
-      for (const keyword of framework.keywords) {
-        if (lowerContent.includes(keyword.toLowerCase())) {
-          confidence += 0.8; // Increased for stronger detection
-          foundKeywords.push(keyword);
-        }
-      }
-      
-      // Check config files with higher confidence
-      for (const configFile of framework.configFiles) {
-        if (content.includes(configFile)) {
-          confidence += 0.9; // Increased for stronger detection
-          foundConfigFiles.push(configFile);
-          testingInfo.configFiles.push(configFile);
-        }
-      }
-      
-      // Check test patterns with higher confidence
-      for (const pattern of framework.testPatterns) {
-        const regex = new RegExp(pattern.replace('*', '[^\\s]*'), 'gi');
-        if (regex.test(content)) {
-          confidence += 0.7; // Increased for stronger detection
-          foundTestPatterns.push(pattern);
-        }
-      }
-      
-      // Lower the threshold for detection
-      if (confidence > 0.3) {
-        testingInfo.frameworks.push({
-          name: framework.name,
-          language: framework.language || 'unknown',
-          confidence: Math.min(confidence, 1.0),
-          configFiles: foundConfigFiles,
-          testPatterns: foundTestPatterns
-        });
+    // Detect frameworks by language
+    const frameworks: any[] = [];
+    frameworks.push(...this.detectJavaScriptFrameworks(content));
+    frameworks.push(...this.detectPythonFrameworks(content));
+    frameworks.push(...this.detectJavaFrameworks(content));
+    frameworks.push(...this.detectOtherFrameworks(content));
+
+    // Add detected frameworks to testingInfo
+    testingInfo.frameworks.push(...frameworks);
+
+    // Extract config files from detected frameworks
+    for (const framework of frameworks) {
+      if (framework.configFiles) {
+        testingInfo.configFiles.push(...framework.configFiles);
       }
     }
-    
+
     // Sort by confidence
     testingInfo.frameworks.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  private detectJavaScriptFrameworks(content: string): any[] {
+    const frameworks: any[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // Jest detection
+    if (lowerContent.includes('jest') || lowerContent.includes('jest.config') || 
+        lowerContent.includes('setupTests') || lowerContent.includes('@testing-library/jest-dom')) {
+      frameworks.push({
+        name: 'Jest',
+        language: 'JavaScript',
+        confidence: 0.9,
+        version: this.extractVersion(content, 'jest'),
+        configFiles: ['jest.config.js', 'jest.config.ts', 'package.json'],
+        testPatterns: ['**/*.test.js', '**/*.spec.js', '**/*.test.ts', '**/*.spec.ts']
+      });
+    }
+
+    // Mocha detection
+    if (lowerContent.includes('mocha') || lowerContent.includes('.mocharc')) {
+      frameworks.push({
+        name: 'Mocha',
+        language: 'JavaScript',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'mocha'),
+        configFiles: ['.mocharc.json', '.mocharc.js', 'mocha.opts'],
+        testPatterns: ['test/**/*.js', 'spec/**/*.js']
+      });
+    }
+
+    // Vitest detection
+    if (lowerContent.includes('vitest') || lowerContent.includes('vitest.config')) {
+      frameworks.push({
+        name: 'Vitest',
+        language: 'JavaScript',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'vitest'),
+        configFiles: ['vitest.config.ts', 'vitest.config.js'],
+        testPatterns: ['**/*.test.ts', '**/*.spec.ts']
+      });
+    }
+
+    // Cypress detection
+    if (lowerContent.includes('cypress') || lowerContent.includes('cypress.config')) {
+      frameworks.push({
+        name: 'Cypress',
+        language: 'JavaScript',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'cypress'),
+        configFiles: ['cypress.config.js', 'cypress.config.ts'],
+        testPatterns: ['cypress/e2e/**/*.cy.js', 'cypress/integration/**/*.spec.js']
+      });
+    }
+
+    // Playwright detection
+    if (lowerContent.includes('playwright') || lowerContent.includes('playwright.config')) {
+      frameworks.push({
+        name: 'Playwright',
+        language: 'JavaScript',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'playwright'),
+        configFiles: ['playwright.config.ts', 'playwright.config.js'],
+        testPatterns: ['tests/**/*.spec.ts', 'e2e/**/*.spec.ts']
+      });
+    }
+
+    return frameworks;
+  }
+
+  private detectPythonFrameworks(content: string): any[] {
+    const frameworks: any[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // pytest detection
+    if (lowerContent.includes('pytest') || lowerContent.includes('pytest.ini') || 
+        lowerContent.includes('conftest.py')) {
+      frameworks.push({
+        name: 'pytest',
+        language: 'Python',
+        confidence: 0.9,
+        version: this.extractVersion(content, 'pytest'),
+        configFiles: ['pytest.ini', 'pyproject.toml', 'conftest.py'],
+        testPatterns: ['test_*.py', '*_test.py', 'tests/**/*.py']
+      });
+    }
+
+    // unittest detection
+    if (lowerContent.includes('unittest') || lowerContent.includes('import unittest')) {
+      frameworks.push({
+        name: 'unittest',
+        language: 'Python',
+        confidence: 0.7,
+        version: 'built-in',
+        configFiles: [],
+        testPatterns: ['test_*.py', '*_test.py']
+      });
+    }
+
+    return frameworks;
+  }
+
+  private detectJavaFrameworks(content: string): any[] {
+    const frameworks: any[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // JUnit detection
+    if (lowerContent.includes('junit') || lowerContent.includes('@test') || 
+        lowerContent.includes('org.junit')) {
+      frameworks.push({
+        name: 'JUnit',
+        language: 'Java',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'junit'),
+        configFiles: ['pom.xml', 'build.gradle'],
+        testPatterns: ['**/*Test.java', '**/*Tests.java']
+      });
+    }
+
+    // TestNG detection
+    if (lowerContent.includes('testng') || lowerContent.includes('testng.xml')) {
+      frameworks.push({
+        name: 'TestNG',
+        language: 'Java',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'testng'),
+        configFiles: ['testng.xml', 'pom.xml', 'build.gradle'],
+        testPatterns: ['**/*Test.java', '**/*Tests.java']
+      });
+    }
+
+    return frameworks;
+  }
+
+  private detectOtherFrameworks(content: string): any[] {
+    const frameworks: any[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // RSpec (Ruby) detection
+    if (lowerContent.includes('rspec') || lowerContent.includes('.rspec')) {
+      frameworks.push({
+        name: 'RSpec',
+        language: 'Ruby',
+        confidence: 0.8,
+        version: this.extractVersion(content, 'rspec'),
+        configFiles: ['.rspec', 'spec_helper.rb'],
+        testPatterns: ['spec/**/*_spec.rb']
+      });
+    }
+
+    // Go testing detection
+    if (lowerContent.includes('go test') || lowerContent.includes('testing.T') || 
+        lowerContent.includes('func Test')) {
+      frameworks.push({
+        name: 'Go Testing',
+        language: 'Go',
+        confidence: 0.8,
+        version: 'built-in',
+        configFiles: [],
+        testPatterns: ['*_test.go']
+      });
+    }
+
+    // Rust testing detection
+    if (lowerContent.includes('cargo test') || lowerContent.includes('#[test]') || 
+        lowerContent.includes('#[cfg(test)]')) {
+      frameworks.push({
+        name: 'Rust Testing',
+        language: 'Rust',
+        confidence: 0.8,
+        version: 'built-in',
+        configFiles: ['Cargo.toml'],
+        testPatterns: ['src/**/*.rs', 'tests/**/*.rs']
+      });
+    }
+
+    return frameworks;
+  }
+
+  private extractVersion(content: string, packageName: string): string | undefined {
+    // Simple version extraction from package.json-like content
+    const versionRegex = new RegExp(`"${packageName}"\\s*:\\s*"([^"]+)"`, 'i');
+    const match = content.match(versionRegex);
+    return match ? match[1] : undefined;
+  }
+
+  private detectTestingTools(content: string, testingInfo: TestingInfo): void {
+    const tools: any[] = [];
+    const lowerContent = content.toLowerCase();
+
+    // Coverage tools
+    if (lowerContent.includes('nyc') || lowerContent.includes('istanbul')) {
+      tools.push({
+        name: 'Istanbul/nyc',
+        type: 'coverage',
+        confidence: 0.8,
+        configFiles: ['.nycrc', '.nycrc.json']
+      });
+    }
+
+    if (lowerContent.includes('jest') && lowerContent.includes('coverage')) {
+      tools.push({
+        name: 'Jest Coverage',
+        type: 'coverage',
+        confidence: 0.7,
+        configFiles: ['jest.config.js']
+      });
+    }
+
+    if (lowerContent.includes('c8') || lowerContent.includes('c8 ')) {
+      tools.push({
+        name: 'c8',
+        type: 'coverage',
+        confidence: 0.8,
+        configFiles: ['.c8rc.json']
+      });
+    }
+
+    if (lowerContent.includes('codecov')) {
+      tools.push({
+        name: 'Codecov',
+        type: 'coverage',
+        confidence: 0.8,
+        configFiles: []
+      });
+    }
+
+    if (lowerContent.includes('.coveragerc')) {
+      tools.push({
+        name: 'Python Coverage',
+        type: 'coverage',
+        confidence: 0.7,
+        configFiles: ['.coveragerc']
+      });
+    }
+
+    // Mocking libraries
+    if (lowerContent.includes('sinon')) {
+      tools.push({
+        name: 'Sinon',
+        type: 'mock',
+        confidence: 0.8,
+        configFiles: []
+      });
+    }
+
+    if (lowerContent.includes('jest.mock') || lowerContent.includes('jest.fn')) {
+      tools.push({
+        name: 'Jest Mocks',
+        type: 'mock',
+        confidence: 0.7,
+        configFiles: []
+      });
+    }
+
+    // Assertion libraries
+    if (lowerContent.includes('chai')) {
+      tools.push({
+        name: 'Chai',
+        type: 'assertion',
+        confidence: 0.8,
+        configFiles: []
+      });
+    }
+
+    if (lowerContent.includes('expect') && lowerContent.includes('jest')) {
+      tools.push({
+        name: 'Jest Assertions',
+        type: 'assertion',
+        confidence: 0.7,
+        configFiles: []
+      });
+    }
+
+    // Test runners
+    if (lowerContent.includes('karma')) {
+      tools.push({
+        name: 'Karma',
+        type: 'runner',
+        confidence: 0.8,
+        configFiles: ['karma.conf.js', 'karma.config.js']
+      });
+    }
+
+    if (lowerContent.includes('protractor')) {
+      tools.push({
+        name: 'Protractor',
+        type: 'runner',
+        confidence: 0.8,
+        configFiles: ['protractor.conf.js']
+      });
+    }
+
+    // Add detected tools to testingInfo
+    testingInfo.tools.push(...tools);
+
+    // Add config files from tools to main config files list
+    for (const tool of tools) {
+      if (tool.configFiles && tool.configFiles.length > 0) {
+        testingInfo.configFiles.push(...tool.configFiles);
+      }
+    }
   }
 
   private extractTestFiles(content: string, testingInfo: TestingInfo): void {
@@ -391,6 +672,11 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     if (testingInfo.frameworks.length > 0) {
       const maxFrameworkConfidence = Math.max(...testingInfo.frameworks.map(f => f.confidence));
       confidence += maxFrameworkConfidence * 0.4;
+    }
+    
+    // Tools detected
+    if (testingInfo.tools.length > 0) {
+      confidence += Math.min(testingInfo.tools.length * 0.15, 0.3);
     }
     
     // Test files found

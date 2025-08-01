@@ -1322,7 +1322,7 @@ cargo test
       };
 
       const contexts = [jsContext, pythonContext, rustContext];
-      const result = extractor.extractWithContext(content, contexts);
+      const result = await extractor.extractWithContext(content, contexts);
 
       // Check that commands are separated by language
       const jsCommands = result.commands.filter(cmd => cmd.languageContext.language === 'JavaScript');
@@ -1368,7 +1368,7 @@ pip install flask
       };
 
       const contexts = [jsContext, pythonContext];
-      const result = extractor.extractWithContext(content, contexts);
+      const result = await extractor.extractWithContext(content, contexts);
 
       // Should detect context boundaries
       expect(result.extractionMetadata.contextBoundaries).toBeGreaterThan(0);
@@ -1398,7 +1398,7 @@ npm run dev
         metadata: { createdAt: new Date(), source: 'test' }
       };
 
-      const result = extractor.extractWithContext(content, [jsContext]);
+      const result = await extractor.extractWithContext(content, [jsContext]);
 
       // All commands should be AssociatedCommand objects
       result.commands.forEach(command => {
@@ -1420,7 +1420,7 @@ git commit -m "update"
       `;
 
       // No specific language contexts provided
-      const result = extractor.extractWithContext(content, []);
+      const result = await extractor.extractWithContext(content, []);
 
       // Commands should get default context
       result.commands.forEach(command => {
@@ -1460,7 +1460,7 @@ pytest
         }
       ];
 
-      const result = extractor.extractWithContext(content, contexts);
+      const result = await extractor.extractWithContext(content, contexts);
 
       expect(result.extractionMetadata).toBeDefined();
       expect(result.extractionMetadata.totalCommands).toBeGreaterThan(0);
@@ -1481,7 +1481,7 @@ another-command --flag
       `;
 
       // No language contexts provided
-      const result = extractor.extractWithContext(content, []);
+      const result = await extractor.extractWithContext(content, []);
 
       // Commands should get default context with fallback logic
       result.commands.forEach(command => {
@@ -1512,7 +1512,7 @@ make clean
         metadata: { createdAt: new Date(), source: 'test' }
       };
 
-      const result = extractor.extractWithContext(content, [lowConfidenceContext]);
+      const result = await extractor.extractWithContext(content, [lowConfidenceContext]);
 
       // Commands should use fallback logic due to low confidence
       result.commands.forEach(command => {
@@ -1542,7 +1542,7 @@ docker build .
         metadata: { createdAt: new Date(), source: 'test' }
       };
 
-      const result = extractor.extractWithContext(content, [jsContext]);
+      const result = await extractor.extractWithContext(content, [jsContext]);
 
       // Check confidence tracking
       result.commands.forEach(command => {
@@ -1569,7 +1569,7 @@ pip install flask
       `;
 
       // No specific contexts provided
-      const result = extractor.extractWithContext(content, []);
+      const result = await extractor.extractWithContext(content, []);
 
       // Commands should use pattern-based inference in fallback
       const cargoCommand = result.commands.find(cmd => cmd.command.includes('cargo'));
@@ -1608,7 +1608,7 @@ test-something
       };
 
       extractor.setParentContext(parentContext);
-      const result = extractor.extractWithContext(content, []);
+      const result = await extractor.extractWithContext(content, []);
 
       // Commands should inherit from parent context
       result.commands.forEach(command => {
@@ -1647,7 +1647,7 @@ another-generic-command
         }
       ];
 
-      const result = extractor.extractWithContext(content, contexts);
+      const result = await extractor.extractWithContext(content, contexts);
 
       // Commands should use the best available context (Python with highest confidence)
       result.commands.forEach(command => {

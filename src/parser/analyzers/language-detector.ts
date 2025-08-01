@@ -35,55 +35,55 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       keywords: ['javascript', 'js', 'node', 'npm', 'yarn'],
       codeBlocks: ['javascript', 'js'],
       fileExtensions: ['.js', '.mjs'],
-      frameworks: ['react', 'vue', 'angular', 'express', 'next']
+      frameworks: ['React', 'Vue', 'Angular', 'Express', 'Next.js']
     }],
     ['TypeScript', {
       keywords: ['typescript', 'ts'],
       codeBlocks: ['typescript', 'ts'],
       fileExtensions: ['.ts', '.tsx'],
-      frameworks: ['angular', 'nest', 'next']
+      frameworks: ['Angular', 'NestJS', 'Next.js']
     }],
     ['Python', {
       keywords: ['python', 'py', 'pip', 'conda'],
       codeBlocks: ['python', 'py'],
       fileExtensions: ['.py'],
-      frameworks: ['django', 'flask', 'fastapi', 'pandas']
+      frameworks: ['Django', 'Flask', 'FastAPI', 'PyTorch']
     }],
     ['Java', {
       keywords: ['java', 'maven', 'gradle'],
       codeBlocks: ['java'],
       fileExtensions: ['.java'],
-      frameworks: ['spring', 'hibernate']
+      frameworks: ['Spring', 'Hibernate']
     }],
     ['Go', {
       keywords: ['golang', 'go'],
       codeBlocks: ['go'],
       fileExtensions: ['.go'],
-      frameworks: ['gin', 'echo']
+      frameworks: ['Gin', 'Echo']
     }],
     ['Rust', {
       keywords: ['rust', 'cargo'],
       codeBlocks: ['rust'],
       fileExtensions: ['.rs'],
-      frameworks: ['actix', 'rocket']
+      frameworks: ['Actix', 'Rocket']
     }],
     ['PHP', {
       keywords: ['php', 'composer'],
       codeBlocks: ['php'],
       fileExtensions: ['.php'],
-      frameworks: ['laravel', 'symfony']
+      frameworks: ['Laravel', 'Symfony']
     }],
     ['C#', {
       keywords: ['csharp', 'c#', 'dotnet', '.net'],
       codeBlocks: ['csharp', 'cs'],
       fileExtensions: ['.cs'],
-      frameworks: ['asp.net', 'blazor']
+      frameworks: ['ASP.NET', 'Blazor']
     }],
     ['Ruby', {
       keywords: ['ruby', 'gem', 'bundler'],
       codeBlocks: ['ruby', 'rb'],
       fileExtensions: ['.rb'],
-      frameworks: ['rails', 'sinatra']
+      frameworks: ['Rails', 'Sinatra']
     }],
     ['C++', {
       keywords: ['c++', 'cpp', 'cmake', 'make'],
@@ -214,11 +214,14 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   }
 
   private analyzeKeywords(content: string, detectedLanguages: Map<string, LanguageInfo>): void {
+    console.log('analyzeKeywords called with content length:', content.length);
     const lowerContent = content.toLowerCase();
     
     for (const [languageName, patterns] of this.languagePatterns) {
       let keywordMatches = 0;
       const foundKeywords: string[] = [];
+      
+      console.log(`Checking ${languageName} with ${patterns.keywords.length} keywords`);
       
       for (const keyword of patterns.keywords) {
         const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
@@ -226,12 +229,14 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         if (matches) {
           keywordMatches += matches.length;
           foundKeywords.push(keyword);
+          console.log(`Found keyword "${keyword}" ${matches.length} times`);
         }
       }
       
       if (keywordMatches > 0) {
         // Boost confidence for keyword matches - especially for strong indicators
-        const baseConfidence = Math.min(keywordMatches * 0.3, 0.9);
+        const baseConfidence = Math.min(keywordMatches * 0.6, 0.95); // Increased from 0.4 to 0.6
+        console.log(`${languageName}: ${keywordMatches} keyword matches, confidence: ${baseConfidence}, keywords: ${foundKeywords.join(', ')}`);
         this.addOrUpdateLanguage(detectedLanguages, languageName, baseConfidence, ['text-mention']);
       }
     }
@@ -244,7 +249,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         const matches = content.match(regex);
         if (matches) {
           // Boost confidence for file extensions - they're strong indicators
-          const confidence = Math.min(matches.length * 0.4, 0.9);
+          const confidence = Math.min(matches.length * 0.7, 0.95); // Increased from 0.5 to 0.7
           this.addOrUpdateLanguage(detectedLanguages, languageName, confidence, ['file-reference']);
         }
       }
@@ -257,13 +262,17 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     confidence: number,
     sources: string[]
   ): void {
+    console.log(`addOrUpdateLanguage: ${languageName}, confidence: ${confidence}, sources: ${sources.join(', ')}`);
     const existing = detectedLanguages.get(languageName);
     
     if (existing) {
-      existing.confidence = Math.min(existing.confidence + confidence, 1.0);
+      const newConfidence = Math.min(existing.confidence + confidence, 1.0);
+      console.log(`  Updating existing: ${existing.confidence} + ${confidence} = ${newConfidence}`);
+      existing.confidence = newConfidence;
       existing.sources = [...new Set([...existing.sources, ...sources])] as LanguageSource[];
     } else {
-      const frameworks = this.detectFrameworks(languageName, sources.join(' '));
+      const frameworks = this.detectFrameworks(languageName, this.rawContent);
+      console.log(`  Creating new entry with confidence: ${confidence}`);
       
       detectedLanguages.set(languageName, {
         name: languageName,
@@ -282,8 +291,9 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     const lowerContent = content.toLowerCase();
     
     for (const framework of patterns.frameworks) {
-      if (lowerContent.includes(framework)) {
-        frameworks.push(framework);
+      // Check for framework name in lowercase for matching
+      if (lowerContent.includes(framework.toLowerCase())) {
+        frameworks.push(framework); // Return the properly cased framework name
       }
     }
     
@@ -291,10 +301,22 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   }
 
   private traverseAST(node: MarkdownAST | MarkdownNode, callback: (node: MarkdownNode) => void): void {
-    if ('children' in node && node.children) {
+    // Handle AST as array of tokens
+    if (Array.isArray(node)) {
+      for (const token of node) {
+        callback(token);
+        this.traverseAST(token, callback);
+      }
+    } else if ('children' in node && node.children) {
       for (const child of node.children) {
         callback(child);
         this.traverseAST(child, callback);
+      }
+    } else if ('tokens' in node && node.tokens) {
+      // Handle tokens array (like in headings)
+      for (const token of node.tokens) {
+        callback(token);
+        this.traverseAST(token, callback);
       }
     }
   }

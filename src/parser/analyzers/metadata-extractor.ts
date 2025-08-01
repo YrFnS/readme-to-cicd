@@ -43,7 +43,7 @@ export class MetadataExtractor implements ContentAnalyzer {
   private extractMetadata(ast: MarkdownAST, content: string): ProjectMetadata {
     const projectName = this.extractProjectName(ast, content);
     const metadata: ProjectMetadata = {
-      ...(projectName && { name: projectName })
+      name: projectName || 'Project' // Always provide a fallback name
     };
 
     // Extract description from first paragraph or subtitle

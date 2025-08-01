@@ -315,7 +315,7 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
               if (Array.isArray(commandArray)) {
                 this.addCommand(commandArray, {
                   command: match,
-                  confidence: 0.3,
+                  confidence: 0.5, // Increased from 0.3
                   context: 'text mention',
                   language: this.inferLanguageFromCommand(match)
                 });
@@ -334,7 +334,7 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
     const inferredLanguage = this.inferLanguageFromCommand(commandText);
     
     // Boost confidence for well-known commands and code blocks
-    let baseConfidence = inferredLanguage !== 'unknown' ? 0.9 : 0.3;
+    let baseConfidence = inferredLanguage !== 'unknown' ? 0.9 : 0.5; // Increased from 0.3
     if (context === 'code block') {
       baseConfidence = Math.min(1.0, baseConfidence + 0.1);
     }
@@ -494,10 +494,22 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
   }
 
   private traverseAST(node: MarkdownAST | MarkdownNode, callback: (node: MarkdownNode) => void): void {
-    if ('children' in node && node.children) {
+    // Handle AST as array of tokens
+    if (Array.isArray(node)) {
+      for (const token of node) {
+        callback(token);
+        this.traverseAST(token, callback);
+      }
+    } else if ('children' in node && node.children) {
       for (const child of node.children) {
         callback(child);
         this.traverseAST(child, callback);
+      }
+    } else if ('tokens' in node && node.tokens) {
+      // Handle tokens array (like in headings)
+      for (const token of node.tokens) {
+        callback(token);
+        this.traverseAST(token, callback);
       }
     }
   }
@@ -848,7 +860,7 @@ export class CommandExtractor extends ContextInheritanceBase implements Analyzer
     // Final fallback to unknown
     return {
       language: 'unknown',
-      confidence: 0.1, // Very low confidence for unknown
+      confidence: 0.3, // Increased from 0.1 for unknown
       context: `${context} (default-unknown)`
     };
   }

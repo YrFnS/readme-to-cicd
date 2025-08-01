@@ -56,12 +56,15 @@ export class ReadmeParserImpl implements ReadmeParser {
   private resultAggregator: ResultAggregator;
   private astCache: ASTCache;
   private performanceMonitor: PerformanceMonitor;
+  private integrationPipeline?: any; // IntegrationPipeline
+  private useIntegrationPipeline: boolean;
 
   constructor(options?: {
     enableCaching?: boolean;
     enablePerformanceMonitoring?: boolean;
     cacheOptions?: any;
     performanceOptions?: any;
+    useIntegrationPipeline?: boolean;
   }) {
     this.analyzerRegistry = new AnalyzerRegistry();
     this.fileReader = new FileReader();
@@ -78,8 +81,32 @@ export class ReadmeParserImpl implements ReadmeParser {
       (options?.performanceOptions ? new PerformanceMonitor(options.performanceOptions) : globalPerformanceMonitor) :
       new PerformanceMonitor({ enabled: false });
     
+    // Initialize integration pipeline by default for proper component integration
+    this.useIntegrationPipeline = options?.useIntegrationPipeline ?? true;
+    if (this.useIntegrationPipeline) {
+      // Lazy import to avoid circular dependencies
+      this.initializeIntegrationPipeline();
+    }
+    
     // Auto-register default analyzers
     this.registerDefaultAnalyzers();
+  }
+
+  /**
+   * Initialize IntegrationPipeline for enhanced processing
+   */
+  private async initializeIntegrationPipeline(): Promise<void> {
+    try {
+      const { IntegrationPipeline } = await import('./integration-pipeline');
+      this.integrationPipeline = new IntegrationPipeline({
+        enableLogging: true,
+        logLevel: 'info',
+        enablePerformanceMonitoring: true
+      });
+    } catch (error) {
+      console.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers:', error);
+      this.useIntegrationPipeline = false;
+    }
   }
 
   /**
@@ -231,6 +258,21 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
     
     try {
+      // Use IntegrationPipeline if available and enabled
+      if (this.useIntegrationPipeline && this.integrationPipeline) {
+        const pipelineResult = await this.integrationPipeline.execute(content);
+        
+        if (pipelineResult.success && pipelineResult.data) {
+          return {
+            success: true,
+            data: pipelineResult.data
+          };
+        } else {
+          // If pipeline fails, fall back to standard analyzers
+          console.warn('IntegrationPipeline failed, falling back to standard analyzers:', pipelineResult.errors);
+        }
+      }
+      
       // Get all registered analyzers
       const analyzers = this.analyzerRegistry.getAll();
       if (analyzers.length === 0) {
