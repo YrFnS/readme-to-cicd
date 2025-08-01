@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "web-server",
+    "cli-tool",
+    "shared-lib"
+]
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+
+[dependencies]
+actix-web = "4.4"
+axum = "0.7"
+warp = "0.3"

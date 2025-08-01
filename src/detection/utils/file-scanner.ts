@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
+import * as toml from '@iarna/toml';
+import { parseString as parseXml } from 'xml2js';
 
 /**
  * File system scanner for project analysis
@@ -42,9 +44,17 @@ export class FileSystemScanner {
       } else if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
         return yaml.load(content);
       } else if (filePath.endsWith('.toml')) {
-        // TOML parsing not implemented - return raw content for now
-        // Can be added later if needed for specific frameworks
-        return { _raw: content, _format: 'toml' };
+        return toml.parse(content);
+      } else if (filePath.endsWith('.xml')) {
+        return new Promise((resolve, reject) => {
+          parseXml(content, { explicitArray: false }, (err, result) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          });
+        });
       }
       
       return content;

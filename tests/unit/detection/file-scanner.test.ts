@@ -116,7 +116,7 @@ dependencies:
       expect(result.dependencies).toEqual(['express', 'react']);
     });
 
-    it('should handle TOML files with raw content', async () => {
+    it('should parse TOML files correctly', async () => {
       const tomlContent = `
 [package]
 name = "test-project"
@@ -125,8 +125,9 @@ version = "1.0.0"
       await fs.writeFile(join(tempDir, 'Cargo.toml'), tomlContent);
       
       const result = await scanner.readConfigFile(join(tempDir, 'Cargo.toml'));
-      expect(result._format).toBe('toml');
-      expect(result._raw).toContain('name = "test-project"');
+      expect(result.package).toBeDefined();
+      expect(result.package.name).toBe('test-project');
+      expect(result.package.version).toBe('1.0.0');
     });
 
     it('should return raw content for unknown file types', async () => {
