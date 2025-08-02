@@ -8,6 +8,13 @@ import { Evidence } from './interfaces/evidence';
 import { ConfidenceCalculator } from './utils/confidence-calculator';
 import { EvidenceCollectorImpl } from './utils/evidence-collector';
 import { ResultAggregator } from './utils/result-aggregator';
+import { DetectionError, DetectionFailureError, IntegrationError } from './errors/detection-errors';
+import { ErrorRecovery, Result } from './errors/error-recovery';
+import { AlternativeSuggestionGenerator, AlternativeSuggestion } from './utils/alternative-suggestions';
+import { ConflictResolver, DetectionConflict } from './utils/conflict-resolution';
+import { WarningSystem, DetectionWarning as SystemWarning } from './utils/warning-system';
+import { DetectionWarning } from './interfaces/detection-result';
+import { DetectionLogger, getLogger, timeOperation } from './utils/logger';
 
 /**
  * Core detection engine that orchestrates framework analysis
@@ -17,11 +24,19 @@ export class DetectionEngine {
   private confidenceCalculator: ConfidenceCalculator;
   private evidenceCollector: EvidenceCollectorImpl;
   private resultAggregator: ResultAggregator;
+  private alternativeSuggestionGenerator: AlternativeSuggestionGenerator;
+  private conflictResolver: ConflictResolver;
+  private warningSystem: WarningSystem;
+  private logger: DetectionLogger;
 
   constructor() {
     this.confidenceCalculator = new ConfidenceCalculator();
     this.evidenceCollector = new EvidenceCollectorImpl();
     this.resultAggregator = new ResultAggregator();
+    this.alternativeSuggestionGenerator = new AlternativeSuggestionGenerator();
+    this.conflictResolver = new ConflictResolver();
+    this.warningSystem = new WarningSystem();
+    this.logger = getLogger();
     
     // Analyzers will be registered here when implemented
     this.initializeAnalyzers();
@@ -41,64 +56,200 @@ export class DetectionEngine {
    * Analyze project and detect frameworks
    */
   async analyze(projectInfo: ProjectInfo, projectPath?: string): Promise<Omit<DetectionResult, 'detectedAt' | 'executionTime'>> {
-    const startTime = Date.now();
-    
-    // Collect evidence from project information
-    const evidence = await this.evidenceCollector.collectEvidence(projectInfo, projectPath);
-    
-    // Run applicable analyzers in parallel for better performance
-    const analyzerPromises = this.analyzers
-      .filter(analyzer => analyzer.canAnalyze(projectInfo))
-      .map(async (analyzer): Promise<LanguageDetectionResult | null> => {
-        try {
-          return await analyzer.analyze(projectInfo, projectPath);
-        } catch (error) {
-          // Log error but don't fail entire detection
-          console.warn(`${analyzer.name} analysis failed:`, error);
-          return null;
+    return await timeOperation(
+      this.logger,
+      'DetectionEngine',
+      'analyze',
+      async () => {
+        this.logger.info('DetectionEngine', 'Starting framework detection analysis', {
+          projectLanguages: projectInfo.languages,
+          configFiles: projectInfo.configFiles?.length || 0,
+          projectPath: projectPath ? '[PROVIDED]' : '[NOT_PROVIDED]'
+        });
+
+        // Collect evidence from project information with error handling
+        const evidenceResult = await ErrorRecovery.withRetry(
+          () => this.evidenceCollector.collectEvidence(projectInfo, projectPath),
+          { maxAttempts: 2 }
+        );
+
+        if (!evidenceResult.success) {
+          this.logger.error('DetectionEngine', 'Failed to collect evidence', evidenceResult.error);
+          throw new IntegrationError(
+            'Evidence collection failed',
+            'DetectionEngine',
+            'EvidenceCollector',
+            { originalError: evidenceResult.error.message }
+          );
         }
-      });
 
-    const analyzerResults = (await Promise.all(analyzerPromises))
-      .filter((result): result is LanguageDetectionResult => result !== null);
+        const evidence = evidenceResult.data;
+        this.logger.debug('DetectionEngine', 'Evidence collected', {
+          evidenceCount: evidence.length,
+          evidenceTypes: [...new Set(evidence.map(e => e.type))]
+        });
 
-    // Aggregate results from all analyzers
-    const aggregatedResults = this.resultAggregator.mergeAnalyzerResults(analyzerResults);
-    
-    // Calculate overall confidence using evidence and detection results
-    const confidence = this.confidenceCalculator.calculateOverallConfidence(
-      evidence, 
-      { 
-        frameworks: aggregatedResults.frameworks || [],
-        buildTools: aggregatedResults.buildTools || [],
-        analyzerResults 
-      }
+        // Run applicable analyzers in parallel with improved error handling
+        const applicableAnalyzers = this.analyzers.filter(analyzer => analyzer.canAnalyze(projectInfo));
+        this.logger.info('DetectionEngine', 'Running analyzers', {
+          totalAnalyzers: this.analyzers.length,
+          applicableAnalyzers: applicableAnalyzers.length,
+          analyzerNames: applicableAnalyzers.map(a => a.name)
+        });
+
+        const analyzerPromises = applicableAnalyzers.map(async (analyzer): Promise<LanguageDetectionResult | null> => {
+          const analyzerResult = await ErrorRecovery.withRetry(
+            () => analyzer.analyze(projectInfo, projectPath),
+            { 
+              maxAttempts: 2,
+              retryableErrors: ['FILESYSTEM_ERROR', 'PARSE_ERROR']
+            }
+          );
+
+          if (!analyzerResult.success) {
+            this.logger.warn('DetectionEngine', `${analyzer.name} analysis failed`, {
+              analyzer: analyzer.name,
+              error: analyzerResult.error.message,
+              recoverable: analyzerResult.error.recoverable
+            });
+            return null;
+          }
+
+          this.logger.debug('DetectionEngine', `${analyzer.name} analysis completed`, {
+            analyzer: analyzer.name,
+            frameworksFound: analyzerResult.data.frameworks.length,
+            buildToolsFound: analyzerResult.data.buildTools.length,
+            confidence: analyzerResult.data.confidence
+          });
+
+          return analyzerResult.data;
+        });
+
+        const analyzerResults = (await Promise.all(analyzerPromises))
+          .filter((result): result is LanguageDetectionResult => result !== null);
+
+        this.logger.info('DetectionEngine', 'Analyzer execution completed', {
+          successfulAnalyzers: analyzerResults.length,
+          failedAnalyzers: applicableAnalyzers.length - analyzerResults.length
+        });
+
+        // Aggregate results from all analyzers
+        const aggregatedResults = this.resultAggregator.mergeAnalyzerResults(analyzerResults);
+        
+        // Calculate overall confidence using evidence and detection results
+        const confidence = this.confidenceCalculator.calculateOverallConfidence(
+          evidence, 
+          { 
+            frameworks: aggregatedResults.frameworks || [],
+            buildTools: aggregatedResults.buildTools || [],
+            analyzerResults 
+          }
+        );
+
+        this.logger.info('DetectionEngine', 'Confidence calculated', {
+          overallScore: confidence.score,
+          level: confidence.level,
+          frameworksDetected: aggregatedResults.frameworks?.length || 0,
+          buildToolsDetected: aggregatedResults.buildTools?.length || 0
+        });
+
+        // Detect and resolve conflicts
+        const conflicts = this.conflictResolver.detectConflicts({
+          frameworks: aggregatedResults.frameworks || [],
+          buildTools: aggregatedResults.buildTools || [],
+          evidence,
+          projectLanguages: projectInfo.languages
+        });
+
+        let resolvedFrameworks = aggregatedResults.frameworks || [];
+        let resolvedBuildTools = aggregatedResults.buildTools || [];
+        let conflictWarnings: string[] = [];
+
+        if (conflicts.length > 0) {
+          this.logger.warn('DetectionEngine', 'Conflicts detected', {
+            conflictCount: conflicts.length,
+            conflictTypes: conflicts.map(c => c.type)
+          });
+
+          const resolution = this.conflictResolver.resolveConflicts(conflicts, {
+            frameworks: resolvedFrameworks,
+            buildTools: resolvedBuildTools,
+            evidence,
+            projectLanguages: projectInfo.languages
+          });
+
+          resolvedFrameworks = resolution.resolvedContext.frameworks;
+          resolvedBuildTools = resolution.resolvedContext.buildTools;
+          conflictWarnings = resolution.warnings;
+        }
+
+        // Generate alternative suggestions
+        const alternatives = this.alternativeSuggestionGenerator.generateAlternatives({
+          detectedFrameworks: resolvedFrameworks,
+          evidence,
+          confidence,
+          projectLanguages: projectInfo.languages,
+          configFiles: projectInfo.configFiles || []
+        });
+
+        this.logger.debug('DetectionEngine', 'Alternative suggestions generated', {
+          alternativeCount: alternatives.length,
+          alternativeNames: alternatives.map(a => a.name)
+        });
+
+        // Generate comprehensive warnings
+        const systemWarnings = this.warningSystem.generateWarnings({
+          frameworks: resolvedFrameworks,
+          buildTools: resolvedBuildTools,
+          evidence,
+          confidence,
+          conflicts,
+          projectLanguages: projectInfo.languages,
+          configFiles: projectInfo.configFiles || []
+        });
+
+        // Combine all warnings - convert everything to DetectionWarning format
+        const allWarnings: DetectionWarning[] = [
+          // Convert aggregated warnings to DetectionWarning format
+          ...(aggregatedResults.warnings || []).map(w => ({
+            type: 'incomplete' as const,
+            message: typeof w === 'string' ? w : w.message || 'Analysis warning',
+            affected: ['frameworks', 'buildTools']
+          })),
+          // Convert conflict warnings to DetectionWarning format
+          ...conflictWarnings.map(w => ({
+            type: 'conflict' as const,
+            message: w,
+            affected: ['frameworks']
+          })),
+          // Convert system warnings to DetectionWarning format
+          ...systemWarnings.map(w => ({
+            type: 'incomplete' as const,
+            message: w.message,
+            affected: w.affectedItems,
+            resolution: w.recommendations.join('; ')
+          }))
+        ];
+
+        this.logger.info('DetectionEngine', 'Analysis completed successfully', {
+          finalFrameworkCount: resolvedFrameworks.length,
+          finalBuildToolCount: resolvedBuildTools.length,
+          alternativeCount: alternatives.length,
+          warningCount: allWarnings.length,
+          overallConfidence: confidence.score
+        });
+
+        return {
+          frameworks: resolvedFrameworks,
+          buildTools: resolvedBuildTools,
+          containers: [], // Will be populated when container analyzer is implemented
+          confidence,
+          alternatives,
+          warnings: allWarnings
+        };
+      },
+      { projectPath: projectPath ? '[PROVIDED]' : '[NOT_PROVIDED]' }
     );
-
-    // Generate alternatives for low-confidence detections
-    const alternatives = this.generateAlternatives(
-      aggregatedResults.frameworks || [], 
-      evidence, 
-      confidence.score
-    );
-
-    // Collect warnings from analyzers and aggregation
-    const warnings = [
-      ...(aggregatedResults.warnings || []),
-      ...this.generateAnalysisWarnings(analyzerResults, evidence)
-    ];
-
-    const executionTime = Date.now() - startTime;
-    console.log(`Detection analysis completed in ${executionTime}ms`);
-
-    return {
-      frameworks: aggregatedResults.frameworks || [],
-      buildTools: aggregatedResults.buildTools || [],
-      containers: [], // Will be populated when container analyzer is implemented
-      confidence,
-      alternatives,
-      warnings
-    };
   }
 
   /**

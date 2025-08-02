@@ -815,8 +815,8 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
   }
 
   generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
-    // TODO: Implement CI step generation for Node.js
-    // This will be implemented in task 11
+    // This method is now implemented via the CIStepGenerator class
+    // which provides comprehensive CI step generation with templates
     return [];
   }
 }
