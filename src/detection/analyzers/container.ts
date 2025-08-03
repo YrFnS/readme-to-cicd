@@ -33,6 +33,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
     const startTime = Date.now();
     const frameworks: FrameworkInfo[] = [];
     const buildTools: BuildToolInfo[] = [];
+    const containers: ContainerInfo[] = [];
     const warnings: string[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -44,6 +45,9 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
         frameworks.push(dockerInfo.framework);
         if (dockerInfo.buildTool) {
           buildTools.push(dockerInfo.buildTool);
+        }
+        if (dockerInfo.container) {
+          containers.push(dockerInfo.container);
         }
         filesAnalyzed.push(...dockerInfo.filesAnalyzed);
         patternsMatched.push(...dockerInfo.patternsMatched);
@@ -60,6 +64,9 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
         if (composeInfo.buildTool) {
           buildTools.push(composeInfo.buildTool);
         }
+        if (composeInfo.container) {
+          containers.push(composeInfo.container);
+        }
         filesAnalyzed.push(...composeInfo.filesAnalyzed);
         patternsMatched.push(...composeInfo.patternsMatched);
       }
@@ -72,6 +79,9 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       const k8sInfo = await this.detectKubernetes(projectInfo, projectPath);
       if (k8sInfo) {
         frameworks.push(k8sInfo.framework);
+        if (k8sInfo.container) {
+          containers.push(k8sInfo.container);
+        }
         filesAnalyzed.push(...k8sInfo.filesAnalyzed);
         patternsMatched.push(...k8sInfo.patternsMatched);
       }
@@ -87,6 +97,9 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
         if (helmInfo.buildTool) {
           buildTools.push(helmInfo.buildTool);
         }
+        if (helmInfo.container) {
+          containers.push(helmInfo.container);
+        }
         filesAnalyzed.push(...helmInfo.filesAnalyzed);
         patternsMatched.push(...helmInfo.patternsMatched);
       }
@@ -97,6 +110,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
     return {
       frameworks,
       buildTools,
+      containers,
       confidence: frameworks.length > 0 ? Math.max(...frameworks.map(f => f.confidence)) : 0.1,
       recommendations: this.generateRecommendations(frameworks, warnings),
       metadata: {
@@ -233,8 +247,18 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       }
     } : undefined;
 
+    // Create container info
+    const container: ContainerInfo = {
+      type: 'docker',
+      configFiles: ['Dockerfile'],
+      ...(dockerfileInfo?.baseImage && { baseImages: [dockerfileInfo.baseImage] }),
+      ...(dockerfileInfo?.exposedPorts && dockerfileInfo.exposedPorts.length > 0 && { ports: dockerfileInfo.exposedPorts }),
+      ...(dockerfileInfo?.volumes && dockerfileInfo.volumes.length > 0 && { volumes: dockerfileInfo.volumes })
+    };
+
     const result: ContainerDetectionResult = {
       framework,
+      container,
       filesAnalyzed,
       patternsMatched
     };
@@ -366,8 +390,16 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       }
     } : undefined;
 
+    // Create container info
+    const container: ContainerInfo = {
+      type: 'compose',
+      configFiles: [composeFile!],
+      ...(composeInfo?.volumes && composeInfo.volumes.length > 0 && { volumes: composeInfo.volumes })
+    };
+
     const result: ContainerDetectionResult = {
       framework,
+      container,
       filesAnalyzed,
       patternsMatched
     };
@@ -471,8 +503,16 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       namespaces: k8sInfo?.namespaces
     };
 
+    // Create container info
+    const container: ContainerInfo = {
+      type: 'kubernetes',
+      configFiles: manifestFiles,
+      deploymentStrategy: 'kubernetes'
+    };
+
     return {
       framework,
+      container,
       filesAnalyzed,
       patternsMatched
     };
@@ -599,8 +639,16 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       }
     } : undefined;
 
+    // Create container info
+    const container: ContainerInfo = {
+      type: 'helm',
+      configFiles: ['Chart.yaml', ...(helmInfo?.hasValues ? ['values.yaml'] : [])],
+      deploymentStrategy: 'helm'
+    };
+
     const result: ContainerDetectionResult = {
       framework,
+      container,
       filesAnalyzed,
       patternsMatched
     };
@@ -796,6 +844,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
 interface ContainerDetectionResult {
   framework: FrameworkInfo;
   buildTool?: BuildToolInfo;
+  container?: ContainerInfo;
   filesAnalyzed: string[];
   patternsMatched: string[];
 }

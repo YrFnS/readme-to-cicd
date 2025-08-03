@@ -311,20 +311,22 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
-    // Check text mentions (only if we already have stronger evidence)
-    if (evidence.length > 0 && projectInfo.rawContent.toLowerCase().includes('react')) {
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('react')) {
       evidence.push({
         type: 'text_mention',
         source: 'readme',
         value: 'react',
-        weight: 0.2 // Reduced weight for text mentions
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
       });
     }
 
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.5) return null; // Increased threshold
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.5 : 0.3;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'React',
@@ -386,20 +388,22 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
-    // Check text mentions (only if we already have stronger evidence)
-    if (evidence.length > 0 && projectInfo.rawContent.toLowerCase().includes('vue')) {
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('vue')) {
       evidence.push({
         type: 'text_mention',
         source: 'readme',
         value: 'vue',
-        weight: 0.2
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
       });
     }
 
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.5) return null;
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.5 : 0.3;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'Vue.js',
@@ -485,10 +489,22 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('angular')) {
+      evidence.push({
+        type: 'text_mention',
+        source: 'readme',
+        value: 'angular',
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
+      });
+    }
+
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.3) return null;
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.3 : 0.2;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'Angular',
@@ -575,21 +591,23 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
-    // Check text mentions (only if we already have stronger evidence)
-    if (evidence.length > 0 && (projectInfo.rawContent.toLowerCase().includes('next.js') || 
-        projectInfo.rawContent.toLowerCase().includes('nextjs'))) {
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('next.js') || 
+        projectInfo.rawContent.toLowerCase().includes('nextjs')) {
       evidence.push({
         type: 'text_mention',
         source: 'readme',
         value: 'next.js',
-        weight: 0.2
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
       });
     }
 
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.5) return null;
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.5 : 0.3;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'Next.js',
@@ -633,20 +651,22 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
-    // Check text mentions (only if we already have stronger evidence)
-    if (evidence.length > 0 && projectInfo.rawContent.toLowerCase().includes('express')) {
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('express')) {
       evidence.push({
         type: 'text_mention',
         source: 'readme',
         value: 'express',
-        weight: 0.2
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
       });
     }
 
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.5) return null;
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.5 : 0.3;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'Express',
@@ -706,21 +726,23 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
       });
     }
 
-    // Check text mentions (only if we already have stronger evidence)
-    if (evidence.length > 0 && (projectInfo.rawContent.toLowerCase().includes('nestjs') || 
-        projectInfo.rawContent.toLowerCase().includes('nest.js'))) {
+    // Check text mentions (both as supporting evidence and standalone)
+    if (projectInfo.rawContent.toLowerCase().includes('nestjs') || 
+        projectInfo.rawContent.toLowerCase().includes('nest.js')) {
       evidence.push({
         type: 'text_mention',
         source: 'readme',
         value: 'nestjs',
-        weight: 0.2
+        weight: evidence.length > 0 ? 0.2 : 0.6 // Higher weight when standalone
       });
     }
 
     if (evidence.length === 0) return null;
 
     const confidence = this.calculateFrameworkConfidence(evidence);
-    if (confidence < 0.5) return null;
+    // Lower threshold for text-only detection
+    const threshold = packageJson ? 0.5 : 0.3;
+    if (confidence < threshold) return null;
 
     return this.createFrameworkInfo(
       'NestJS',

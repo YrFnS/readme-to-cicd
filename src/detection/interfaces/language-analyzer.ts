@@ -1,5 +1,6 @@
 import { FrameworkInfo } from './framework-info';
 import { BuildToolInfo } from './framework-info';
+import { ContainerInfo } from './framework-info';
 import { CIStep } from './ci-pipeline';
 
 /**
@@ -43,6 +44,8 @@ export interface LanguageDetectionResult {
   frameworks: FrameworkInfo[];
   /** Detected build tools */
   buildTools: BuildToolInfo[];
+  /** Detected containers */
+  containers?: ContainerInfo[];
   /** Overall confidence for this language */
   confidence: number;
   /** Recommendations for improvement */

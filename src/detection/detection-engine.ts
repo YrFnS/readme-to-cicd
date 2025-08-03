@@ -15,9 +15,11 @@ import { ConflictResolver, DetectionConflict } from './utils/conflict-resolution
 import { WarningSystem, DetectionWarning as SystemWarning } from './utils/warning-system';
 import { DetectionWarning } from './interfaces/detection-result';
 import { DetectionLogger, getLogger, timeOperation } from './utils/logger';
+import { LazyLoader, getLazyLoader } from './performance/lazy-loader';
+import { getConfigManager } from './configuration/config-manager';
 
 /**
- * Core detection engine that orchestrates framework analysis
+ * Core detection engine that orchestrates framework analysis with lazy loading
  */
 export class DetectionEngine {
   private analyzers: LanguageAnalyzer[] = [];
@@ -27,7 +29,10 @@ export class DetectionEngine {
   private alternativeSuggestionGenerator: AlternativeSuggestionGenerator;
   private conflictResolver: ConflictResolver;
   private warningSystem: WarningSystem;
+  private lazyLoader: LazyLoader;
   private logger: DetectionLogger;
+
+  private initializationPromise: Promise<void>;
 
   constructor() {
     this.confidenceCalculator = new ConfidenceCalculator();
@@ -36,20 +41,94 @@ export class DetectionEngine {
     this.alternativeSuggestionGenerator = new AlternativeSuggestionGenerator();
     this.conflictResolver = new ConflictResolver();
     this.warningSystem = new WarningSystem();
+    this.lazyLoader = getLazyLoader();
     this.logger = getLogger();
     
-    // Analyzers will be registered here when implemented
-    this.initializeAnalyzers();
+    // Initialize analyzers asynchronously with lazy loading
+    this.initializationPromise = this.initializeAnalyzers();
   }
 
   /**
-   * Initialize language analyzers
+   * Initialize language analyzers with lazy loading
    */
-  private initializeAnalyzers(): void {
-    // TODO: Register analyzers when implemented
-    // this.analyzers.push(new NodeJSAnalyzer());
-    // this.analyzers.push(new PythonAnalyzer());
-    // etc.
+  private async initializeAnalyzers(): Promise<void> {
+    try {
+      const configManager = getConfigManager();
+      const globalConfig = configManager.getGlobalConfig();
+      
+      // Only preload if lazy loading is disabled or for essential analyzers
+      if (!globalConfig.detection.enableLazyLoading) {
+        await this.loadAllAnalyzers();
+      } else {
+        // Just log that lazy loading is enabled
+        this.logger.info('DetectionEngine', 'Lazy loading enabled, analyzers will be loaded on demand');
+      }
+    } catch (error) {
+      this.logger.error('DetectionEngine', 'Failed to initialize analyzers', error as Error);
+      // Continue - analyzers will be loaded on demand
+    }
+  }
+
+  /**
+   * Load all analyzers immediately (for non-lazy loading mode)
+   */
+  private async loadAllAnalyzers(): Promise<void> {
+    const analyzerNames = ['nodejs', 'python', 'rust', 'go', 'java', 'container', 'frontend'];
+    
+    for (const analyzerName of analyzerNames) {
+      try {
+        const result = await this.lazyLoader.loadAnalyzer(analyzerName);
+        if (result.success && result.module) {
+          this.analyzers.push(result.module);
+        }
+      } catch (error) {
+        this.logger.warn('DetectionEngine', 'Failed to load analyzer', {
+          analyzer: analyzerName,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    this.logger.info('DetectionEngine', 'All analyzers loaded', {
+      analyzerCount: this.analyzers.length,
+      analyzers: this.analyzers.map(a => a.name)
+    });
+  }
+
+  /**
+   * Get analyzer for ecosystem with lazy loading
+   */
+  private async getAnalyzerForEcosystem(ecosystem: string): Promise<LanguageAnalyzer | null> {
+    // First check if analyzer is already loaded
+    const existingAnalyzer = this.analyzers.find(a => a.ecosystem === ecosystem);
+    if (existingAnalyzer) {
+      return existingAnalyzer;
+    }
+
+    // Map ecosystem to analyzer name
+    const ecosystemMap: Record<string, string> = {
+      'nodejs': 'nodejs',
+      'python': 'python',
+      'rust': 'rust',
+      'go': 'go',
+      'java': 'java',
+      'container': 'container',
+      'frontend': 'frontend'
+    };
+
+    const analyzerName = ecosystemMap[ecosystem.toLowerCase()];
+    if (!analyzerName) {
+      return null;
+    }
+
+    // Load analyzer lazily
+    const result = await this.lazyLoader.loadAnalyzer(analyzerName);
+    if (result.success && result.module) {
+      this.analyzers.push(result.module);
+      return result.module;
+    }
+
+    return null;
   }
 
   /**
@@ -61,6 +140,9 @@ export class DetectionEngine {
       'DetectionEngine',
       'analyze',
       async () => {
+        // Wait for analyzer initialization to complete
+        await this.initializationPromise;
+
         this.logger.info('DetectionEngine', 'Starting framework detection analysis', {
           projectLanguages: projectInfo.languages,
           configFiles: projectInfo.configFiles?.length || 0,
@@ -256,22 +338,39 @@ export class DetectionEngine {
    * Generate CI/CD pipeline from detection results
    */
   async generateCIPipeline(detectionResult: DetectionResult): Promise<CIPipeline> {
-    // Basic pipeline structure - will be enhanced when step generator is implemented
-    return {
-      setup: [],
-      build: [],
-      test: [],
-      security: [],
-      deploy: [],
-      cache: [],
-      metadata: {
-        name: 'Generated CI Pipeline',
-        triggers: [{ type: 'push', branches: ['main'] }],
-        environments: ['development'],
-        secrets: [],
-        variables: {}
+    return await timeOperation(
+      this.logger,
+      'DetectionEngine',
+      'generateCIPipeline',
+      async () => {
+        this.logger.info('DetectionEngine', 'Starting CI pipeline generation', {
+          frameworksCount: detectionResult.frameworks.length,
+          buildToolsCount: detectionResult.buildTools.length,
+          containersCount: detectionResult.containers.length
+        });
+
+        // Import and use CIStepGenerator
+        const { CIStepGenerator } = await import('./templates/step-generator');
+        const stepGenerator = new CIStepGenerator();
+
+        const pipeline = await stepGenerator.generatePipeline(detectionResult);
+
+        this.logger.info('DetectionEngine', 'CI pipeline generation completed', {
+          setupSteps: pipeline.setup.length,
+          buildSteps: pipeline.build.length,
+          testSteps: pipeline.test.length,
+          securitySteps: pipeline.security.length,
+          deploySteps: pipeline.deploy.length,
+          cacheStrategies: pipeline.cache.length
+        });
+
+        return pipeline;
+      },
+      {
+        frameworksCount: detectionResult.frameworks.length,
+        buildToolsCount: detectionResult.buildTools.length
       }
-    };
+    );
   }
 
   /**

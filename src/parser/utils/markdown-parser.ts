@@ -76,7 +76,7 @@ export class MarkdownParser {
       // Validate input content
       const validationResult = this.validateContent(content);
       if (!validationResult.success) {
-        return validationResult;
+        return validationResult as Result<MarkdownParseResult, ParseError>;
       }
 
       // Normalize content for consistent parsing
@@ -88,7 +88,7 @@ export class MarkdownParser {
       // Validate generated AST
       const astValidation = this.validateAST(ast);
       if (!astValidation.success) {
-        return astValidation;
+        return astValidation as Result<MarkdownParseResult, ParseError>;
       }
 
       const processingTime = Date.now() - startTime;
@@ -118,7 +118,7 @@ export class MarkdownParser {
       // Validate input content
       const validationResult = this.validateContent(content);
       if (!validationResult.success) {
-        return validationResult;
+        return validationResult as Result<MarkdownParseResult, ParseError>;
       }
 
       // Normalize content for consistent parsing
@@ -130,7 +130,7 @@ export class MarkdownParser {
       // Validate generated AST
       const astValidation = this.validateAST(ast);
       if (!astValidation.success) {
-        return astValidation;
+        return astValidation as Result<MarkdownParseResult, ParseError>;
       }
 
       const processingTime = Date.now() - startTime;

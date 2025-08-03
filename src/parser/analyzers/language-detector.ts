@@ -86,8 +86,8 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       frameworks: ['Rails', 'Sinatra']
     }],
     ['C++', {
-      keywords: ['c++', 'cpp', 'cmake', 'make'],
-      codeBlocks: ['cpp', 'c++'],
+      keywords: ['cpp', 'cmake', 'make'],
+      codeBlocks: ['cpp'],
       fileExtensions: ['.cpp', '.cc', '.cxx'],
       frameworks: []
     }]
@@ -100,14 +100,17 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       this.sourceTracker.initializeTracking(content);
       this.contextCollection.clear();
 
-      // Perform enhanced detection with context generation
-      const detectionResult = this.detectWithContext(ast, content);
-      const languages = this.convertContextsToLanguageInfo(detectionResult.contexts);
+      // Extract the actual AST array from the wrapper object
+      const actualAST = Array.isArray(ast) ? ast : (ast as any)?.ast || [];
+
+      // Use the working detectLanguages method instead of broken enhanced detection
+      const languages = this.detectLanguages(actualAST, content);
+      const confidence = this.calculateOverallConfidence(languages);
       
       return {
         success: true,
         data: languages,
-        confidence: detectionResult.overallConfidence
+        confidence
       };
     } catch (error) {
       return {
@@ -134,8 +137,11 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     this.sourceTracker.initializeTracking(content);
     this.contextCollection.clear();
 
+    // Extract the actual AST array from the wrapper object
+    const actualAST = Array.isArray(ast) ? ast : (ast as any)?.ast || [];
+
     // Detect languages with evidence collection
-    const languageEvidence = this.collectLanguageEvidence(ast, content);
+    const languageEvidence = this.collectLanguageEvidence(actualAST, content);
     
     // Generate contexts from evidence
     const contexts = this.generateLanguageContexts(languageEvidence);
@@ -180,7 +186,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     return this.contextCollection.getBoundaries();
   }
 
-  private detectLanguages(ast: MarkdownAST, content: string): LanguageInfo[] {
+  private detectLanguages(ast: MarkdownNode[], content: string): LanguageInfo[] {
     const detectedLanguages = new Map<string, LanguageInfo>();
     
     // Analyze code blocks
@@ -197,7 +203,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       .sort((a, b) => b.confidence - a.confidence);
   }
 
-  private analyzeCodeBlocks(ast: MarkdownAST, detectedLanguages: Map<string, LanguageInfo>): void {
+  private analyzeCodeBlocks(ast: MarkdownNode[], detectedLanguages: Map<string, LanguageInfo>): void {
     this.traverseAST(ast, (node) => {
       if (node.type === 'code' && node.lang) {
         const lang = node.lang.toLowerCase();
@@ -224,7 +230,8 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       console.log(`Checking ${languageName} with ${patterns.keywords.length} keywords`);
       
       for (const keyword of patterns.keywords) {
-        const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
         const matches = lowerContent.match(regex);
         if (matches) {
           keywordMatches += matches.length;
@@ -300,23 +307,32 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     return frameworks;
   }
 
-  private traverseAST(node: MarkdownAST | MarkdownNode, callback: (node: MarkdownNode) => void): void {
+  private traverseAST(node: MarkdownNode[] | MarkdownNode, callback: (node: MarkdownNode) => void): void {
+    // Handle null/undefined nodes
+    if (!node) return;
+    
     // Handle AST as array of tokens
     if (Array.isArray(node)) {
       for (const token of node) {
-        callback(token);
-        this.traverseAST(token, callback);
+        if (token) {
+          callback(token);
+          this.traverseAST(token, callback);
+        }
       }
     } else if ('children' in node && node.children) {
       for (const child of node.children) {
-        callback(child);
-        this.traverseAST(child, callback);
+        if (child) {
+          callback(child);
+          this.traverseAST(child, callback);
+        }
       }
     } else if ('tokens' in node && node.tokens) {
       // Handle tokens array (like in headings)
       for (const token of node.tokens) {
-        callback(token);
-        this.traverseAST(token, callback);
+        if (token) {
+          callback(token);
+          this.traverseAST(token, callback);
+        }
       }
     }
   }
@@ -336,7 +352,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   /**
    * Collect evidence for all languages from AST and content
    */
-  private collectLanguageEvidence(ast: MarkdownAST, content: string): Map<string, Evidence[]> {
+  private collectLanguageEvidence(ast: MarkdownNode[], content: string): Map<string, Evidence[]> {
     const languageEvidence = new Map<string, Evidence[]>();
 
     // Collect evidence from code blocks
@@ -512,7 +528,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
 
   // Evidence collection methods
 
-  private collectCodeBlockEvidence(ast: MarkdownAST, languageEvidence: Map<string, Evidence[]>): void {
+  private collectCodeBlockEvidence(ast: MarkdownNode[], languageEvidence: Map<string, Evidence[]>): void {
     this.traverseAST(ast, (node) => {
       if (node.type === 'code' && node.lang) {
         const lang = node.lang.toLowerCase();
@@ -540,6 +556,114 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         if (evidence.length > 0) {
           this.addEvidenceToMap(languageEvidence, languageName, evidence);
         }
+      }
+      
+      // Add pattern-based evidence for specific language patterns
+      this.collectPatternEvidence(content, languageName, patterns, languageEvidence);
+    }
+  }
+
+  private collectPatternEvidence(
+    content: string, 
+    languageName: string, 
+    patterns: any, 
+    languageEvidence: Map<string, Evidence[]>
+  ): void {
+    // Language-specific pattern matching
+    const patternMatches: Array<{ pattern: string, confidence: number }> = [];
+    
+    switch (languageName) {
+      case 'Python':
+        // Python-specific patterns
+        if (/\bpython\s+\w+\.py\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'python script execution', confidence: 0.8 });
+        }
+        if (/\bpip\s+install\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'pip install command', confidence: 0.7 });
+        }
+        if (/\bmanage\.py\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'Django manage.py', confidence: 0.9 });
+        }
+        if (/\brequirements\.txt\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'requirements.txt file', confidence: 0.8 });
+        }
+        break;
+        
+      case 'JavaScript':
+        // JavaScript-specific patterns
+        if (/\bnpm\s+(start|run|install|test)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'npm commands', confidence: 0.8 });
+        }
+        if (/\byarn\s+(start|run|install|test)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'yarn commands', confidence: 0.8 });
+        }
+        if (/\bpackage\.json\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'package.json file', confidence: 0.9 });
+        }
+        break;
+        
+      case 'TypeScript':
+        // TypeScript-specific patterns
+        if (/\btsc\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'TypeScript compiler', confidence: 0.8 });
+        }
+        if (/\btsconfig\.json\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'tsconfig.json file', confidence: 0.9 });
+        }
+        break;
+        
+      case 'Rust':
+        // Rust-specific patterns
+        if (/\bcargo\s+(build|run|test)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'cargo commands', confidence: 0.8 });
+        }
+        if (/\bCargo\.toml\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'Cargo.toml file', confidence: 0.9 });
+        }
+        break;
+        
+      case 'Go':
+        // Go-specific patterns
+        if (/\bgo\s+(run|build|test)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'go commands', confidence: 0.8 });
+        }
+        if (/\bgo\.mod\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'go.mod file', confidence: 0.9 });
+        }
+        break;
+        
+      case 'Java':
+        // Java-specific patterns
+        if (/\bmvn\s+(compile|test|package)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'maven commands', confidence: 0.8 });
+        }
+        if (/\bgradle\s+(build|test)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'gradle commands', confidence: 0.8 });
+        }
+        if (/\bpom\.xml\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'pom.xml file', confidence: 0.9 });
+        }
+        break;
+        
+      case 'C++':
+        // C++ specific patterns
+        if (/\bmake\s+(all|build|clean)\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'make commands', confidence: 0.7 });
+        }
+        if (/\bcmake\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'cmake build system', confidence: 0.8 });
+        }
+        if (/\bMakefile\b/gi.test(content)) {
+          patternMatches.push({ pattern: 'Makefile', confidence: 0.8 });
+        }
+        break;
+    }
+    
+    // Create pattern evidence for matches
+    for (const match of patternMatches) {
+      const evidence = this.sourceTracker.trackEvidence('pattern', match.pattern, match.confidence);
+      if (evidence.length > 0) {
+        this.addEvidenceToMap(languageEvidence, languageName, evidence);
       }
     }
   }

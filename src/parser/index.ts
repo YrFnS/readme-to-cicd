@@ -8,6 +8,11 @@ export * from './types';
 // Main parser implementation
 export { ReadmeParserImpl } from './readme-parser';
 
+// Analyzers and utilities
+export { LanguageDetector } from './analyzers/language-detector';
+export { CommandExtractor } from './analyzers/command-extractor';
+export { MarkdownParser } from './utils/markdown-parser';
+
 // Base analyzer classes
 export { BaseAnalyzer } from './analyzers/base-analyzer';
 export { AnalyzerRegistry } from './analyzers/analyzer-registry';
