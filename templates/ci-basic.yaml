@@ -1,0 +1,18 @@
+name: "{{name}}"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+jobs:
+  - name: "Build and Test"
+    runsOn: "ubuntu-latest"
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      - name: "Run tests"
+        run: "echo 'Running tests...'"

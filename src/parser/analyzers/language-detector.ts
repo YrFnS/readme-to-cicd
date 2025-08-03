@@ -32,38 +32,38 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
 
   private languagePatterns = new Map([
     ['JavaScript', {
-      keywords: ['javascript', 'js', 'node', 'npm', 'yarn'],
+      keywords: ['javascript', 'js', 'node', 'npm', 'yarn', 'nodejs'],
       codeBlocks: ['javascript', 'js'],
       fileExtensions: ['.js', '.mjs'],
       frameworks: ['React', 'Vue', 'Angular', 'Express', 'Next.js']
     }],
     ['TypeScript', {
-      keywords: ['typescript', 'ts'],
+      keywords: ['typescript', 'ts', 'tsc'],
       codeBlocks: ['typescript', 'ts'],
       fileExtensions: ['.ts', '.tsx'],
       frameworks: ['Angular', 'NestJS', 'Next.js']
     }],
     ['Python', {
-      keywords: ['python', 'py', 'pip', 'conda'],
+      keywords: ['python', 'py', 'pip', 'conda', 'python3'],
       codeBlocks: ['python', 'py'],
       fileExtensions: ['.py'],
       frameworks: ['Django', 'Flask', 'FastAPI', 'PyTorch']
     }],
     ['Java', {
-      keywords: ['java', 'maven', 'gradle'],
+      keywords: ['java', 'maven', 'gradle', 'mvn'],
       codeBlocks: ['java'],
       fileExtensions: ['.java'],
       frameworks: ['Spring', 'Hibernate']
     }],
     ['Go', {
-      keywords: ['golang', 'go'],
+      keywords: ['golang', 'go', 'gofmt'],
       codeBlocks: ['go'],
       fileExtensions: ['.go'],
       frameworks: ['Gin', 'Echo']
     }],
     ['Rust', {
-      keywords: ['rust', 'cargo'],
-      codeBlocks: ['rust'],
+      keywords: ['rust', 'rs', 'cargo', 'rustc'],
+      codeBlocks: ['rust', 'rs'],
       fileExtensions: ['.rs'],
       frameworks: ['Actix', 'Rocket']
     }],
@@ -86,9 +86,15 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       frameworks: ['Rails', 'Sinatra']
     }],
     ['C++', {
-      keywords: ['cpp', 'cmake', 'make'],
-      codeBlocks: ['cpp'],
+      keywords: ['cpp', 'c++', 'cmake', 'make'],
+      codeBlocks: ['cpp', 'c++'],
       fileExtensions: ['.cpp', '.cc', '.cxx'],
+      frameworks: []
+    }],
+    ['SQL', {
+      keywords: ['sql', 'mysql', 'postgresql', 'sqlite'],
+      codeBlocks: ['sql'],
+      fileExtensions: ['.sql'],
       frameworks: []
     }]
   ]);
@@ -198,6 +204,9 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     // Analyze file extensions mentioned
     this.analyzeFileExtensions(content, detectedLanguages);
     
+    // Analyze pattern matching (this was missing!)
+    this.analyzePatternMatching(content, detectedLanguages);
+    
     // Sort by confidence and return
     return Array.from(detectedLanguages.values())
       .sort((a, b) => b.confidence - a.confidence);
@@ -220,30 +229,33 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   }
 
   private analyzeKeywords(content: string, detectedLanguages: Map<string, LanguageInfo>): void {
-    console.log('analyzeKeywords called with content length:', content.length);
     const lowerContent = content.toLowerCase();
     
     for (const [languageName, patterns] of this.languagePatterns) {
       let keywordMatches = 0;
       const foundKeywords: string[] = [];
       
-      console.log(`Checking ${languageName} with ${patterns.keywords.length} keywords`);
-      
       for (const keyword of patterns.keywords) {
-        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
+        let regex: RegExp;
+        
+        // Special case for C++ which has special characters
+        if (keyword === 'c++') {
+          regex = /c\+\+/gi;
+        } else {
+          const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
+        }
+        
         const matches = lowerContent.match(regex);
         if (matches) {
           keywordMatches += matches.length;
           foundKeywords.push(keyword);
-          console.log(`Found keyword "${keyword}" ${matches.length} times`);
         }
       }
       
       if (keywordMatches > 0) {
-        // Boost confidence for keyword matches - especially for strong indicators
-        const baseConfidence = Math.min(keywordMatches * 0.6, 0.95); // Increased from 0.4 to 0.6
-        console.log(`${languageName}: ${keywordMatches} keyword matches, confidence: ${baseConfidence}, keywords: ${foundKeywords.join(', ')}`);
+        // Reduce confidence for weak indicators - single mentions should be lower confidence
+        const baseConfidence = Math.min(keywordMatches * 0.4, 0.8);
         this.addOrUpdateLanguage(detectedLanguages, languageName, baseConfidence, ['text-mention']);
       }
     }
@@ -263,23 +275,121 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     }
   }
 
+  private analyzePatternMatching(content: string, detectedLanguages: Map<string, LanguageInfo>): void {
+    // Language-specific pattern matching
+    const patterns = [
+      // JavaScript patterns
+      {
+        language: 'JavaScript',
+        patterns: [
+          /async\s+function\s+\w+/gi,
+          /await\s+\w+/gi,
+          /\.then\s*\(/gi,
+          /console\.log\s*\(/gi,
+          /require\s*\(/gi,
+          /import\s+.*from/gi,
+          /export\s+(default\s+)?/gi,
+          /\$\{.*\}/gi, // template literals
+        ],
+        confidence: 0.8
+      },
+      // Python patterns
+      {
+        language: 'Python',
+        patterns: [
+          /def\s+\w+\s*\(/gi,
+          /class\s+\w+/gi,
+          /import\s+\w+/gi,
+          /from\s+\w+\s+import/gi,
+          /if\s+__name__\s*==\s*['"']__main__['"']/gi,
+          /print\s*\(/gi,
+          /pip\s+install/gi,
+          /python\s+\w+\.py/gi,
+        ],
+        confidence: 0.8
+      },
+      // Java patterns
+      {
+        language: 'Java',
+        patterns: [
+          /public\s+class\s+\w+/gi,
+          /public\s+static\s+void\s+main/gi,
+          /System\.out\.println/gi,
+          /import\s+java\./gi,
+          /mvn\s+(compile|test|package)/gi,
+          /gradle\s+(build|test)/gi,
+        ],
+        confidence: 0.8
+      },
+      // Go patterns
+      {
+        language: 'Go',
+        patterns: [
+          /func\s+\w+\s*\(/gi,
+          /package\s+\w+/gi,
+          /import\s+['"]/gi,
+          /go\s+(run|build|test)/gi,
+          /fmt\.Print/gi,
+        ],
+        confidence: 0.8
+      },
+      // Rust patterns
+      {
+        language: 'Rust',
+        patterns: [
+          /fn\s+\w+\s*\(/gi,
+          /cargo\s+(build|run|test)/gi,
+          /println!\s*\(/gi,
+          /use\s+\w+::/gi,
+          /struct\s+\w+/gi,
+        ],
+        confidence: 0.8
+      },
+      // C++ patterns
+      {
+        language: 'C++',
+        patterns: [
+          /#include\s*<.*>/gi,
+          /std::/gi,
+          /cout\s*<<|cin\s*>>/gi,
+          /int\s+main\s*\(/gi,
+          /make\s+(all|build|clean)/gi,
+          /cmake/gi,
+        ],
+        confidence: 0.8
+      }
+    ];
+
+    for (const patternGroup of patterns) {
+      let matchCount = 0;
+      for (const pattern of patternGroup.patterns) {
+        const matches = content.match(pattern);
+        if (matches) {
+          matchCount += matches.length;
+        }
+      }
+
+      if (matchCount > 0) {
+        const confidence = Math.min(matchCount * 0.3, patternGroup.confidence);
+        this.addOrUpdateLanguage(detectedLanguages, patternGroup.language, confidence, ['pattern-match']);
+      }
+    }
+  }
+
   private addOrUpdateLanguage(
     detectedLanguages: Map<string, LanguageInfo>,
     languageName: string,
     confidence: number,
     sources: string[]
   ): void {
-    console.log(`addOrUpdateLanguage: ${languageName}, confidence: ${confidence}, sources: ${sources.join(', ')}`);
     const existing = detectedLanguages.get(languageName);
     
     if (existing) {
       const newConfidence = Math.min(existing.confidence + confidence, 1.0);
-      console.log(`  Updating existing: ${existing.confidence} + ${confidence} = ${newConfidence}`);
       existing.confidence = newConfidence;
       existing.sources = [...new Set([...existing.sources, ...sources])] as LanguageSource[];
     } else {
       const frameworks = this.detectFrameworks(languageName, this.rawContent);
-      console.log(`  Creating new entry with confidence: ${confidence}`);
       
       detectedLanguages.set(languageName, {
         name: languageName,

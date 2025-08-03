@@ -1,0 +1,30 @@
+name: "{{name}} - Node.js CI"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+jobs:
+  - name: "Build and Test"
+    runsOn: "ubuntu-latest"
+    strategy:
+      matrix:
+        node-version: ["16", "18", "20"]
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      - name: "Setup Node.js"
+        uses: "actions/setup-node@v4"
+        with:
+          node-version: "{{matrix.node-version}}"
+          cache: "npm"
+      - name: "Install dependencies"
+        run: "npm ci"
+      - name: "Run tests"
+        run: "npm test"
+      - name: "Build project"
+        run: "npm run build"
