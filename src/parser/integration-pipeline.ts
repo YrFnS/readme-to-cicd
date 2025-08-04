@@ -338,7 +338,7 @@ export class IntegrationPipeline {
     }
 
     const languageDetector = this.dependencies.languageDetector;
-    const detectionResult = languageDetector.detectWithContext(context.ast, context.content);
+    const detectionResult = languageDetector.detectWithContext(context.ast!, context.content);
     
     // Store language contexts for next stages
     context.languageContexts = detectionResult.contexts;
@@ -382,9 +382,10 @@ export class IntegrationPipeline {
     
     // Use context-aware extraction if contexts are available
     if (context.languageContexts && context.languageContexts.length > 0) {
-      context.commandResults = await commandExtractor.extractWithContext(
-        context.content, 
-        context.languageContexts
+      commandExtractor.setLanguageContexts(context.languageContexts);
+      context.commandResults = commandExtractor.extractWithContext(
+        context.ast!, 
+        context.content
       );
     } else {
       // Fallback to regular extraction
@@ -1169,28 +1170,55 @@ export class IntegrationPipeline {
       deploy: []
     };
 
-    // This is a simplified conversion - in practice, you'd need to categorize commands
-    // based on their content or metadata
+    // Use proper command categorization logic
     associatedCommands.forEach(cmd => {
       const command = cmd.command || cmd;
-      const lowerCommand = command.toLowerCase();
+      const category = this.categorizeCommand(command);
       
-      if (lowerCommand.includes('install')) {
-        (commandInfo.install as any[]).push(cmd);
-      } else if (lowerCommand.includes('build')) {
-        (commandInfo.build as any[]).push(cmd);
-      } else if (lowerCommand.includes('test')) {
-        (commandInfo.test as any[]).push(cmd);
-      } else if (lowerCommand.includes('start') || lowerCommand.includes('run')) {
-        (commandInfo.run as any[]).push(cmd);
-      } else if (lowerCommand.includes('deploy')) {
-        (commandInfo.deploy as any[]).push(cmd);
+      if (category in commandInfo) {
+        (commandInfo as any)[category].push(cmd);
       } else {
         (commandInfo.other as any[]).push(cmd);
       }
     });
 
     return commandInfo;
+  }
+
+  /**
+   * Categorize a single command using proper logic from CommandExtractor
+   */
+  private categorizeCommand(commandText: string): string {
+    const cmd = commandText.toLowerCase();
+    
+    // Build commands
+    if (/\b(build|compile|assemble|package|dist)\b/.test(cmd)) {
+      return 'build';
+    }
+    
+    // Test commands
+    if (/\b(test|spec|check|verify|junit|pytest|rspec)\b/.test(cmd)) {
+      return 'test';
+    }
+    
+    // Install commands
+    if (/\b(install|add|get|restore|dependencies)\b/.test(cmd) && 
+        !/\bgo\s+install\b/.test(cmd)) { // go install is a build command
+      return 'install';
+    }
+    
+    // Deploy commands
+    if (/\b(deploy|publish|release|docker|kubectl|helm)\b/.test(cmd)) {
+      return 'deploy';
+    }
+    
+    // Run commands
+    if (/\b(start|run|serve|server|dev|development)\b/.test(cmd) ||
+        /^(python|node|java|ruby|php)\s+\w+/.test(cmd)) {
+      return 'run';
+    }
+    
+    return 'other';
   }
 
   private calculateCommandConfidence(commands: any[]): number {

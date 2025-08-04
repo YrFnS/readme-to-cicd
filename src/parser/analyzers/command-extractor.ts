@@ -12,6 +12,8 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
 
   private languageContexts: LanguageContext[] = [];
   private rawContent: string = '';
+  private parentContext?: LanguageContext;
+  private commandsByLanguage: Map<string, Command[]> = new Map();
 
   // Command patterns organized by category and language
   private commandPatterns = {
@@ -91,16 +93,32 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       // Extract the actual AST array from the wrapper object
       const actualAST = Array.isArray(ast) ? ast : (ast as any)?.ast || [];
       
-      // Extract commands from code blocks and text
-      const commands = this.extractCommands(actualAST, content);
-      
-      // Categorize commands
-      const categorizedCommands = this.categorizeCommands(commands);
-      
-      // Calculate confidence
-      const confidence = this.calculateCommandConfidence(categorizedCommands);
-      
-      return this.createSuccessResult(categorizedCommands, confidence, ['code-block', 'text-mention']);
+      // Use context-aware extraction if language contexts are available
+      if (this.languageContexts && this.languageContexts.length > 0) {
+        const contextResult = this.extractWithContext(actualAST, content);
+        
+        // Convert AssociatedCommand[] to CommandInfo for backward compatibility
+        const categorizedCommands = this.convertAssociatedCommandsToCommandInfo(contextResult.commands);
+        
+        // Calculate confidence based on context-aware commands
+        const confidence = this.calculateCommandConfidenceFromAssociated(contextResult.commands);
+        
+        return this.createSuccessResult(categorizedCommands, confidence, ['context-aware-extraction']);
+      } else {
+        // Fallback to basic extraction without context
+        const commands = this.extractCommands(actualAST, content);
+        
+        // Update commands by language map for getCommandsForLanguage method
+        this.updateCommandsByLanguage(commands);
+        
+        // Categorize commands
+        const categorizedCommands = this.categorizeCommands(commands);
+        
+        // Calculate confidence
+        const confidence = this.calculateCommandConfidence(categorizedCommands);
+        
+        return this.createSuccessResult(categorizedCommands, confidence, ['code-block', 'text-mention']);
+      }
     } catch (error) {
       return this.createErrorResult(
         this.createError(
@@ -175,9 +193,13 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
    */
   private extractFromCodeBlocks(ast: MarkdownNode[], commands: Command[]): void {
     this.traverseAST(ast, (node) => {
-      if (node.type === 'code' && node.text) {
-        const language = node.lang || 'shell';
-        const codeCommands = this.parseCodeBlock(node.text, language);
+      // Check for different possible code block node types
+      if ((node.type === 'code' || node.type === 'code_block') && ('text' in node || 'content' in node)) {
+        const language = ('lang' in node ? node.lang : undefined) || 
+                        ('language' in node ? node.language : undefined) || 'shell';
+        const codeText = ('text' in node ? node.text : undefined) || 
+                        ('content' in node ? node.content : undefined) || '';
+        const codeCommands = this.parseCodeBlock(codeText, language);
         commands.push(...codeCommands);
       }
     });
@@ -233,10 +255,12 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
         continue;
       }
       
-      // Remove shell prompts
-      const cleanLine = trimmedLine.replace(/^[\$#>]\s*/, '');
+      // Remove shell prompts (more comprehensive)
+      let cleanLine = trimmedLine.replace(/^[\$#>]\s*/, '');
+      cleanLine = cleanLine.replace(/^\w+@\w+:\S+\$\s*/, ''); // Remove user@host:path$ prompts
+      cleanLine = cleanLine.replace(/^C:\\.*>\s*/, ''); // Remove Windows prompts
       
-      if (this.looksLikeCommand(cleanLine)) {
+      if (cleanLine && this.looksLikeCommand(cleanLine)) {
         const command = this.createCommand(cleanLine, 'code-block', 0.9, language);
         commands.push(command);
       }
@@ -250,19 +274,64 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
    */
   private looksLikeCommand(text: string): boolean {
     // Skip very short strings
-    if (text.length < 3) return false;
+    if (text.length < 2) return false;
     
     // Skip strings that are mostly punctuation
     if (/^[^\w\s]*$/.test(text)) return false;
     
-    // Check for common command patterns
+    // Skip obvious non-commands
+    if (/^(https?:\/\/|www\.|[A-Z][a-z]+\s+[A-Z][a-z]+|[0-9]+\.[0-9]+)/.test(text)) return false;
+    
+    // First check for very common simple commands that should always be recognized
+    const simpleCommands = [
+      // Basic build commands
+      /^(npm|yarn|pip|pip3|cargo|go|mvn|gradle|make|cmake)\s+/,
+      /^(docker|kubectl|helm)\s+/,
+      /^(python|python3|node|java|ruby|php)\s+/,
+      /^(dotnet|bundle|composer|rspec|pytest)\s+/,
+      
+      // Standalone commands
+      /^(make|pytest|rspec|jest|mocha|phpunit)$/,
+      
+      // Two-word commands that are very common
+      /^go\s+(build|run|test|install|get|mod)(\s|$)/,
+      /^npm\s+(install|i|test|build|start|run)(\s|$)/,
+      /^yarn\s+(install|add|test|build|start|run)(\s|$)/,
+      /^cargo\s+(build|run|test|install)(\s|$)/,
+      /^mvn\s+(compile|package|install|test|clean)(\s|$)/,
+      /^gradle\s+(build|test|assemble|clean)(\s|$)/,
+      /^make\s+(build|all|clean|install|test)(\s|$)/,
+      /^cmake\s+(build|\.)(\s|$)/,
+      /^docker\s+(build|run|push|pull)(\s|$)/,
+      /^python\s+-m\s+\w+/,
+      /^pip\s+(install|uninstall)(\s|$)/,
+    ];
+    
+    // Check simple commands first
+    if (simpleCommands.some(pattern => pattern.test(text))) {
+      return true;
+    }
+    
+    // Check for more complex command patterns
     const commandIndicators = [
-      /^(npm|yarn|pip|cargo|go|mvn|gradle|make|cmake|docker|kubectl|helm)\s/,
-      /^(python|node|java|ruby|php)\s+\w+/,
-      /^(dotnet|bundle|composer)\s+\w+/,
-      /^\w+\s+(build|test|run|install|start|deploy|compile|package)/,
-      /^\.\/\w+/,  // Executable files
-      /^\w+\.sh/,  // Shell scripts
+      // Command + action patterns - more flexible
+      /^\w+\s+(build|test|run|install|start|deploy|compile|package|add|get|restore)(\s|$)/,
+      
+      // Specific command patterns
+      /^\.\/[\w\-\.]+/,  // Executable files
+      /^[\w\-]+\.sh(\s|$)/,  // Shell scripts
+      /^git\s+\w+/,  // Git commands
+      /^java\s+-jar/,  // Java jar execution
+      /^\.\/[^/\s]+/,  // Executable in current directory
+      
+      // Language-specific run commands
+      /^python\s+[\w\-\.\/]+\.py(\s|$)/,
+      /^node\s+[\w\-\.\/]+\.js(\s|$)/,
+      /^ruby\s+[\w\-\.\/]+\.rb(\s|$)/,
+      /^java\s+([\w\-\.]+|[\w\-\.]+\.jar)(\s|$)/,
+      
+      // More generic patterns for executables
+      /^[\w\-]+\s+[\w\-]+(\s|$)/  // Two word commands like "go install", "npm test", etc.
     ];
     
     return commandIndicators.some(pattern => pattern.test(text));
@@ -277,9 +346,43 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     baseConfidence: number, 
     language?: string
   ): Command {
+    // Always infer language from command first - this is more accurate
+    const inferredLanguage = this.inferLanguageFromCommand(commandText);
+    
+    // If command inference returns 'shell' and we have a specific code block language, use that
+    let finalLanguage = inferredLanguage;
+    if (inferredLanguage === 'shell' && language) {
+      // Map common code block languages to our standard language names
+      const languageMap: Record<string, string> = {
+        'js': 'JavaScript',
+        'javascript': 'JavaScript',
+        'ts': 'JavaScript',
+        'typescript': 'JavaScript',
+        'py': 'Python',
+        'python': 'Python',
+        'rs': 'Rust',
+        'rust': 'Rust',
+        'go': 'Go',
+        'java': 'Java',
+        'cpp': 'C/C++',
+        'c++': 'C/C++',
+        'c': 'C/C++',
+        'rb': 'Ruby',
+        'ruby': 'Ruby',
+        'php': 'PHP',
+        'cs': 'C#',
+        'csharp': 'C#',
+        'sh': 'Shell',
+        'bash': 'Shell',
+        'shell': 'Shell'
+      };
+      
+      finalLanguage = languageMap[language.toLowerCase()] || language;
+    }
+    
     return {
       command: commandText,
-      language: language || this.inferLanguageFromCommand(commandText),
+      language: finalLanguage,
       confidence: baseConfidence,
       context
     };
@@ -292,13 +395,13 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       'Python': [/^(pip|python|pytest)\s/, /\.py$/, /requirements\.txt/],
       'Rust': [/^cargo\s/, /\.rs$/],
       'Go': [/^go\s/, /\.go$/],
-      'Java': [/^(mvn|gradle|java)\s/, /\.java$/, /pom\.xml/],
-      'C++': [/^(make|cmake|g\+\+)\s/, /\.(cpp|cc|cxx)$/],
+      'Java': [/^(mvn|gradle|java)\s/, /\.java$/, /pom\.xml/, /\.\/gradlew/],
+      'C/C++': [/^(make|cmake|g\+\+)\s/, /\.(cpp|cc|cxx)$/, /^make$/],
       'Ruby': [/^(bundle|gem|ruby)\s/, /\.rb$/, /Gemfile/],
       'PHP': [/^(composer|php)\s/, /\.php$/],
       'C#': [/^dotnet\s/, /\.cs$/],
       'Docker': [/^docker/, /^docker-compose/],
-      'Shell': [/^(bash|sh|zsh)\s/, /\.sh$/]
+      'Shell': [/^(bash|sh|zsh)\s/, /\.sh$/, /^git\s/, /^curl\s/, /^chmod\s/]
     };
     
     for (const [language, patterns] of Object.entries(languageIndicators)) {
@@ -375,26 +478,21 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
    * Remove duplicate commands
    */
   private deduplicateCommands(commands: Command[]): Command[] {
-    const seen = new Set<string>();
-    const unique: Command[] = [];
+    const commandMap = new Map<string, Command>();
     
     for (const command of commands) {
       const key = `${command.command}:${command.language}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(command);
-      } else {
+      
+      if (commandMap.has(key)) {
         // If we see the same command again, boost its confidence
-        const existing = unique.find(c => 
-          c.command === command.command && c.language === command.language
-        );
-        if (existing) {
-          existing.confidence = Math.min(existing.confidence + 0.1, 1.0);
-        }
+        const existing = commandMap.get(key)!;
+        existing.confidence = Math.min(existing.confidence + 0.1, 1.0);
+      } else {
+        commandMap.set(key, { ...command });
       }
     }
     
-    return unique;
+    return Array.from(commandMap.values());
   }
 
   /**
@@ -455,7 +553,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     return {
       ...command,
       languageContext: defaultContext,
-      contextConfidence: 0.3
+      contextConfidence: this.calculateContextConfidence(command, defaultContext)
     };
   }
 
@@ -516,16 +614,20 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     
     // Boost for exact language match
     if (context.language.toLowerCase() === (command.language || '').toLowerCase()) {
-      confidence += 0.3;
+      confidence = 0.9; // High confidence for exact match
     }
-    
     // Boost for compatible languages
-    if (this.areLanguagesCompatible(context.language, command.language || '')) {
-      confidence += 0.2;
+    else if (this.areLanguagesCompatible(context.language, command.language || '')) {
+      confidence = 0.8; // Good confidence for compatible languages
+    }
+    // Boost for strong command patterns even without exact language match
+    else if (command.confidence && command.confidence > 0.8) {
+      confidence = 0.7; // Decent confidence for strong command patterns
     }
     
-    // Factor in context confidence
-    confidence *= context.confidence;
+    // Factor in context confidence but don't let it reduce too much
+    const contextFactor = Math.max(context.confidence, 0.8);
+    confidence *= contextFactor;
     
     return Math.min(confidence, 1.0);
   }
@@ -612,24 +714,71 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
   /**
    * Assign default context to commands that don't have explicit language context
    */
-  public assignDefaultContext(commands: Command[], contexts: LanguageContext[]): Command[] {
+  public assignDefaultContext(commands: Command[], contexts: LanguageContext[]): AssociatedCommand[] {
     // Set the available contexts for this operation
     this.setLanguageContexts(contexts);
     
     // Process each command and assign context if needed
     return commands.map(command => {
+      let languageContext: LanguageContext;
+      
       if (!command.language || command.language === 'shell') {
         // Try to infer language from available contexts
         const inferredLanguage = this.inferLanguageFromContexts(command, contexts);
         if (inferredLanguage) {
-          return {
-            ...command,
-            language: inferredLanguage
-          };
+          const matchingContext = contexts.find(ctx => ctx.language === inferredLanguage);
+          languageContext = matchingContext || this.createDefaultContext(inferredLanguage);
+        } else {
+          languageContext = this.createDefaultContext('shell');
+        }
+      } else {
+        // Find matching context or create default
+        const matchingContext = contexts.find(ctx => ctx.language === command.language);
+        languageContext = matchingContext || this.createDefaultContext(command.language!);
+      }
+      
+      return {
+        ...command,
+        language: languageContext.language,
+        languageContext,
+        contextConfidence: this.calculateContextConfidence(command, languageContext)
+      } as AssociatedCommand;
+    });
+  }
+
+  /**
+   * Create a default language context for a given language
+   */
+  private createDefaultContext(language: string): LanguageContext {
+    return {
+      language,
+      confidence: 0.5,
+      sourceRange: { 
+        startLine: 0, 
+        endLine: 0, 
+        startColumn: 0, 
+        endColumn: 0 
+      },
+      evidence: [{ 
+        type: 'declaration', 
+        value: `Default context for ${language}`,
+        confidence: 0.5,
+        location: { 
+          startLine: 0, 
+          endLine: 0, 
+          startColumn: 0, 
+          endColumn: 0 
+        }
+      }],
+      metadata: {
+        createdAt: new Date(),
+        source: 'CommandExtractor',
+        properties: {
+          packageManager: undefined,
+          buildTool: undefined
         }
       }
-      return command;
-    });
+    };
   }
 
   /**
@@ -654,14 +803,94 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     
     return bestContext.language;
   }
+
+  /**
+   * Get commands for a specific language (required by tests)
+   */
+  public getCommandsForLanguage(language: string): Command[] {
+    return this.commandsByLanguage.get(language) || [];
+  }
+
+  /**
+   * Set parent context for inheritance (required by tests)
+   */
+  public setParentContext(context: LanguageContext): void {
+    this.parentContext = context;
+  }
+
+  /**
+   * Update commands by language map
+   */
+  private updateCommandsByLanguage(commands: Command[]): void {
+    this.commandsByLanguage.clear();
+    
+    for (const command of commands) {
+      const language = command.language || 'shell';
+      if (!this.commandsByLanguage.has(language)) {
+        this.commandsByLanguage.set(language, []);
+      }
+      this.commandsByLanguage.get(language)!.push(command);
+    }
+  }
+
+  /**
+   * Convert AssociatedCommand[] to CommandInfo for backward compatibility
+   */
+  private convertAssociatedCommandsToCommandInfo(associatedCommands: AssociatedCommand[]): CommandInfo {
+    const commands: Command[] = associatedCommands.map(ac => {
+      const command: Command = {
+        command: ac.command,
+        language: ac.language || 'unknown',
+        confidence: ac.confidence
+      };
+      if (ac.context) {
+        command.context = ac.context;
+      }
+      return command;
+    });
+
+    // Update commands by language map
+    this.updateCommandsByLanguage(commands);
+    
+    return this.categorizeCommands(commands);
+  }
+
+  /**
+   * Calculate confidence from AssociatedCommand[] array
+   */
+  private calculateCommandConfidenceFromAssociated(associatedCommands: AssociatedCommand[]): number {
+    if (associatedCommands.length === 0) return 0;
+    
+    // Calculate average confidence including context confidence
+    const totalConfidence = associatedCommands.reduce((sum, cmd) => {
+      const baseConfidence = cmd.confidence || 0;
+      const contextBonus = cmd.contextConfidence ? cmd.contextConfidence * 0.2 : 0;
+      return sum + Math.min(baseConfidence + contextBonus, 1.0);
+    }, 0);
+    
+    const avgConfidence = totalConfidence / associatedCommands.length;
+    
+    // Boost confidence if we have commands with good language context
+    const commandsWithGoodContext = associatedCommands.filter(cmd => 
+      cmd.contextConfidence && cmd.contextConfidence > 0.7
+    ).length;
+    
+    const contextBonus = Math.min(commandsWithGoodContext * 0.05, 0.2);
+    
+    return Math.min(avgConfidence + contextBonus, 1.0);
+  }
 }
 
 /**
  * Interface for inheritance rules used by the component factory
  */
 interface InheritanceRule {
-  sourceLanguage: string;
-  targetLanguage: string;
-  confidence: number;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  confidence?: number;
   conditions?: string[];
+  condition?: string;
+  action?: 'inherit' | 'override' | 'merge';
+  priority?: number;
+  description?: string;
 }

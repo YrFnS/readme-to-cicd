@@ -22,8 +22,9 @@ export class YAMLUtils {
       }
 
       // Calculate current indentation level
-      const leadingSpaces = line.match(/^(\s*)/)?.[1] || '';
-      const currentIndent = leadingSpaces.length;
+      const leadingSpacesMatch = line.match(/^(\s*)/);
+      const leadingSpaces = leadingSpacesMatch ? leadingSpacesMatch[1] : '';
+      const currentIndent = leadingSpaces ? leadingSpaces.length : 0;
       
       // Normalize to specified indent size
       const indentLevel = Math.floor(currentIndent / 2); // Assuming original was 2-space
@@ -44,27 +45,31 @@ export class YAMLUtils {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue; // Handle undefined case
+      
       const trimmedLine = line.trim();
       
       processedLines.push(line);
 
-      // Add blank line after top-level keys (except the last one)
+      // Only add blank lines after top-level keys if the next line is not empty and not indented
       if (i < lines.length - 1) {
-        const nextLine = lines[i + 1]?.trim();
+        const nextLine = lines[i + 1];
+        if (!nextLine) continue; // Handle undefined case
         
-        // Add blank line after workflow metadata
+        const nextTrimmed = nextLine.trim();
+        
+        // Skip if next line is already empty or if we're in the middle of a structure
+        if (!nextTrimmed || nextLine.startsWith(' ')) {
+          continue;
+        }
+        
+        // Add blank line after top-level keys
         if (trimmedLine.startsWith('name:') || 
             trimmedLine === 'on:' || 
             trimmedLine === 'permissions:' ||
             trimmedLine === 'concurrency:' ||
-            trimmedLine === 'defaults:') {
-          processedLines.push('');
-        }
-        
-        // Add blank line between jobs
-        if (trimmedLine === 'jobs:' || 
-            (trimmedLine.endsWith(':') && !trimmedLine.includes(' ') && 
-             nextLine && !nextLine.startsWith(' '))) {
+            trimmedLine === 'defaults:' ||
+            trimmedLine === 'jobs:') {
           processedLines.push('');
         }
       }
@@ -93,6 +98,29 @@ export class YAMLUtils {
     column?: number;
   } {
     try {
+      // First check for obvious syntax issues
+      if (yamlContent.includes('\t')) {
+        return {
+          isValid: false,
+          error: 'YAML cannot contain tab characters',
+          line: yamlContent.split('\n').findIndex(line => line.includes('\t')) + 1
+        };
+      }
+
+      // Check for malformed structure
+      const lines = yamlContent.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line) continue; // Handle undefined case
+        if (line.trim() && !line.match(/^\s*(#|[\w-]+\s*:|[\w-]+\s*:\s*.+|-\s*.+|\s*.+)$/)) {
+          return {
+            isValid: false,
+            error: 'Invalid YAML structure',
+            line: i + 1
+          };
+        }
+      }
+
       yaml.load(yamlContent, { 
         filename: 'workflow.yml',
         onWarning: (warning) => {
@@ -102,12 +130,17 @@ export class YAMLUtils {
       return { isValid: true };
     } catch (error) {
       if (error instanceof yaml.YAMLException) {
-        return {
+        const result: { isValid: boolean; error?: string; line?: number; column?: number } = {
           isValid: false,
-          error: error.message,
-          line: error.mark?.line,
-          column: error.mark?.column
+          error: error.message
         };
+        if (error.mark?.line !== undefined) {
+          result.line = error.mark.line + 1; // js-yaml uses 0-based line numbers
+        }
+        if (error.mark?.column !== undefined) {
+          result.column = error.mark.column + 1; // js-yaml uses 0-based column numbers
+        }
+        return result;
       }
       return {
         isValid: false,
@@ -144,6 +177,10 @@ export class YAMLUtils {
         forceQuotes: false
       });
 
+      // Fix the "on" key quoting issue
+      formatted = formatted.replace(/^"on":/gm, 'on:');
+      formatted = formatted.replace(/^'on':/gm, 'on:');
+
       // Apply additional formatting
       formatted = this.normalizeIndentation(formatted, indent);
       
@@ -155,7 +192,8 @@ export class YAMLUtils {
 
       return formatted;
     } catch (error) {
-      throw new Error(`YAML formatting failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't throw for invalid YAML, just return the original
+      return yamlContent;
     }
   }
 
@@ -284,9 +322,10 @@ export class YAMLUtils {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
       const commentMatch = line.match(/^\s*#\s*(.+)$/);
       
-      if (commentMatch) {
+      if (commentMatch && commentMatch[1]) {
         comments.set(i + 1, commentMatch[1]);
       }
     }
@@ -306,6 +345,7 @@ export class YAMLUtils {
 
     for (let i = 0; i < transformedLines.length; i++) {
       const line = transformedLines[i];
+      if (!line) continue;
       
       // Check if there's a comment for this line in the original
       const originalLineNumber = i + 1 + commentOffset;

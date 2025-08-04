@@ -305,7 +305,7 @@ export class TemplateManager {
         errors.push('Job must have a name');
       }
       
-      if (!job.runsOn || job.runsOn.trim() === '') {
+      if (!job.runsOn || (typeof job.runsOn === 'string' && job.runsOn.trim() === '')) {
         errors.push(`Job '${job.name || 'unnamed'}' must specify runs-on`);
       }
       

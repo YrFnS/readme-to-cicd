@@ -84,8 +84,11 @@ export class ReadmeParserImpl implements ReadmeParser {
     // Initialize integration pipeline by default for proper component integration
     this.useIntegrationPipeline = options?.useIntegrationPipeline ?? true;
     if (this.useIntegrationPipeline) {
-      // Lazy import to avoid circular dependencies
-      this.initializeIntegrationPipeline();
+      // Lazy import to avoid circular dependencies - initialize asynchronously
+      this.initializeIntegrationPipeline().catch(error => {
+        console.warn('Failed to initialize IntegrationPipeline during construction:', error);
+        this.useIntegrationPipeline = false;
+      });
     }
     
     // Auto-register default analyzers
@@ -97,12 +100,14 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   private async initializeIntegrationPipeline(): Promise<void> {
     try {
+      // Use dynamic import to properly load the module
       const { IntegrationPipeline } = await import('./integration-pipeline');
       this.integrationPipeline = new IntegrationPipeline({
         enableLogging: true,
         logLevel: 'info',
         enablePerformanceMonitoring: true
       });
+      console.log('IntegrationPipeline initialized successfully');
     } catch (error) {
       console.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers:', error);
       this.useIntegrationPipeline = false;
@@ -259,17 +264,29 @@ export class ReadmeParserImpl implements ReadmeParser {
     
     try {
       // Use IntegrationPipeline if available and enabled
-      if (this.useIntegrationPipeline && this.integrationPipeline) {
-        const pipelineResult = await this.integrationPipeline.execute(content);
+      if (this.useIntegrationPipeline) {
+        // Ensure pipeline is initialized (fallback for async initialization issues)
+        if (!this.integrationPipeline) {
+          console.log('IntegrationPipeline not ready, attempting to initialize...');
+          await this.initializeIntegrationPipeline();
+        }
         
-        if (pipelineResult.success && pipelineResult.data) {
-          return {
-            success: true,
-            data: pipelineResult.data
-          };
+        if (this.integrationPipeline) {
+          console.log('Using IntegrationPipeline for content processing');
+          const pipelineResult = await this.integrationPipeline.execute(content);
+          
+          if (pipelineResult.success && pipelineResult.data) {
+            console.log('IntegrationPipeline succeeded');
+            return {
+              success: true,
+              data: pipelineResult.data
+            };
+          } else {
+            // If pipeline fails, fall back to standard analyzers
+            console.warn('IntegrationPipeline failed, falling back to standard analyzers:', pipelineResult.errors);
+          }
         } else {
-          // If pipeline fails, fall back to standard analyzers
-          console.warn('IntegrationPipeline failed, falling back to standard analyzers:', pipelineResult.errors);
+          console.warn('IntegrationPipeline initialization failed, using standard analyzers');
         }
       }
       

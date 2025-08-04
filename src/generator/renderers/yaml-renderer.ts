@@ -93,6 +93,7 @@ export class YAMLRenderer {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (!line) continue;
       const trimmedLine = line.trim();
 
       // Add workflow-level comments
@@ -142,7 +143,8 @@ export class YAMLRenderer {
       // Add custom comments
       for (const [pattern, comment] of Object.entries(this.options.commentConfig.customComments)) {
         if (trimmedLine.includes(pattern)) {
-          commentedLines.push(`${line.match(/^\s*/)?.[0] || ''}# ${comment}`);
+          const indent = line.match(/^\s*/);
+          commentedLines.push(`${indent ? indent[0] : ''}# ${comment}`);
         }
       }
 

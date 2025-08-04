@@ -108,7 +108,7 @@ export class ParseErrorImpl extends Error implements ParseError {
   }
 
   /**
-   * Check if this error is recoverable
+   * Check if this error is recoverable (getter property for interface compatibility)
    */
   get isRecoverable(): boolean {
     return this.severity === 'warning' || 
