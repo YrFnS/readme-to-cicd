@@ -256,8 +256,8 @@ export interface ValidationResult {
 export interface ValidationError {
   type: 'syntax' | 'schema' | 'action' | 'security';
   message: string;
-  line?: number;
-  column?: number;
+  line?: number | undefined;
+  column?: number | undefined;
   severity: 'error' | 'warning';
 }
 
@@ -267,6 +267,6 @@ export interface ValidationError {
 export interface ValidationWarning {
   type: 'optimization' | 'best-practice' | 'compatibility';
   message: string;
-  line?: number;
-  column?: number;
+  line?: number | undefined;
+  column?: number | undefined;
 }

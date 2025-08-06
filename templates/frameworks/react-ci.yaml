@@ -1,4 +1,4 @@
-name: Node.js CI
+name: React CI
 type: ci
 triggers:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  - name: test
+  - name: build-and-test
     runsOn: ubuntu-latest
     timeout: 30
     strategy:
@@ -35,9 +35,15 @@ jobs:
       
       - name: Run tests
         run: '{{testCommand}}'
+        env:
+          CI: true
       
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: '{{hasCoverage}}'
+      - name: Build application
+        run: '{{buildCommand}}'
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: build-files-${{ matrix.node-version }}
+          path: '{{buildOutputPath}}'
+          retention-days: 7

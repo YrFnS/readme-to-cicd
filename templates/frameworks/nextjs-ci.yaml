@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Next.js CI
 type: ci
 triggers:
   push:
@@ -10,12 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  - name: test
+  - name: build-and-test
     runsOn: ubuntu-latest
     timeout: 30
-    strategy:
-      matrix:
-        node-version: [18, 20]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '{{nodeVersion}}'
           cache: '{{packageManager}}'
       
       - name: Install dependencies
@@ -33,11 +30,25 @@ jobs:
         run: '{{lintCommand}}'
         if: '{{hasLinting}}'
       
+      - name: Run type checking
+        run: '{{typeCheckCommand}}'
+        if: '{{hasTypeScript}}'
+      
       - name: Run tests
         run: '{{testCommand}}'
+        env:
+          CI: true
       
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: '{{hasCoverage}}'
+      - name: Build application
+        run: '{{buildCommand}}'
+        env:
+          NODE_ENV: production
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: nextjs-build
+          path: |
+            .next/
+            out/
+          retention-days: 7

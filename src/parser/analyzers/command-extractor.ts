@@ -349,9 +349,9 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     // Always infer language from command first - this is more accurate
     const inferredLanguage = this.inferLanguageFromCommand(commandText);
     
-    // If command inference returns 'shell' and we have a specific code block language, use that
+    // If command inference returns 'unknown' and we have a specific code block language, use that
     let finalLanguage = inferredLanguage;
-    if (inferredLanguage === 'shell' && language) {
+    if ((inferredLanguage === 'unknown' || inferredLanguage === 'shell') && language) {
       // Map common code block languages to our standard language names
       const languageMap: Record<string, string> = {
         'js': 'JavaScript',
@@ -378,6 +378,11 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       };
       
       finalLanguage = languageMap[language.toLowerCase()] || language;
+    }
+    
+    // Ensure we never return 'unknown' - default to 'Shell' for generic commands
+    if (finalLanguage === 'unknown') {
+      finalLanguage = 'Shell';
     }
     
     return {
@@ -410,7 +415,8 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       }
     }
     
-    return 'shell';
+    // Return 'unknown' for commands that don't match any pattern, but ensure language is always set
+    return 'unknown';
   }
 
   /**
@@ -444,6 +450,18 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
   private categorizeCommand(command: Command): keyof CommandInfo {
     const cmd = command.command.toLowerCase();
     
+    // Special cases first (more specific patterns)
+    
+    // go install is a build command, not install
+    if (/\bgo\s+install\b/.test(cmd)) {
+      return 'build';
+    }
+    
+    // mvn install is a build command, not install
+    if (/\bmvn\s+install\b/.test(cmd)) {
+      return 'build';
+    }
+    
     // Build commands
     if (/\b(build|compile|assemble|package|dist)\b/.test(cmd)) {
       return 'build';
@@ -454,9 +472,8 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       return 'test';
     }
     
-    // Install commands
-    if (/\b(install|add|get|restore|dependencies)\b/.test(cmd) && 
-        !/\bgo\s+install\b/.test(cmd)) { // go install is a build command
+    // Install commands (after special cases)
+    if (/\b(install|add|get|restore|dependencies)\b/.test(cmd)) {
       return 'install';
     }
     
@@ -533,14 +550,16 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     if (bestContext) {
       return {
         ...command,
+        language: bestContext.language, // Inherit language from context
         languageContext: bestContext,
         contextConfidence: this.calculateContextConfidence(command, bestContext)
       };
     }
     
     // Create a default context if none found
+    const defaultLanguage = command.language || 'shell';
     const defaultContext: LanguageContext = {
-      language: command.language || 'shell',
+      language: defaultLanguage,
       confidence: 0.3,
       sourceRange: { startLine: 0, endLine: 0, startColumn: 0, endColumn: 0 },
       evidence: [],
@@ -552,6 +571,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     
     return {
       ...command,
+      language: defaultLanguage, // Ensure language is set
       languageContext: defaultContext,
       contextConfidence: this.calculateContextConfidence(command, defaultContext)
     };
@@ -721,6 +741,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     // Process each command and assign context if needed
     return commands.map(command => {
       let languageContext: LanguageContext;
+      let finalLanguage: string;
       
       if (!command.language || command.language === 'shell') {
         // Try to infer language from available contexts
@@ -728,18 +749,21 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
         if (inferredLanguage) {
           const matchingContext = contexts.find(ctx => ctx.language === inferredLanguage);
           languageContext = matchingContext || this.createDefaultContext(inferredLanguage);
+          finalLanguage = inferredLanguage;
         } else {
           languageContext = this.createDefaultContext('shell');
+          finalLanguage = 'shell';
         }
       } else {
         // Find matching context or create default
         const matchingContext = contexts.find(ctx => ctx.language === command.language);
         languageContext = matchingContext || this.createDefaultContext(command.language!);
+        finalLanguage = command.language!;
       }
       
       return {
         ...command,
-        language: languageContext.language,
+        language: finalLanguage, // Ensure language is always set
         languageContext,
         contextConfidence: this.calculateContextConfidence(command, languageContext)
       } as AssociatedCommand;
@@ -840,7 +864,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     const commands: Command[] = associatedCommands.map(ac => {
       const command: Command = {
         command: ac.command,
-        language: ac.language || 'unknown',
+        language: ac.languageContext?.language || ac.language || 'shell', // Use languageContext first
         confidence: ac.confidence
       };
       if (ac.context) {

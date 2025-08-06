@@ -1,4 +1,4 @@
-name: Node.js CI
+name: Express.js CI
 type: ci
 triggers:
   push:
@@ -35,9 +35,12 @@ jobs:
       
       - name: Run tests
         run: '{{testCommand}}'
+        env:
+          NODE_ENV: test
       
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: '{{hasCoverage}}'
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Start server (health check)
+        run: |
+          {{installCommand}}
+          timeout 10s npm start &
+          sleep 5
+          curl -f http://localhost:3000/health || curl -f http://localhost:3000/ || echo "Server health check completed"

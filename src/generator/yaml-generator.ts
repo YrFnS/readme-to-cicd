@@ -3,17 +3,29 @@
  */
 
 import { YAMLGenerator, DetectionResult, GenerationOptions, WorkflowOutput, WorkflowType, ValidationResult } from './interfaces';
+import { WorkflowValidator } from './validators/workflow-validator';
 
 /**
  * Main YAML Generator class that orchestrates workflow generation
  */
 export class YAMLGeneratorImpl implements YAMLGenerator {
+  private validator: WorkflowValidator;
+
+  constructor() {
+    this.validator = new WorkflowValidator({
+      strictMode: true,
+      allowUnknownActions: false,
+      validateActionVersions: true,
+      customRules: []
+    });
+  }
+
   /**
    * Generate a single workflow from detection results
    */
   async generateWorkflow(detectionResult: DetectionResult, options?: GenerationOptions): Promise<WorkflowOutput> {
     // Implementation will be added in subsequent tasks
-    throw new Error('Not implemented yet - will be implemented in task 2');
+    throw new Error('Not implemented yet - will be implemented in task 5+');
   }
 
   /**
@@ -28,7 +40,6 @@ export class YAMLGeneratorImpl implements YAMLGenerator {
    * Validate generated YAML workflow
    */
   validateWorkflow(yamlContent: string): ValidationResult {
-    // Implementation will be added in subsequent tasks
-    throw new Error('Not implemented yet - will be implemented in task 4');
+    return this.validator.validateWorkflow(yamlContent);
   }
 }

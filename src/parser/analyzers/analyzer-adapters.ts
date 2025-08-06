@@ -69,7 +69,7 @@ export class DependencyExtractorAdapter extends AnalyzerAdapter {
  */
 export class CommandExtractorAdapter extends AnalyzerAdapter {
   readonly name = 'CommandExtractor';
-  private extractor = new CommandExtractor();
+  public extractor = new CommandExtractor(); // Make public for context setting
   
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
     const result = await this.extractor.analyze(ast, rawContent);

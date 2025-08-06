@@ -81,36 +81,56 @@ export class ReadmeParserImpl implements ReadmeParser {
       (options?.performanceOptions ? new PerformanceMonitor(options.performanceOptions) : globalPerformanceMonitor) :
       new PerformanceMonitor({ enabled: false });
     
-    // Initialize integration pipeline by default for proper component integration
+    // CRITICAL FIX: Always use IntegrationPipeline for proper component integration
     this.useIntegrationPipeline = options?.useIntegrationPipeline ?? true;
-    if (this.useIntegrationPipeline) {
-      // Lazy import to avoid circular dependencies - initialize asynchronously
-      this.initializeIntegrationPipeline().catch(error => {
-        console.warn('Failed to initialize IntegrationPipeline during construction:', error);
-        this.useIntegrationPipeline = false;
-      });
-    }
     
     // Auto-register default analyzers
     this.registerDefaultAnalyzers();
+    
+    // Initialize IntegrationPipeline immediately if enabled
+    if (this.useIntegrationPipeline) {
+      this.initializeIntegrationPipelineSync();
+    }
   }
 
   /**
-   * Initialize IntegrationPipeline for enhanced processing
+   * Initialize IntegrationPipeline synchronously during construction
+   */
+  private initializeIntegrationPipelineSync(): void {
+    try {
+      // Use synchronous import to initialize during construction
+      const IntegrationPipelineModule = require('./integration-pipeline');
+      const IntegrationPipeline = IntegrationPipelineModule.IntegrationPipeline;
+      
+      this.integrationPipeline = new IntegrationPipeline({
+        enableLogging: false, // Reduce noise
+        logLevel: 'warn',
+        enablePerformanceMonitoring: this.performanceMonitor !== null
+      });
+      console.log('IntegrationPipeline initialized successfully during construction');
+    } catch (error) {
+      console.warn('Failed to initialize IntegrationPipeline during construction, will retry on-demand:', error);
+      this.integrationPipeline = null;
+    }
+  }
+
+  /**
+   * Initialize IntegrationPipeline for enhanced processing (async fallback)
    */
   private async initializeIntegrationPipeline(): Promise<void> {
     try {
       // Use dynamic import to properly load the module
       const { IntegrationPipeline } = await import('./integration-pipeline');
       this.integrationPipeline = new IntegrationPipeline({
-        enableLogging: true,
-        logLevel: 'info',
-        enablePerformanceMonitoring: true
+        enableLogging: false, // Reduce noise
+        logLevel: 'warn',
+        enablePerformanceMonitoring: this.performanceMonitor !== null
       });
       console.log('IntegrationPipeline initialized successfully');
     } catch (error) {
       console.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers:', error);
       this.useIntegrationPipeline = false;
+      throw error; // Re-throw to handle in calling code
     }
   }
 
@@ -230,82 +250,165 @@ export class ReadmeParserImpl implements ReadmeParser {
         return this.createErrorResult('EMPTY_CONTENT', 'Content cannot be empty or contain only whitespace');
       }
 
-      // Check cache first
-      const cachedEntry = this.astCache.get(content);
-      let ast: Token[];
-      let rawContent: string;
-      let parseTime: number;
-
-      if (cachedEntry) {
-        // Use cached AST
-        ast = cachedEntry.ast;
-        rawContent = cachedEntry.rawContent;
-        parseTime = 0; // No parsing time since we used cache
-      } else {
-        // Parse content and cache result
-        const parseResult = await this.performanceMonitor.timeOperation('markdownParse', async () => {
-          return this.markdownParser.parseContent(content);
-        });
-        
-        if (!parseResult.success) {
-          return {
-            success: false,
-            errors: [parseResult.error]
-          };
-        }
-
-        ast = parseResult.data.ast;
-        rawContent = parseResult.data.rawContent;
-        parseTime = parseResult.data.processingTime;
-
-        // Cache the parsed AST
-        this.astCache.set(content, ast, parseTime);
-      }
-    
-    try {
-      // Use IntegrationPipeline if available and enabled
-      if (this.useIntegrationPipeline) {
-        // Ensure pipeline is initialized (fallback for async initialization issues)
-        if (!this.integrationPipeline) {
-          console.log('IntegrationPipeline not ready, attempting to initialize...');
-          await this.initializeIntegrationPipeline();
-        }
-        
-        if (this.integrationPipeline) {
-          console.log('Using IntegrationPipeline for content processing');
-          const pipelineResult = await this.integrationPipeline.execute(content);
-          
-          if (pipelineResult.success && pipelineResult.data) {
-            console.log('IntegrationPipeline succeeded');
-            return {
-              success: true,
-              data: pipelineResult.data
-            };
-          } else {
-            // If pipeline fails, fall back to standard analyzers
-            console.warn('IntegrationPipeline failed, falling back to standard analyzers:', pipelineResult.errors);
+      try {
+        // CRITICAL FIX: Use IntegrationPipeline as the primary processing method
+        if (this.useIntegrationPipeline) {
+          // Initialize pipeline on-demand if not already initialized
+          if (!this.integrationPipeline) {
+            try {
+              await this.initializeIntegrationPipeline();
+            } catch (initError) {
+              console.error('Failed to initialize IntegrationPipeline, falling back to manual processing:', initError);
+              this.useIntegrationPipeline = false;
+            }
           }
-        } else {
-          console.warn('IntegrationPipeline initialization failed, using standard analyzers');
+          
+          if (this.integrationPipeline) {
+            try {
+              console.log('Executing IntegrationPipeline for content processing');
+              const pipelineResult = await this.integrationPipeline.execute(content);
+              
+              if (pipelineResult.success && pipelineResult.data) {
+                console.log('IntegrationPipeline executed successfully');
+                return {
+                  success: true,
+                  data: pipelineResult.data,
+                  ...(pipelineResult.warnings && { warnings: pipelineResult.warnings }),
+                  ...(pipelineResult.errors && { errors: pipelineResult.errors })
+                };
+              } else {
+                // Log pipeline failure but continue with fallback
+                console.warn('IntegrationPipeline failed, using fallback processing:', pipelineResult.errors);
+                // Don't disable pipeline for future attempts, just use fallback for this request
+              }
+            } catch (pipelineError) {
+              console.error('IntegrationPipeline execution error, using fallback:', pipelineError);
+              // Don't disable pipeline for future attempts, just use fallback for this request
+            }
+          }
+        }
+        
+        // Fallback to manual processing only if pipeline is disabled or failed
+        console.log('Using fallback manual analyzer coordination');
+        return await this.executeManualAnalysis(content);
+
+      } catch (error) {
+        if (error instanceof Error) {
+          return this.createErrorResult('PARSE_ERROR', `Failed to analyze content: ${error.message}`);
+        }
+        return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
+      }
+    }, { contentLength: content ? content.length : 0 });
+  }
+
+  /**
+   * Execute manual analysis as fallback when IntegrationPipeline is not available
+   */
+  private async executeManualAnalysis(content: string): Promise<ParseResult> {
+    // Parse content first
+    const cachedEntry = this.astCache.get(content);
+    let ast: Token[];
+    let rawContent: string;
+    let parseTime: number;
+
+    if (cachedEntry) {
+      // Use cached AST
+      ast = cachedEntry.ast;
+      rawContent = cachedEntry.rawContent;
+      parseTime = 0; // No parsing time since we used cache
+    } else {
+      // Parse content and cache result
+      const parseResult = await this.performanceMonitor.timeOperation('markdownParse', async () => {
+        return this.markdownParser.parseContent(content);
+      });
+      
+      if (!parseResult.success) {
+        return {
+          success: false,
+          errors: [parseResult.error]
+        };
+      }
+
+      ast = parseResult.data.ast;
+      rawContent = parseResult.data.rawContent;
+      parseTime = parseResult.data.processingTime;
+
+      // Cache the parsed AST
+      this.astCache.set(content, ast, parseTime);
+    }
+
+    return await this.executeContextAwareAnalysis(ast, rawContent);
+  }
+
+  /**
+   * Execute context-aware analysis with proper analyzer coordination (fallback method)
+   */
+  private async executeContextAwareAnalysis(ast: Token[], content: string): Promise<ParseResult> {
+    try {
+      // Step 1: Run LanguageDetector first to get language contexts
+      const languageDetectorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'LanguageDetector');
+      let languageContexts: any[] = [];
+      
+      if (languageDetectorAdapter) {
+        console.log('Running LanguageDetector for context generation...');
+        const langResult = await this.runAnalyzer(languageDetectorAdapter, ast, content);
+        
+        if (langResult.data && Array.isArray(langResult.data)) {
+          // Convert language detection results to contexts
+          languageContexts = langResult.data.map((lang: any, index: number) => ({
+            language: lang.name,
+            confidence: lang.confidence || 0.5,
+            sourceRange: { startLine: 0, endLine: 0, startColumn: 0, endColumn: 0 },
+            evidence: lang.sources || [],
+            metadata: {
+              createdAt: new Date(),
+              source: 'LanguageDetector',
+              index
+            }
+          }));
+          console.log(`Generated ${languageContexts.length} language contexts:`, languageContexts.map(c => c.language));
         }
       }
       
-      // Get all registered analyzers
-      const analyzers = this.analyzerRegistry.getAll();
-      if (analyzers.length === 0) {
-        return this.createErrorResult('NO_ANALYZERS', 'No analyzers registered');
+      // Step 2: Set language contexts on CommandExtractor
+      const commandExtractorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'CommandExtractor');
+      if (commandExtractorAdapter && languageContexts.length > 0) {
+        console.log('Setting language contexts on CommandExtractor...');
+        
+        // Access the CommandExtractor through the adapter's public extractor property
+        const commandExtractor = (commandExtractorAdapter as any).extractor;
+        
+        if (commandExtractor && typeof commandExtractor.setLanguageContexts === 'function') {
+          commandExtractor.setLanguageContexts(languageContexts);
+          console.log(`Language contexts set successfully on CommandExtractor: ${languageContexts.length} contexts`);
+        } else {
+          console.error('Failed to access CommandExtractor or setLanguageContexts method', {
+            hasExtractor: !!commandExtractor,
+            extractorType: commandExtractor?.constructor?.name,
+            hasMethod: commandExtractor && typeof commandExtractor.setLanguageContexts === 'function',
+            adapterType: commandExtractorAdapter.constructor.name,
+            availableMethods: commandExtractor ? Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractor)) : []
+          });
+          
+          // This is a critical failure - the CommandExtractor should have this method
+          throw new Error('CommandExtractor does not support setLanguageContexts method - this indicates a broken implementation');
+        }
+      } else if (languageContexts.length === 0) {
+        console.warn('No language contexts available to set on CommandExtractor');
+      } else {
+        console.error('CommandExtractorAdapter not found in registry');
       }
-
-      // Execute analyzers in parallel with optimized timeout and error isolation
+      
+      // Step 3: Run all analyzers with context coordination
+      const analyzers = this.analyzerRegistry.getAll();
       const analysisPromises = analyzers.map(async analyzer => {
         return this.performanceMonitor.timeOperation(`analyzer_${analyzer.name}`, async () => {
           try {
-            // Reduced timeout for better performance (5 seconds instead of 10)
             const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
               setTimeout(() => reject(new Error('Analyzer timeout')), 5000);
             });
 
-            const analysisPromise = this.runAnalyzer(analyzer, ast, rawContent);
+            const analysisPromise = this.runAnalyzer(analyzer, ast, content);
             const result = await Promise.race([analysisPromise, timeoutPromise]);
             
             return { 
@@ -314,7 +417,6 @@ export class ReadmeParserImpl implements ReadmeParser {
               success: true 
             };
           } catch (error) {
-            // Create error result for failed analyzer
             const errorResult: AnalysisResult = {
               data: null,
               confidence: 0,
@@ -336,10 +438,10 @@ export class ReadmeParserImpl implements ReadmeParser {
         }, { analyzerName: analyzer.name });
       });
 
-      // Wait for all analyzers to complete (or fail)
+      // Wait for all analyzers to complete
       const analysisResults = await Promise.allSettled(analysisPromises);
       
-      // Prepare results map for aggregation
+      // Process results
       const resultsMap = new Map<string, AnalysisResult>();
       const analyzerErrors: ParseError[] = [];
       let successfulAnalyzers = 0;
@@ -354,13 +456,11 @@ export class ReadmeParserImpl implements ReadmeParser {
               successfulAnalyzers++;
             }
             
-            // Collect analyzer-specific errors
             if (result.errors) {
               analyzerErrors.push(...result.errors);
             }
           }
         } else {
-          // Promise was rejected
           analyzerErrors.push({
             code: 'ANALYZER_PROMISE_REJECTED',
             message: `Analyzer promise rejected: ${promiseResult.reason}`,
@@ -386,7 +486,7 @@ export class ReadmeParserImpl implements ReadmeParser {
         };
       }
       
-      // Aggregate results using ResultAggregator
+      // Aggregate results
       const projectInfo = await this.performanceMonitor.timeOperation('resultAggregation', async () => {
         return this.resultAggregator.aggregate(resultsMap);
       });
@@ -397,27 +497,17 @@ export class ReadmeParserImpl implements ReadmeParser {
       const allErrors = [...analyzerErrors, ...aggregatorErrors];
       const allWarnings = aggregatorWarnings.map(w => w.message);
 
-      // Add performance metadata
-      const performanceInfo = {
-        analyzersRun: analyzers.length,
-        analyzersSuccessful: successfulAnalyzers,
-        analyzersFailed: analyzers.length - successfulAnalyzers
-      };
-
       const result: ParseResult = {
         success: true,
         data: {
           ...projectInfo,
-          // Add performance metadata to confidence scores
           confidence: {
             ...projectInfo.confidence,
-            // Adjust overall confidence based on analyzer success rate
             overall: projectInfo.confidence.overall * (successfulAnalyzers / analyzers.length)
           }
         }
       };
       
-      // Add errors and warnings if they exist
       if (allErrors.length > 0) {
         result.errors = allErrors;
       }
@@ -426,15 +516,16 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
       
       return result;
-
+      
     } catch (error) {
       if (error instanceof Error) {
-        return this.createErrorResult('PARSE_ERROR', `Failed to analyze content: ${error.message}`);
+        return this.createErrorResult('CONTEXT_AWARE_ANALYSIS_ERROR', `Context-aware analysis failed: ${error.message}`);
       }
-      return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
+      return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during context-aware analysis');
     }
-    }, { contentLength: content ? content.length : 0 });
-  }  /**
+  }
+
+  /**
    * Run a single analyzer with comprehensive error handling
    */
   private async runAnalyzer(
