@@ -1,4 +1,4 @@
-name: "{{name}} - Python CI"
+name: "{{name}} - FastAPI CI"
 type: ci
 triggers:
   push:
@@ -15,7 +15,7 @@ permissions:
 jobs:
   - name: "test"
     runsOn: "ubuntu-latest"
-    timeout: 30
+    timeout: 20
     strategy:
       matrix:
         python-version: {{pythonVersions}}
@@ -43,8 +43,16 @@ jobs:
       - name: "Run tests"
         run: "{{testCommand}}"
         env:
-          PYTHONPATH: "."
-          PYTHONDONTWRITEBYTECODE: "1"
+          TESTING: "true"
+      
+      - name: "Test FastAPI server startup"
+        run: "python -c 'from main import app; import uvicorn; uvicorn.run(app, host=\"0.0.0.0\", port=8000)' &"
+        if: "{{isFastAPI}}"
+        timeout-minutes: 1
+      
+      - name: "Health check"
+        run: "curl -f http://localhost:8000/health || curl -f http://localhost:8000/docs"
+        if: "{{isFastAPI}}"
       
       - name: "Upload coverage reports"
         uses: "codecov/codecov-action@v4"

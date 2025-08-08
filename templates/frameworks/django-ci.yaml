@@ -1,4 +1,4 @@
-name: "{{name}} - Python CI"
+name: "{{name}} - Django CI"
 type: ci
 triggers:
   push:
@@ -19,6 +19,19 @@ jobs:
     strategy:
       matrix:
         python-version: {{pythonVersions}}
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: "Checkout code"
         uses: "actions/checkout@v4"
@@ -32,6 +45,21 @@ jobs:
       - name: "Install dependencies"
         run: "{{installCommand}}"
       
+      - name: "Run database migrations"
+        run: "{{virtualEnvSetup}} && python manage.py migrate"
+        env:
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/test_db"
+          DJANGO_SETTINGS_MODULE: "{{projectName}}.settings.test"
+          SECRET_KEY: "test-secret-key-for-ci"
+        if: "{{isDjango}}"
+      
+      - name: "Collect static files"
+        run: "{{buildCommand}}"
+        env:
+          DJANGO_SETTINGS_MODULE: "{{projectName}}.settings.test"
+          SECRET_KEY: "test-secret-key-for-ci"
+        if: "{{isDjango}} && {{buildCommand}}"
+      
       - name: "Run linting"
         run: "{{lintCommand}}"
         if: "{{hasLinting}}"
@@ -43,8 +71,9 @@ jobs:
       - name: "Run tests"
         run: "{{testCommand}}"
         env:
-          PYTHONPATH: "."
-          PYTHONDONTWRITEBYTECODE: "1"
+          DATABASE_URL: "postgres://postgres:postgres@localhost:5432/test_db"
+          DJANGO_SETTINGS_MODULE: "{{projectName}}.settings.test"
+          SECRET_KEY: "test-secret-key-for-ci"
       
       - name: "Upload coverage reports"
         uses: "codecov/codecov-action@v4"

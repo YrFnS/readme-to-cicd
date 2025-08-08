@@ -1,4 +1,4 @@
-name: "{{name}} - Python CI"
+name: "{{name}} - Flask CI"
 type: ci
 triggers:
   push:
@@ -15,7 +15,7 @@ permissions:
 jobs:
   - name: "test"
     runsOn: "ubuntu-latest"
-    timeout: 30
+    timeout: 20
     strategy:
       matrix:
         python-version: {{pythonVersions}}
@@ -43,8 +43,12 @@ jobs:
       - name: "Run tests"
         run: "{{testCommand}}"
         env:
-          PYTHONPATH: "."
-          PYTHONDONTWRITEBYTECODE: "1"
+          FLASK_ENV: "testing"
+          FLASK_APP: "app.py"
+      
+      - name: "Test WSGI application"
+        run: "python -c 'from app import app; app.test_client().get(\"/\")'"
+        if: "{{isFlask}}"
       
       - name: "Upload coverage reports"
         uses: "codecov/codecov-action@v4"
