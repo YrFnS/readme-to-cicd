@@ -7,15 +7,28 @@ import { CommandExtractor } from '../../src/parser/analyzers/command-extractor';
 import { MarkdownParser } from '../../src/parser/utils/markdown-parser';
 import { CommandInfo, Command } from '../../src/parser/types';
 import { LanguageContext } from '../../src/shared/types/language-context';
+import { LanguageDetector } from '../../src/parser/analyzers/language-detector';
 
 describe('CommandExtractor', () => {
   let extractor: CommandExtractor;
   let parser: MarkdownParser;
+  let languageDetector: LanguageDetector;
 
   beforeEach(() => {
     extractor = new CommandExtractor();
     parser = new MarkdownParser();
+    languageDetector = new LanguageDetector();
   });
+
+  /**
+   * Helper function to set up language contexts for context-aware testing
+   */
+  const setupLanguageContexts = async (content: string, ast: any): Promise<LanguageContext[]> => {
+    const detectionResult = languageDetector.detectWithContext(ast, content);
+    const contexts = detectionResult.contexts;
+    extractor.setLanguageContexts(contexts);
+    return contexts;
+  };
 
   describe('Build Command Detection', () => {
     it('should extract npm build commands from code blocks', async () => {
@@ -31,6 +44,9 @@ yarn run build
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       expect(parseResult.success).toBe(true);
 
       const result = await extractor.analyze(parseResult.data!.ast, content);
@@ -64,6 +80,9 @@ cargo build --release
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -88,6 +107,9 @@ go install
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -115,6 +137,9 @@ maven compile
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -144,6 +169,9 @@ gradle assemble
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -172,6 +200,9 @@ make build
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -197,6 +228,9 @@ cmake . -DCMAKE_BUILD_TYPE=Release
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -221,6 +255,10 @@ pip install .
       `;
 
       const parseResult = await parser.parseContent(content);
+      
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const buildCommands = commandInfo.build;
@@ -250,6 +288,10 @@ yarn run test
       `;
 
       const parseResult = await parser.parseContent(content);
+      
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -277,6 +319,9 @@ cargo test --release
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -300,6 +345,9 @@ go test ./...
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -325,6 +373,10 @@ python test
       `;
 
       const parseResult = await parser.parseContent(content);
+      
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -352,6 +404,9 @@ maven test
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -376,6 +431,9 @@ gradlew test
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -401,6 +459,9 @@ make check
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -425,6 +486,9 @@ rake test
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const testCommands = commandInfo.test;
@@ -455,6 +519,9 @@ yarn dev
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -484,6 +551,9 @@ cargo run --release
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -507,6 +577,9 @@ go run .
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -531,6 +604,10 @@ python -m mymodule
       `;
 
       const parseResult = await parser.parseContent(content);
+      
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -556,6 +633,9 @@ java MyClass
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -579,6 +659,9 @@ java MyClass
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const runCommands = commandInfo.run;
@@ -605,6 +688,9 @@ yarn add express
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const installCommands = commandInfo.install;
@@ -633,6 +719,9 @@ python -m pip install flask
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const installCommands = commandInfo.install;
@@ -662,6 +751,9 @@ docker-compose build
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const otherCommands = commandInfo.other;
@@ -689,6 +781,9 @@ git push origin main
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
       const otherCommands = commandInfo.other;
@@ -714,6 +809,9 @@ For testing, use \`npm test\` or \`yarn test\`.
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
 
@@ -890,6 +988,9 @@ deploy-service
       extractor.setLanguageContexts([parentContext]);
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
 
@@ -973,6 +1074,9 @@ mysterious-command
       extractor.setLanguageContexts([jsContext1, jsContext2, pythonContext]);
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
 
@@ -997,6 +1101,9 @@ chmod +x script.sh
       `;
 
       const parseResult = await parser.parseContent(content);
+      // Set up language contexts for context-aware extraction
+      await setupLanguageContexts(content, parseResult.data!.ast);
+      
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
 

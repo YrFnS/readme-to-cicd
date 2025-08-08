@@ -1217,7 +1217,14 @@ export class IntegrationPipeline {
     const cmd = commandText.toLowerCase();
 
     // Build commands
-    if (/\b(build|compile|assemble|package|dist)\b/.test(cmd)) {
+    if (/\b(build|compile|assemble|package|dist)\b/.test(cmd) ||
+        /^make(\s|$)/.test(cmd) ||
+        /^make\s+(all|build)/.test(cmd) ||
+        /^cmake\s+--build/.test(cmd) ||
+        /^cmake\s+.*-dcmake_build_type/.test(cmd) ||
+        /^python\s+setup\.py\s+build/.test(cmd) ||
+        /^python\s+-m\s+build/.test(cmd) ||
+        /^docker-compose\s+build/.test(cmd)) {
       return 'build';
     }
 
@@ -1227,20 +1234,32 @@ export class IntegrationPipeline {
     }
 
     // Install commands
-    if (/\b(install|add|get|restore|dependencies)\b/.test(cmd) &&
-      !/\bgo\s+install\b/.test(cmd)) { // go install is a build command
+    if ((/\b(install|add|get|restore|dependencies)\b/.test(cmd) &&
+         !/\bgo\s+install\b/.test(cmd)) || // go install is a build command
+        /^npm\s+(install|i)(\s|$)/.test(cmd) ||
+        /^pip\s+install/.test(cmd)) {
       return 'install';
     }
 
     // Deploy commands
-    if (/\b(deploy|publish|release|docker|kubectl|helm)\b/.test(cmd)) {
+    if (/\b(deploy|publish|release|kubectl|helm)\b/.test(cmd)) {
       return 'deploy';
     }
 
     // Run commands
     if (/\b(start|run|serve|server|dev|development)\b/.test(cmd) ||
-      /^(python|node|java|ruby|php)\s+\w+/.test(cmd)) {
+        /^(python|node|java|ruby|php)\s+\w+/.test(cmd) ||
+        /^cargo\s+run/.test(cmd) ||
+        /^java\s+-jar/.test(cmd) ||
+        /^java\s+\w+/.test(cmd) ||
+        /^\.\//.test(cmd)) {
       return 'run';
+    }
+
+    // Docker commands (other category)
+    if (/^docker\s+(build|run|exec|ps|images)/.test(cmd) ||
+        /^docker-compose\s+(up|down|logs|ps)/.test(cmd)) {
+      return 'other';
     }
 
     return 'other';

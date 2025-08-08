@@ -85,7 +85,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       fileExtensions: ['.rb'],
       frameworks: ['Rails', 'Sinatra']
     }],
-    ['C++', {
+    ['C/C++', {
       keywords: ['cpp', 'c++', 'cmake', 'make'],
       codeBlocks: ['cpp', 'c++'],
       fileExtensions: ['.cpp', '.cc', '.cxx'],
@@ -293,6 +293,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       if (node.type === 'code' && node.lang) {
         const lang = node.lang.toLowerCase();
         
+        // First, try direct language mapping
         for (const [languageName, patterns] of this.languagePatterns) {
           if (patterns.codeBlocks.includes(lang)) {
             // Code blocks are very strong indicators - boost to meet >0.8 requirement
@@ -300,8 +301,39 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
             break;
           }
         }
+        
+        // If it's a shell/bash block, analyze the commands inside to detect the actual language
+        if (['bash', 'shell', 'sh', 'cmd', 'powershell'].includes(lang) && node.text) {
+          this.analyzeCommandsInCodeBlock(node.text, detectedLanguages);
+        }
       }
     });
+  }
+
+  private analyzeCommandsInCodeBlock(codeText: string, detectedLanguages: Map<string, LanguageInfo>): void {
+    const lines = codeText.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Skip comments and empty lines
+      if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) {
+        continue;
+      }
+      
+      // Remove shell prompts
+      const cleanLine = trimmedLine.replace(/^[\$#>]\s*/, '').replace(/^\w+@\w+:\S+\$\s*/, '');
+      
+      // Check for language-specific commands
+      for (const [languageName, patterns] of this.languagePatterns) {
+        for (const keyword of patterns.keywords) {
+          if (cleanLine.toLowerCase().includes(keyword.toLowerCase())) {
+            // Commands in code blocks are strong indicators
+            this.addOrUpdateLanguage(detectedLanguages, languageName, 0.85, ['code-block-command']);
+          }
+        }
+      }
+    }
   }
 
   private analyzeKeywords(content: string, detectedLanguages: Map<string, LanguageInfo>): void {
@@ -429,9 +461,9 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
         ],
         confidence: 0.8
       },
-      // C++ patterns
+      // C/C++ patterns
       {
-        language: 'C++',
+        language: 'C/C++',
         patterns: [
           /#include\s*<.*>/gi,
           /std::/gi,

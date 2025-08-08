@@ -43,7 +43,7 @@ abstract class AnalyzerAdapter implements ContentAnalyzer {
  */
 export class LanguageDetectorAdapter extends AnalyzerAdapter {
   readonly name = 'LanguageDetector';
-  private detector = new LanguageDetector();
+  public detector = new LanguageDetector(); // Make public for context access
   
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
     const result = await this.detector.analyze(ast, rawContent);

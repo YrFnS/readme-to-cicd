@@ -1,40 +1,38 @@
-const { CommandExtractor } = require('./src/parser/analyzers/command-extractor.js');
-const { MarkdownParser } = require('./src/parser/utils/markdown-parser.js');
+// Quick debug script to test command extraction
+const { ReadmeParserImpl } = require('./dist/parser/readme-parser.js');
 
 async function debugCommandExtraction() {
-  const extractor = new CommandExtractor();
-  const parser = new MarkdownParser();
+  const parser = new ReadmeParserImpl();
   
-  const content = `
-# Go Build
+  const testContent = `
+# Test Project
+
+## Build Commands
 
 \`\`\`bash
-go build
-go build -o myapp
-go install
+make
+make all
+make build
 \`\`\`
   `;
-
-  console.log('Testing with content:', content);
   
-  const parseResult = await parser.parseContent(content);
-  console.log('Parse result success:', parseResult.success);
+  console.log('Testing command extraction...');
+  console.log('Content:', testContent);
   
-  if (parseResult.success) {
-    console.log('AST structure:', JSON.stringify(parseResult.data.ast, null, 2));
-    
-    const result = await extractor.analyze(parseResult.data.ast, content);
-    console.log('Extractor result success:', result.success);
+  try {
+    const result = await parser.parseContent(testContent);
     
     if (result.success) {
-      console.log('Commands found:', result.data);
-      console.log('Build commands:', result.data.build);
+      console.log('Parse successful!');
+      console.log('Commands found:', JSON.stringify(result.data.commands, null, 2));
+      console.log('Build commands:', result.data.commands.build);
+      console.log('Number of build commands:', result.data.commands.build.length);
     } else {
-      console.log('Extractor errors:', result.errors);
+      console.log('Parse failed:', result.errors);
     }
-  } else {
-    console.log('Parse errors:', parseResult.error);
+  } catch (error) {
+    console.error('Error:', error);
   }
 }
 
-debugCommandExtraction().catch(console.error);
+debugCommandExtraction();

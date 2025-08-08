@@ -351,22 +351,41 @@ export class ReadmeParserImpl implements ReadmeParser {
       
       if (languageDetectorAdapter) {
         console.log('Running LanguageDetector for context generation...');
-        const langResult = await this.runAnalyzer(languageDetectorAdapter, ast, content);
         
-        if (langResult.data && Array.isArray(langResult.data)) {
-          // Convert language detection results to contexts
-          languageContexts = langResult.data.map((lang: any, index: number) => ({
-            language: lang.name,
-            confidence: lang.confidence || 0.5,
-            sourceRange: { startLine: 0, endLine: 0, startColumn: 0, endColumn: 0 },
-            evidence: lang.sources || [],
-            metadata: {
-              createdAt: new Date(),
-              source: 'LanguageDetector',
-              index
-            }
-          }));
-          console.log(`Generated ${languageContexts.length} language contexts:`, languageContexts.map(c => c.language));
+        // Access the actual LanguageDetector instance
+        const languageDetector = (languageDetectorAdapter as any).detector;
+        
+        if (languageDetector && typeof languageDetector.detectWithContext === 'function') {
+          // Use the enhanced detection method to get contexts
+          const enhancedResult = languageDetector.detectWithContext(ast, content);
+          
+          if (enhancedResult && enhancedResult.contexts) {
+            languageContexts = enhancedResult.contexts;
+            console.log(`Generated ${languageContexts.length} language contexts:`, languageContexts.map(c => c.language));
+          } else {
+            console.warn('Enhanced detection did not return contexts');
+          }
+        } else {
+          console.error('LanguageDetector does not support detectWithContext method');
+          
+          // Fallback to regular analysis
+          const langResult = await this.runAnalyzer(languageDetectorAdapter, ast, content);
+          
+          if (langResult.data && Array.isArray(langResult.data)) {
+            // Convert language detection results to contexts
+            languageContexts = langResult.data.map((lang: any, index: number) => ({
+              language: lang.name,
+              confidence: lang.confidence || 0.5,
+              sourceRange: { startLine: 0, endLine: 0, startColumn: 0, endColumn: 0 },
+              evidence: lang.sources || [],
+              metadata: {
+                createdAt: new Date(),
+                source: 'LanguageDetector',
+                index
+              }
+            }));
+            console.log(`Generated ${languageContexts.length} language contexts (fallback):`, languageContexts.map(c => c.language));
+          }
         }
       }
       
