@@ -1429,7 +1429,11 @@ cargo test
       };
 
       const contexts = [jsContext, pythonContext, rustContext];
-      const result = await extractor.extractWithContext(content, contexts);
+      extractor.setLanguageContexts(contexts);
+      
+      const parseResult = await parser.parseContent(content);
+      const analyzeResult = await extractor.analyze(parseResult.data!.ast, content);
+      const result = extractor.extractWithContext(parseResult.data!.ast, content);
 
       // Check that commands are separated by language
       const jsCommands = result.commands.filter(cmd => cmd.languageContext.language === 'JavaScript');

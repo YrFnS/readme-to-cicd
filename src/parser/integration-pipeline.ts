@@ -15,7 +15,8 @@ import {
   CommandExtractionResult,
   IntegrationMetadata,
   ValidationStatus,
-  ConflictResolution
+  ConflictResolution,
+  AnalyzerResult
 } from './types';
 import { LanguageContext } from '../shared/types/language-context';
 import { PerformanceMonitor } from './utils/performance-monitor';
@@ -400,28 +401,31 @@ export class IntegrationPipeline {
 
     const commandExtractor = this.dependencies.commandExtractor;
 
-    // Use context-aware extraction if contexts are available
-    if (context.languageContexts && context.languageContexts.length > 0) {
-      // Context should already be set from contextInheritanceStage, but ensure it's set
-      commandExtractor.setLanguageContexts(context.languageContexts);
+    // CRITICAL FIX: Always set language contexts before extraction
+    const contextsToUse = context.languageContexts || [];
+    commandExtractor.setLanguageContexts(contextsToUse);
 
+    // Use context-aware extraction if contexts are available
+    if (contextsToUse.length > 0) {
       // Use the context-aware extraction method
       context.commandResults = commandExtractor.extractWithContext(
         context.ast,
         context.content
       );
 
-      this.logger.info('IntegrationPipeline', `Context-aware extraction: ${context.commandResults.commands.length} commands with ${context.languageContexts.length} contexts`);
+      this.logger.info('IntegrationPipeline', `Context-aware extraction: ${context.commandResults.commands.length} commands with ${contextsToUse.length} contexts`);
     } else {
-      // Fallback to regular extraction
+      // Fallback to regular extraction but still use the enhanced analyze method
       this.logger.warn('IntegrationPipeline', 'No language contexts available, using fallback extraction');
 
       const result = await commandExtractor.analyze(context.ast, context.content);
       if (result.success && result.data) {
         // Convert to CommandExtractionResult format
         const flattenedCommands = this.flattenCommands(result.data);
+        const associatedCommands = commandExtractor.assignDefaultContext(flattenedCommands, []);
+        
         context.commandResults = {
-          commands: commandExtractor.assignDefaultContext(flattenedCommands, []),
+          commands: associatedCommands,
           contextMappings: [],
           extractionMetadata: {
             totalCommands: flattenedCommands.length,
@@ -430,6 +434,12 @@ export class IntegrationPipeline {
             extractionTimestamp: new Date()
           }
         };
+      } else {
+        // Handle both success=false (with errors) and success=true but no data cases
+        const errorMessage = !result.success && result.errors?.[0]?.message 
+          ? result.errors[0].message 
+          : 'Command extraction failed - no data returned';
+        throw new Error(`Command extraction failed: ${errorMessage}`);
       }
     }
 
@@ -1195,19 +1205,91 @@ export class IntegrationPipeline {
       deploy: []
     };
 
-    // Use proper command categorization logic
+    // CRITICAL FIX: Ensure proper language inheritance from context
     associatedCommands.forEach(cmd => {
       const command = cmd.command || cmd;
+      
+      // Ensure language is properly set from context
+      let finalLanguage = cmd.language;
+      if (!finalLanguage && cmd.languageContext) {
+        finalLanguage = cmd.languageContext.language;
+      }
+      if (!finalLanguage) {
+        finalLanguage = this.inferLanguageFromCommand(command);
+      }
+      if (!finalLanguage) {
+        finalLanguage = 'Shell';
+      }
+      
+      // Create enhanced command with proper language
+      const enhancedCmd = {
+        ...cmd,
+        language: finalLanguage,
+        command: command
+      };
+      
       const category = this.categorizeCommand(command);
 
       if (category in commandInfo) {
-        (commandInfo as any)[category].push(cmd);
+        (commandInfo as any)[category].push(enhancedCmd);
       } else {
-        (commandInfo.other as any[]).push(cmd);
+        (commandInfo.other as any[]).push(enhancedCmd);
       }
     });
 
     return commandInfo;
+  }
+
+  /**
+   * Infer language from command content - helper method for pipeline
+   */
+  private inferLanguageFromCommand(command: string): string {
+    const cmd = command.toLowerCase();
+
+    // JavaScript/Node.js
+    if (cmd.includes('npm') || cmd.includes('yarn') || cmd.includes('pnpm') || 
+        cmd.includes('node ') || cmd.startsWith('node ')) return 'JavaScript';
+    
+    // Python
+    if (cmd.includes('pip') || cmd.includes('pip3') || cmd.includes('python') || 
+        cmd.includes('python3') || cmd.includes('pytest') || cmd.includes('conda')) return 'Python';
+    
+    // Rust
+    if (cmd.includes('cargo') || cmd.includes('rustc') || cmd.includes('rustup')) return 'Rust';
+    
+    // Go
+    if (cmd.includes('go ') || cmd.startsWith('go ') || cmd.includes('go build') || 
+        cmd.includes('go run') || cmd.includes('go test')) return 'Go';
+    
+    // Java
+    if (cmd.includes('mvn') || cmd.includes('gradle') || cmd.includes('gradlew') || 
+        cmd.includes('java ') || cmd.startsWith('java ')) return 'Java';
+    
+    // C#/.NET
+    if (cmd.includes('dotnet') || cmd.includes('nuget')) return 'C#';
+    
+    // Ruby
+    if (cmd.includes('bundle') || cmd.includes('gem ') || cmd.includes('rake') || 
+        cmd.includes('ruby ') || cmd.startsWith('ruby ')) return 'Ruby';
+    
+    // PHP
+    if (cmd.includes('composer') || cmd.includes('php ') || cmd.startsWith('php ') || 
+        cmd.includes('phpunit')) return 'PHP';
+    
+    // C/C++
+    if (cmd.includes('make') || cmd.includes('cmake') || cmd.includes('gcc') || 
+        cmd.includes('clang') || cmd.includes('g++')) return 'C/C++';
+    
+    // Docker
+    if (cmd.includes('docker') || cmd.includes('podman')) return 'Docker';
+    
+    // Shell/System commands
+    if (cmd.includes('curl') || cmd.includes('wget') || cmd.includes('chmod') || 
+        cmd.includes('chown') || cmd.includes('mkdir') || cmd.includes('cp') || 
+        cmd.includes('mv') || cmd.includes('rm')) return 'Shell';
+
+    // Default to Shell for generic commands
+    return 'Shell';
   }
 
   /**
