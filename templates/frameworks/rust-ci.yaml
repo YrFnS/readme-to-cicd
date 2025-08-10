@@ -1,0 +1,87 @@
+name: "{{name}} - Rust CI"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  - name: "test"
+    runsOn: "ubuntu-latest"
+    timeout: 30
+    strategy:
+      matrix:
+        rust-version: {{rustVersions}}
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      
+      - name: "Setup Rust toolchain"
+        uses: "dtolnay/rust-toolchain@stable"
+        with:
+          toolchain: "${{ matrix.rust-version }}"
+          components: "clippy, rustfmt"
+      
+      - name: "Cache Cargo registry"
+        uses: "actions/cache@v4"
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+      
+      - name: "Cache Cargo target"
+        uses: "actions/cache@v4"
+        with:
+          path: "target/"
+          key: "${{ runner.os }}-cargo-target-${{ matrix.rust-version }}-${{ hashFiles('**/Cargo.lock') }}"
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ matrix.rust-version }}-
+            ${{ runner.os }}-cargo-target-
+      
+      - name: "Check formatting"
+        run: "{{fmtCommand}}"
+        if: "{{hasFmt}}"
+      
+      - name: "Run Clippy"
+        run: "{{clippyCommand}}"
+        if: "{{hasClippy}}"
+      
+      - name: "Build project"
+        run: "{{buildCommand}}"
+        env:
+          CARGO_TERM_COLOR: "always"
+          RUST_BACKTRACE: "1"
+      
+      - name: "Run tests"
+        run: "{{testCommand}}"
+        env:
+          CARGO_TERM_COLOR: "always"
+          RUST_BACKTRACE: "1"
+      
+      - name: "Generate coverage report"
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out xml --output-dir ./coverage/
+        if: "{{hasCoverage}}"
+        env:
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-Cinstrument-coverage"
+      
+      - name: "Upload coverage reports"
+        uses: "codecov/codecov-action@v4"
+        if: "{{hasCoverage}}"
+        with:
+          token: "${{ secrets.CODECOV_TOKEN }}"
+          file: "./coverage/cobertura.xml"
+          fail_ci_if_error: false

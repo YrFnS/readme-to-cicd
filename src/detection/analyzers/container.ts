@@ -440,7 +440,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
       'kustomization.yaml', 'kustomization.yml'
     ];
 
-    let manifestFiles: string[] = [];
+    const manifestFiles: string[] = [];
     for (const pattern of k8sPatterns) {
       if (this.hasConfigFile(projectInfo, pattern)) {
         manifestFiles.push(pattern);
@@ -692,7 +692,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
         const ports = line.substring(7).split(' ').map((p: string) => parseInt(p.trim())).filter((p: number) => !isNaN(p));
         info.exposedPorts.push(...ports);
       } else if (upperLine.startsWith('VOLUME ')) {
-        const volume = line.substring(7).trim().replace(/["\[\]]/g, '');
+        const volume = line.substring(7).trim().replace(/["[\]]/g, '');
         info.volumes.push(volume);
       }
     }
@@ -833,7 +833,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
     return recommendations;
   }
 
-  generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
+  generateCISteps(/* frameworks: FrameworkInfo[] */): CIStep[] {
     // TODO: Implement CI step generation for containers
     // This will be implemented in task 11
     return [];

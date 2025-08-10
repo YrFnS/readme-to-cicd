@@ -362,7 +362,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
 *
    * Detect Parcel configuration
    */
-  private async detectParcel(projectInfo: ProjectInfo, projectPath?: string): Promise<FrontendDetectionResult | null> {
+  private async detectParcel(projectInfo: ProjectInfo, _projectPath?: string): Promise<FrontendDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -456,7 +456,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Rollup configuration
    */
-  private async detectRollup(projectInfo: ProjectInfo, projectPath?: string): Promise<FrontendDetectionResult | null> {
+  private async detectRollup(projectInfo: ProjectInfo, _projectPath?: string): Promise<FrontendDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -574,7 +574,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Gatsby
    */
-  private async detectGatsby(projectInfo: ProjectInfo, projectPath?: string): Promise<StaticSiteDetectionResult | null> {
+  private async detectGatsby(projectInfo: ProjectInfo, _projectPath?: string): Promise<StaticSiteDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -639,18 +639,16 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Next.js
    */
-  private async detectNextJS(projectInfo: ProjectInfo, projectPath?: string): Promise<StaticSiteDetectionResult | null> {
+  private async detectNextJS(projectInfo: ProjectInfo, _projectPath?: string): Promise<StaticSiteDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
 
     // Check for next config
     const nextConfigs = ['next.config.js', 'next.config.ts', 'next.config.mjs'];
-    let configFile: string | null = null;
     
     for (const config of nextConfigs) {
       if (this.hasConfigFile(projectInfo, config)) {
-        configFile = config;
         evidence.push({
           type: 'config_file',
           source: config,
@@ -721,18 +719,16 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Nuxt.js
    */
-  private async detectNuxtJS(projectInfo: ProjectInfo, projectPath?: string): Promise<StaticSiteDetectionResult | null> {
+  private async detectNuxtJS(projectInfo: ProjectInfo, _projectPath?: string): Promise<StaticSiteDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
 
     // Check for nuxt config
     const nuxtConfigs = ['nuxt.config.js', 'nuxt.config.ts'];
-    let configFile: string | null = null;
     
     for (const config of nuxtConfigs) {
       if (this.hasConfigFile(projectInfo, config)) {
-        configFile = config;
         evidence.push({
           type: 'config_file',
           source: config,
@@ -792,7 +788,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Jekyll
    */
-  private async detectJekyll(projectInfo: ProjectInfo, projectPath?: string): Promise<StaticSiteDetectionResult | null> {
+  private async detectJekyll(projectInfo: ProjectInfo, _projectPath?: string): Promise<StaticSiteDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -888,7 +884,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Netlify deployment
    */
-  private async detectNetlify(projectInfo: ProjectInfo, projectPath?: string): Promise<DeploymentDetectionResult | null> {
+  private async detectNetlify(projectInfo: ProjectInfo, _projectPath?: string): Promise<DeploymentDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -968,7 +964,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect Vercel deployment
    */
-  private async detectVercel(projectInfo: ProjectInfo, projectPath?: string): Promise<DeploymentDetectionResult | null> {
+  private async detectVercel(projectInfo: ProjectInfo, _projectPath?: string): Promise<DeploymentDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -1047,7 +1043,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
   /**
    * Detect GitHub Pages deployment
    */
-  private async detectGitHubPages(projectInfo: ProjectInfo, projectPath?: string): Promise<DeploymentDetectionResult | null> {
+  private async detectGitHubPages(projectInfo: ProjectInfo, _projectPath?: string): Promise<DeploymentDetectionResult | null> {
     const evidence: Evidence[] = [];
     const filesAnalyzed: string[] = [];
     const patternsMatched: string[] = [];
@@ -1267,7 +1263,7 @@ export class FrontendAnalyzer extends BaseLanguageAnalyzer {
     return recommendations;
   }
 
-  generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
+  generateCISteps(/* frameworks: FrameworkInfo[] */): CIStep[] {
     // TODO: Implement CI step generation for frontend tools
     // This will be implemented in task 11
     return [];

@@ -2,7 +2,7 @@ import { BaseLanguageAnalyzer } from './base';
 import { LanguageDetectionResult, ProjectInfo } from '../interfaces/language-analyzer';
 import { FrameworkInfo, BuildToolInfo, FrameworkType } from '../interfaces/framework-info';
 import { CIStep } from '../interfaces/ci-pipeline';
-import { Evidence, EvidenceType } from '../interfaces/evidence';
+import { Evidence } from '../interfaces/evidence';
 import { FileSystemScanner } from '../utils/file-scanner';
 import { EvidenceCollectorImpl } from '../utils/evidence-collector';
 
@@ -836,7 +836,7 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
     return recommendations;
   }
 
-  generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
+  generateCISteps(/* frameworks: FrameworkInfo[] */): CIStep[] {
     // This method is now implemented via the CIStepGenerator class
     // which provides comprehensive CI step generation with templates
     return [];

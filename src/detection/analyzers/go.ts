@@ -522,7 +522,7 @@ export class GoAnalyzer extends BaseLanguageAnalyzer {
     };
   }
 
-  generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
+  generateCISteps(/* frameworks: FrameworkInfo[] */): CIStep[] {
     // TODO: Implement CI step generation for Go
     // This will be implemented in task 11
     return [];

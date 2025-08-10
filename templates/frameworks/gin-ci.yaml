@@ -1,0 +1,91 @@
+name: "{{name}} - Gin Web Service CI"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  - name: "test"
+    runsOn: "ubuntu-latest"
+    timeout: 30
+    strategy:
+      matrix:
+        go-version: {{goVersions}}
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      
+      - name: "Setup Go"
+        uses: "actions/setup-go@v4"
+        with:
+          go-version: "${{ matrix.go-version }}"
+          cache: true
+      
+      - name: "Download dependencies"
+        run: "go mod download"
+        if: "{{hasGoMod}}"
+      
+      - name: "Verify dependencies"
+        run: "go mod verify"
+        if: "{{hasGoMod}}"
+      
+      - name: "Run go vet"
+        run: "{{vetCommand}}"
+      
+      - name: "Run linting"
+        run: "{{lintCommand}}"
+        if: "{{hasLinting}}"
+      
+      - name: "Build Gin application"
+        run: "{{buildCommand}}"
+        env:
+          GIN_MODE: "release"
+      
+      - name: "Run tests"
+        run: "{{testCommand}}"
+        env:
+          GO111MODULE: "on"
+          GIN_MODE: "test"
+          CGO_ENABLED: "{{enableCGO}}"
+      
+      - name: "Run integration tests"
+        run: "go test -tags=integration -v ./..."
+        if: "{{buildTags}} && {{buildTags}}.includes('integration')"
+        env:
+          GIN_MODE: "test"
+      
+      - name: "Run benchmarks"
+        run: "{{benchCommand}}"
+        if: "{{runBenchmarks}}"
+      
+      - name: "Generate coverage report"
+        run: "{{coverageCommand}}"
+        if: "{{generateCoverage}}"
+      
+      - name: "Upload coverage reports"
+        uses: "codecov/codecov-action@v4"
+        if: "{{generateCoverage}}"
+        with:
+          token: "${{ secrets.CODECOV_TOKEN }}"
+          file: "./coverage.out"
+          fail_ci_if_error: false
+      
+      - name: "Build Docker image"
+        run: "docker build -t gin-app ."
+        if: "{{hasDockerfile}}"
+      
+      - name: "Test Docker container"
+        run: |
+          docker run -d -p 8080:8080 --name gin-test gin-app
+          sleep 5
+          curl -f http://localhost:8080/health || exit 1
+          docker stop gin-test
+        if: "{{hasDockerfile}} && {{hasHealthCheck}}"

@@ -401,35 +401,14 @@ export class ReadmeParserImpl implements ReadmeParser {
       if (commandExtractorAdapter && languageContexts.length > 0) {
         console.log('Setting language contexts on CommandExtractor...');
         
-        // CRITICAL FIX: Access the CommandExtractor through the correct property
-        // Check multiple possible property names for the actual extractor instance
-        let commandExtractor = null;
-        
-        // Try different property names that might contain the actual CommandExtractor
-        const possibleProperties = ['extractor', 'analyzer', 'instance', 'commandExtractor'];
-        for (const prop of possibleProperties) {
-          if ((commandExtractorAdapter as any)[prop]) {
-            commandExtractor = (commandExtractorAdapter as any)[prop];
-            break;
-          }
-        }
-        
-        // If no property found, the adapter might BE the extractor
-        if (!commandExtractor && typeof (commandExtractorAdapter as any).setLanguageContexts === 'function') {
-          commandExtractor = commandExtractorAdapter;
-        }
-        
-        if (commandExtractor && typeof commandExtractor.setLanguageContexts === 'function') {
-          commandExtractor.setLanguageContexts(languageContexts);
+        // CRITICAL FIX: Use the adapter's setLanguageContexts method
+        if (typeof (commandExtractorAdapter as any).setLanguageContexts === 'function') {
+          (commandExtractorAdapter as any).setLanguageContexts(languageContexts);
           console.log(`Language contexts set successfully on CommandExtractor: ${languageContexts.length} contexts`);
         } else {
-          console.error('Failed to access CommandExtractor or setLanguageContexts method', {
-            hasExtractor: !!commandExtractor,
-            extractorType: commandExtractor?.constructor?.name,
-            hasMethod: commandExtractor && typeof commandExtractor.setLanguageContexts === 'function',
+          console.error('CommandExtractorAdapter does not have setLanguageContexts method', {
             adapterType: commandExtractorAdapter.constructor.name,
-            availableMethods: commandExtractor ? Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractor)) : [],
-            adapterMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractorAdapter))
+            availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractorAdapter))
           });
           
           // Don't throw error, just warn and continue - this allows fallback processing
@@ -547,15 +526,12 @@ export class ReadmeParserImpl implements ReadmeParser {
             ...projectInfo.confidence,
             overall: projectInfo.confidence.overall * (successfulAnalyzers / analyzers.length)
           }
-        }
+        },
+        // CRITICAL FIX: Always include errors array, even if empty
+        errors: allErrors,
+        // Include warnings if present
+        ...(allWarnings.length > 0 && { warnings: allWarnings })
       };
-      
-      if (allErrors.length > 0) {
-        result.errors = allErrors;
-      }
-      if (allWarnings.length > 0) {
-        result.warnings = allWarnings;
-      }
       
       return result;
       

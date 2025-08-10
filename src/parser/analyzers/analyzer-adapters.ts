@@ -75,6 +75,13 @@ export class CommandExtractorAdapter extends AnalyzerAdapter {
     const result = await this.extractor.analyze(ast, rawContent);
     return this.convertResult(result);
   }
+  
+  /**
+   * Expose setLanguageContexts method for integration
+   */
+  public setLanguageContexts(contexts: any[]): void {
+    this.extractor.setLanguageContexts(contexts);
+  }
 }
 
 /**

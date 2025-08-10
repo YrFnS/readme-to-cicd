@@ -2,7 +2,7 @@ import { BaseLanguageAnalyzer } from './base';
 import { LanguageDetectionResult, ProjectInfo } from '../interfaces/language-analyzer';
 import { FrameworkInfo, BuildToolInfo, FrameworkType } from '../interfaces/framework-info';
 import { CIStep } from '../interfaces/ci-pipeline';
-import { Evidence, EvidenceType } from '../interfaces/evidence';
+import { Evidence } from '../interfaces/evidence';
 import { FileSystemScanner } from '../utils/file-scanner';
 import { EvidenceCollectorImpl } from '../utils/evidence-collector';
 
@@ -754,7 +754,7 @@ export class JavaAnalyzer extends BaseLanguageAnalyzer {
     return recommendations;
   }
 
-  generateCISteps(frameworks: FrameworkInfo[]): CIStep[] {
+  generateCISteps(/* frameworks: FrameworkInfo[] */): CIStep[] {
     // TODO: Implement CI step generation for Java
     // This will be implemented in task 11
     return [];
