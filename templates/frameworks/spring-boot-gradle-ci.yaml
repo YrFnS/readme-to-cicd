@@ -1,0 +1,98 @@
+name: "{{name}} - Spring Boot Gradle CI"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  - name: "test"
+    runsOn: "ubuntu-latest"
+    timeout: 30
+    strategy:
+      matrix:
+        java-version: {{jdkVersions}}
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      
+      - name: "Setup JDK"
+        uses: "actions/setup-java@v4"
+        with:
+          java-version: "${{ matrix.java-version }}"
+          distribution: "temurin"
+          cache: "gradle"
+      
+      - name: "Cache Gradle dependencies"
+        uses: "actions/cache@v4"
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: "${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}"
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      
+      - name: "Make Gradle wrapper executable"
+        run: "chmod +x gradlew"
+        if: "{{hasGradleWrapper}}"
+      
+      - name: "Validate Gradle wrapper"
+        uses: "gradle/wrapper-validation-action@v2"
+        if: "{{hasGradleWrapper}}"
+      
+      - name: "Run Gradle clean"
+        run: "{{cleanCommand}}"
+      
+      - name: "Compile application"
+        run: "{{buildCommand}}"
+      
+      - name: "Run static analysis"
+        run: "{{lintCommand}}"
+        if: "{{hasCheckstyle}} || {{hasPMD}}"
+      
+      - name: "Run SpotBugs analysis"
+        run: "./gradlew spotbugsMain spotbugsTest"
+        if: "{{hasSpotbugs}}"
+      
+      - name: "Run tests"
+        run: "{{testCommand}}"
+        env:
+          SPRING_PROFILES_ACTIVE: "test"
+      
+      - name: "Generate test coverage report"
+        run: "./gradlew jacocoTestReport"
+        if: "{{hasJaCoCo}}"
+      
+      - name: "Upload coverage to Codecov"
+        uses: "codecov/codecov-action@v4"
+        if: "{{hasJaCoCo}}"
+        with:
+          token: "${{ secrets.CODECOV_TOKEN }}"
+          file: "./build/reports/jacoco/test/jacocoTestReport.xml"
+          fail_ci_if_error: false
+      
+      - name: "Package application"
+        run: "{{packageCommand}}"
+      
+      - name: "Upload build artifacts"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "spring-boot-jar-${{ matrix.java-version }}"
+          path: "build/libs/*.jar"
+          retention-days: 7
+      
+      - name: "Spring Boot health check"
+        run: |
+          java -jar build/libs/*.jar --server.port=8080 &
+          sleep 30
+          curl -f http://localhost:8080/actuator/health || exit 1
+          pkill -f "java -jar"
+        if: "{{hasSpringBootActuator}}"

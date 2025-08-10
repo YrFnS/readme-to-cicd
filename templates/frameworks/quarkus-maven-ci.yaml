@@ -1,0 +1,80 @@
+name: "{{name}} - Quarkus Maven CI"
+type: ci
+triggers:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  - name: "test"
+    runsOn: "ubuntu-latest"
+    timeout: 30
+    strategy:
+      matrix:
+        java-version: {{jdkVersions}}
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@v4"
+      
+      - name: "Setup JDK"
+        uses: "actions/setup-java@v4"
+        with:
+          java-version: "${{ matrix.java-version }}"
+          distribution: "temurin"
+          cache: "maven"
+      
+      - name: "Cache Maven dependencies"
+        uses: "actions/cache@v4"
+        with:
+          path: "~/.m2/repository"
+          key: "${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}"
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      
+      - name: "Run Maven clean"
+        run: "{{cleanCommand}}"
+      
+      - name: "Compile application"
+        run: "{{buildCommand}}"
+      
+      - name: "Run static analysis"
+        run: "{{lintCommand}}"
+        if: "{{hasCheckstyle}} || {{hasPMD}}"
+      
+      - name: "Run tests"
+        run: "{{testCommand}}"
+        env:
+          QUARKUS_TEST_PROFILE: "test"
+      
+      - name: "Generate test coverage report"
+        run: "mvn jacoco:report"
+        if: "{{hasJaCoCo}}"
+      
+      - name: "Upload coverage to Codecov"
+        uses: "codecov/codecov-action@v4"
+        if: "{{hasJaCoCo}}"
+        with:
+          token: "${{ secrets.CODECOV_TOKEN }}"
+          file: "./target/site/jacoco/jacoco.xml"
+          fail_ci_if_error: false
+      
+      - name: "Package application"
+        run: "{{packageCommand}}"
+      
+      - name: "Build native image"
+        run: "mvn package -Pnative -DskipTests"
+        if: "{{optimizationLevel}} === 'aggressive'"
+      
+      - name: "Upload build artifacts"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "quarkus-jar-${{ matrix.java-version }}"
+          path: "target/*.jar"
+          retention-days: 7
