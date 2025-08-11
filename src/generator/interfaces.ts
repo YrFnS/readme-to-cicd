@@ -48,6 +48,18 @@ export interface GenerationOptions {
   securityLevel: 'basic' | 'standard' | 'enterprise';
   testingStrategy?: TestingStrategyConfig;
   agentHooksEnabled?: boolean;
+  environmentManagement?: EnvironmentManagementOptions;
+}
+
+/**
+ * Environment management options
+ */
+export interface EnvironmentManagementOptions {
+  includeSecretValidation: boolean;
+  includeOIDC: boolean;
+  includeConfigGeneration: boolean;
+  generateEnvFiles: boolean;
+  autoDetectSecrets: boolean;
 }
 
 /**

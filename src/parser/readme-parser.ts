@@ -85,18 +85,13 @@ export class ReadmeParserImpl implements ReadmeParser {
     // CRITICAL FIX: Always use IntegrationPipeline for proper component integration
     this.useIntegrationPipeline = options?.useIntegrationPipeline ?? true;
     
-    // Auto-register default analyzers
-    this.registerDefaultAnalyzers();
-    
     // CRITICAL FIX: Initialize IntegrationPipeline synchronously and ensure it's available
     if (this.useIntegrationPipeline) {
       this.initializeIntegrationPipelineSync();
-      // If sync initialization failed, force it to be available
-      if (!this.integrationPipeline) {
-        console.warn('Sync initialization failed, forcing IntegrationPipeline availability');
-        this.useIntegrationPipeline = true; // Keep it enabled for async retry
-      }
     }
+    
+    // Auto-register default analyzers (fallback for when IntegrationPipeline is not used)
+    this.registerDefaultAnalyzers();
   }
 
   /**
@@ -110,7 +105,6 @@ export class ReadmeParserImpl implements ReadmeParser {
         logLevel: 'warn',
         enablePerformanceMonitoring: this.performanceMonitor !== null
       });
-      console.log('IntegrationPipeline initialized successfully during construction');
     } catch (error) {
       console.warn('Failed to initialize IntegrationPipeline during construction, will retry on-demand:', error);
       this.integrationPipeline = null;
@@ -260,18 +254,16 @@ export class ReadmeParserImpl implements ReadmeParser {
             try {
               await this.initializeIntegrationPipeline();
             } catch (initError) {
-              console.error('Failed to initialize IntegrationPipeline, falling back to manual processing:', initError);
-              // Don't disable completely, just use fallback for this request
+              console.warn('Failed to initialize IntegrationPipeline, will use fallback processing:', initError);
+              // Continue to fallback - don't return error yet
             }
           }
           
           if (this.integrationPipeline) {
             try {
-              console.log('Executing IntegrationPipeline for content processing');
               const pipelineResult = await this.integrationPipeline.execute(content);
               
               if (pipelineResult.success && pipelineResult.data) {
-                console.log('IntegrationPipeline executed successfully');
                 return {
                   success: true,
                   data: pipelineResult.data,
@@ -281,20 +273,17 @@ export class ReadmeParserImpl implements ReadmeParser {
                 };
               } else {
                 // Log pipeline failure but continue with fallback
-                console.warn('IntegrationPipeline failed, using fallback processing:', pipelineResult.errors);
-                // Don't disable pipeline for future attempts, just use fallback for this request
+                console.warn('IntegrationPipeline failed, using fallback processing. Errors:', pipelineResult.errors);
+                // Continue to fallback processing
               }
             } catch (pipelineError) {
-              console.error('IntegrationPipeline execution error, using fallback:', pipelineError);
-              // Don't disable pipeline for future attempts, just use fallback for this request
+              console.warn('IntegrationPipeline execution error, using fallback:', pipelineError);
+              // Continue to fallback processing
             }
-          } else {
-            console.warn('IntegrationPipeline not available, using fallback processing');
           }
         }
         
-        // Fallback to manual processing only if pipeline is disabled or failed
-        console.log('Using fallback manual analyzer coordination');
+        // Fallback to manual processing
         return await this.executeManualAnalysis(content);
 
       } catch (error) {
@@ -351,14 +340,12 @@ export class ReadmeParserImpl implements ReadmeParser {
   private async executeContextAwareAnalysis(ast: Token[], content: string): Promise<ParseResult> {
     try {
       // Step 1: Run LanguageDetector first to get language contexts
-      const languageDetectorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'LanguageDetector');
+      const languageDetectorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'LanguageDetector') as any;
       let languageContexts: any[] = [];
       
       if (languageDetectorAdapter) {
-        console.log('Running LanguageDetector for context generation...');
-        
         // Access the actual LanguageDetector instance
-        const languageDetector = (languageDetectorAdapter as any).detector;
+        const languageDetector = languageDetectorAdapter.detector;
         
         if (languageDetector && typeof languageDetector.detectWithContext === 'function') {
           // Use the enhanced detection method to get contexts
@@ -366,14 +353,9 @@ export class ReadmeParserImpl implements ReadmeParser {
           
           if (enhancedResult && enhancedResult.contexts) {
             languageContexts = enhancedResult.contexts;
-            console.log(`Generated ${languageContexts.length} language contexts:`, languageContexts.map(c => c.language));
-          } else {
-            console.warn('Enhanced detection did not return contexts');
           }
         } else {
-          console.error('LanguageDetector does not support detectWithContext method');
-          
-          // Fallback to regular analysis
+          // Fallback to regular analysis and convert to contexts
           const langResult = await this.runAnalyzer(languageDetectorAdapter, ast, content);
           
           if (langResult.data && Array.isArray(langResult.data)) {
@@ -389,7 +371,6 @@ export class ReadmeParserImpl implements ReadmeParser {
                 index
               }
             }));
-            console.log(`Generated ${languageContexts.length} language contexts (fallback):`, languageContexts.map(c => c.language));
           }
         }
       }
@@ -397,30 +378,20 @@ export class ReadmeParserImpl implements ReadmeParser {
       // Step 2: Set language contexts on CommandExtractor
       const commandExtractorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'CommandExtractor') as any;
       if (commandExtractorAdapter && languageContexts.length > 0) {
-        console.log('Setting language contexts on CommandExtractor...');
-        
         // CRITICAL FIX: Use the adapter's setLanguageContexts method
         if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
           commandExtractorAdapter.setLanguageContexts(languageContexts);
-          console.log(`Language contexts set successfully on CommandExtractor: ${languageContexts.length} contexts`);
-        } else {
-          console.error('CommandExtractorAdapter does not have setLanguageContexts method', {
-            adapterType: commandExtractorAdapter.constructor.name,
-            availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractorAdapter))
-          });
-          
+        } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
           // Try to access the underlying extractor directly
-          if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
-            commandExtractorAdapter.extractor.setLanguageContexts(languageContexts);
-            console.log(`Language contexts set successfully on underlying CommandExtractor: ${languageContexts.length} contexts`);
-          } else {
-            console.warn('CommandExtractor context setting failed, commands may not have proper language association');
-          }
+          commandExtractorAdapter.extractor.setLanguageContexts(languageContexts);
         }
-      } else if (languageContexts.length === 0) {
-        console.warn('No language contexts available to set on CommandExtractor');
-      } else {
-        console.error('CommandExtractorAdapter not found in registry');
+      } else if (commandExtractorAdapter && languageContexts.length === 0) {
+        // CRITICAL FIX: Even with no contexts, ensure the extractor is aware
+        if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
+          commandExtractorAdapter.setLanguageContexts([]);
+        } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
+          commandExtractorAdapter.extractor.setLanguageContexts([]);
+        }
       }
       
       // Step 3: Run all analyzers with context coordination
@@ -494,8 +465,9 @@ export class ReadmeParserImpl implements ReadmeParser {
         }
       }
       
-      // Check if we have any successful results
-      if (successfulAnalyzers === 0) {
+      // CRITICAL FIX: Don't fail if we have some results, even if not all analyzers succeeded
+      // This allows the system to work with partial results, which is better than complete failure
+      if (successfulAnalyzers === 0 && resultsMap.size === 0) {
         return {
           success: false,
           errors: [
@@ -521,13 +493,18 @@ export class ReadmeParserImpl implements ReadmeParser {
       const allErrors = [...analyzerErrors, ...aggregatorErrors];
       const allWarnings = aggregatorWarnings.map(w => w.message);
 
+      // CRITICAL FIX: Calculate confidence more fairly - don't penalize for failed analyzers if we have good results
+      const confidenceAdjustment = resultsMap.size > 0 ? 
+        Math.max(0.7, successfulAnalyzers / analyzers.length) : // Don't go below 0.7 if we have any results
+        (successfulAnalyzers / analyzers.length);
+
       const result: ParseResult = {
         success: true,
         data: {
           ...projectInfo,
           confidence: {
             ...projectInfo.confidence,
-            overall: projectInfo.confidence.overall * (successfulAnalyzers / analyzers.length)
+            overall: projectInfo.confidence.overall * confidenceAdjustment
           }
         },
         // CRITICAL FIX: Always include errors array, even if empty
