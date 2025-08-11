@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as yaml from 'yaml';
 import { PythonWorkflowGenerator } from '../../../src/generator/templates/python-generator';
 import { TemplateManager } from '../../../src/generator/templates/template-manager';
 import { TemplateLoadConfig } from '../../../src/generator/templates/template-types';

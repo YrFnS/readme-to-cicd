@@ -18,7 +18,7 @@ jobs:
     timeout: 30
     strategy:
       matrix:
-        rust-version: {{rustVersions}}
+        rust-version: {{toYamlArray rustVersions}}
     steps:
       - name: "Checkout code"
         uses: "actions/checkout@v4"
@@ -26,7 +26,7 @@ jobs:
       - name: "Setup Rust toolchain"
         uses: "dtolnay/rust-toolchain@stable"
         with:
-          toolchain: "${{ matrix.rust-version }}"
+          toolchain: "{{githubVar 'matrix.rust-version'}}"
           components: "clippy, rustfmt"
       
       - name: "Cache Cargo registry"
@@ -36,18 +36,18 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: "${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}"
+          key: "{{githubVar 'runner.os'}}-cargo-registry-{{githubVar "hashFiles('**/Cargo.lock')"}}"
           restore-keys: |
-            ${{ runner.os }}-cargo-registry-
+            {{githubVar 'runner.os'}}-cargo-registry-
       
       - name: "Cache Cargo target"
         uses: "actions/cache@v4"
         with:
           path: "target/"
-          key: "${{ runner.os }}-cargo-target-${{ matrix.rust-version }}-${{ hashFiles('**/Cargo.lock') }}"
+          key: "{{githubVar 'runner.os'}}-cargo-target-{{githubVar 'matrix.rust-version'}}-{{githubVar "hashFiles('**/Cargo.lock')"}}"
           restore-keys: |
-            ${{ runner.os }}-cargo-target-${{ matrix.rust-version }}-
-            ${{ runner.os }}-cargo-target-
+            {{githubVar 'runner.os'}}-cargo-target-{{githubVar 'matrix.rust-version'}}-
+            {{githubVar 'runner.os'}}-cargo-target-
       
       - name: "Check formatting"
         run: "{{fmtCommand}}"
@@ -93,6 +93,6 @@ jobs:
         uses: "codecov/codecov-action@v4"
         if: "{{hasCoverage}}"
         with:
-          token: "\${{ secrets.CODECOV_TOKEN }}"
+          token: "{{githubVar 'secrets.CODECOV_TOKEN'}}"
           file: "./coverage/cobertura.xml"
           fail_ci_if_error: false

@@ -55,6 +55,19 @@ export class TemplateManager {
   }
 
   /**
+   * Load raw template content as string
+   */
+  private async loadRawTemplate(templateName: string): Promise<string> {
+    const templatePath = await this.findTemplatePath(templateName);
+    
+    if (!templatePath) {
+      throw new Error(`Template '${templateName}' not found`);
+    }
+
+    return await fs.readFile(templatePath, 'utf-8');
+  }
+
+  /**
    * Compile template with data using Handlebars
    */
   async compileTemplate(templateName: string, data: any): Promise<TemplateCompilationResult> {
@@ -62,14 +75,11 @@ export class TemplateManager {
     const warnings: string[] = [];
 
     try {
-      // Load the base template
-      const baseTemplate = await this.loadTemplate(templateName);
-      
       // Get or compile the Handlebars template
       let compiledTemplate = this.compiledTemplateCache.get(templateName);
       
       if (!compiledTemplate) {
-        const templateSource = this.templateToHandlebarsSource(baseTemplate);
+        const templateSource = await this.loadRawTemplate(templateName);
         compiledTemplate = Handlebars.compile(templateSource);
         
         if (this.config.cacheEnabled) {
@@ -92,9 +102,9 @@ export class TemplateManager {
         version: '1.0.0',
         author: 'README-to-CICD',
         description: `Compiled workflow template for ${templateName}`,
-        tags: [baseTemplate.type],
+        tags: [compiledWorkflow.type || 'ci'],
         lastModified: new Date(),
-        dependencies: this.extractTemplateDependencies(baseTemplate)
+        dependencies: this.extractTemplateDependencies(compiledWorkflow)
       };
 
       return {
@@ -187,7 +197,10 @@ export class TemplateManager {
       path.join(this.config.baseTemplatesPath, 'frameworks', `${templateName}.yml`),
       // Language-specific templates
       path.join(this.config.baseTemplatesPath, 'languages', `${templateName}.yaml`),
-      path.join(this.config.baseTemplatesPath, 'languages', `${templateName}.yml`)
+      path.join(this.config.baseTemplatesPath, 'languages', `${templateName}.yml`),
+      // Deployment-specific templates
+      path.join(this.config.baseTemplatesPath, 'deployment', `${templateName}.yaml`),
+      path.join(this.config.baseTemplatesPath, 'deployment', `${templateName}.yml`)
     ];
 
     for (const templatePath of possiblePaths) {
@@ -446,5 +459,19 @@ export class TemplateManager {
     Handlebars.registerHelper('isJava', (framework: string) => 
       ['java', 'spring', 'maven', 'gradle'].includes(framework.toLowerCase())
     );
+    
+    // Array helpers for YAML formatting
+    Handlebars.registerHelper('toYamlArray', (array: any[]) => {
+      if (!Array.isArray(array)) {
+        return new Handlebars.SafeString('[]');
+      }
+      const yamlArray = '[' + array.map(item => `"${item}"`).join(', ') + ']';
+      return new Handlebars.SafeString(yamlArray);
+    });
+    
+    // GitHub Actions syntax helpers
+    Handlebars.registerHelper('githubVar', (varName: string) => {
+      return new Handlebars.SafeString(`\${{ ${varName} }}`);
+    });
   }
 }

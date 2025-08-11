@@ -26,6 +26,7 @@ import { MetadataExtractor } from './analyzers/metadata-extractor';
 import { ASTCache, globalASTCache } from './utils/ast-cache';
 import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
 import { StreamingFileReader } from './utils/streaming-file-reader';
+import { IntegrationPipeline } from './integration-pipeline';
 
 /**
  * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
@@ -56,7 +57,7 @@ export class ReadmeParserImpl implements ReadmeParser {
   private resultAggregator: ResultAggregator;
   private astCache: ASTCache;
   private performanceMonitor: PerformanceMonitor;
-  private integrationPipeline?: any; // IntegrationPipeline
+  private integrationPipeline?: IntegrationPipeline | null;
   private useIntegrationPipeline: boolean;
 
   constructor(options?: {
@@ -103,10 +104,7 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   private initializeIntegrationPipelineSync(): void {
     try {
-      // Use synchronous import to initialize during construction
-      const IntegrationPipelineModule = require('./integration-pipeline');
-      const IntegrationPipeline = IntegrationPipelineModule.IntegrationPipeline;
-      
+      // Use the imported IntegrationPipeline class directly
       this.integrationPipeline = new IntegrationPipeline({
         enableLogging: false, // Reduce noise
         logLevel: 'warn',
@@ -124,8 +122,7 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   private async initializeIntegrationPipeline(): Promise<void> {
     try {
-      // Use dynamic import to properly load the module
-      const { IntegrationPipeline } = await import('./integration-pipeline');
+      // Use the imported IntegrationPipeline class directly
       this.integrationPipeline = new IntegrationPipeline({
         enableLogging: false, // Reduce noise
         logLevel: 'warn',
@@ -278,8 +275,9 @@ export class ReadmeParserImpl implements ReadmeParser {
                 return {
                   success: true,
                   data: pipelineResult.data,
-                  ...(pipelineResult.warnings && { warnings: pipelineResult.warnings }),
-                  ...(pipelineResult.errors && { errors: pipelineResult.errors })
+                  // Always include errors array for consistency
+                  errors: pipelineResult.errors || [],
+                  ...(pipelineResult.warnings && { warnings: pipelineResult.warnings })
                 };
               } else {
                 // Log pipeline failure but continue with fallback
@@ -397,13 +395,13 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
       
       // Step 2: Set language contexts on CommandExtractor
-      const commandExtractorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'CommandExtractor');
+      const commandExtractorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'CommandExtractor') as any;
       if (commandExtractorAdapter && languageContexts.length > 0) {
         console.log('Setting language contexts on CommandExtractor...');
         
         // CRITICAL FIX: Use the adapter's setLanguageContexts method
-        if (typeof (commandExtractorAdapter as any).setLanguageContexts === 'function') {
-          (commandExtractorAdapter as any).setLanguageContexts(languageContexts);
+        if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
+          commandExtractorAdapter.setLanguageContexts(languageContexts);
           console.log(`Language contexts set successfully on CommandExtractor: ${languageContexts.length} contexts`);
         } else {
           console.error('CommandExtractorAdapter does not have setLanguageContexts method', {
@@ -411,8 +409,13 @@ export class ReadmeParserImpl implements ReadmeParser {
             availableMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(commandExtractorAdapter))
           });
           
-          // Don't throw error, just warn and continue - this allows fallback processing
-          console.warn('CommandExtractor context setting failed, commands may not have proper language association');
+          // Try to access the underlying extractor directly
+          if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
+            commandExtractorAdapter.extractor.setLanguageContexts(languageContexts);
+            console.log(`Language contexts set successfully on underlying CommandExtractor: ${languageContexts.length} contexts`);
+          } else {
+            console.warn('CommandExtractor context setting failed, commands may not have proper language association');
+          }
         }
       } else if (languageContexts.length === 0) {
         console.warn('No language contexts available to set on CommandExtractor');

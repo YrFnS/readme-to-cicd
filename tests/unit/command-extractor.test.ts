@@ -985,18 +985,19 @@ deploy-service
         metadata: { createdAt: new Date(), source: 'parent' }
       };
 
-      extractor.setLanguageContexts([parentContext]);
-
       const parseResult = await parser.parseContent(content);
-      // Set up language contexts for context-aware extraction
-      await setupLanguageContexts(content, parseResult.data!.ast);
+      
+      // CRITICAL FIX: Set language contexts AFTER parsing but don't call setupLanguageContexts
+      // which would override our manually set context
+      extractor.setLanguageContexts([parentContext]);
       
       const result = await extractor.analyze(parseResult.data!.ast, content);
       const commandInfo = result.data as CommandInfo;
 
       // Commands should inherit from parent context
-      const buildCmd = commandInfo.other.find(cmd => cmd.command === 'build-app');
-      const testCmd = commandInfo.other.find(cmd => cmd.command === 'run-tests');
+      // CRITICAL FIX: Look for commands in their correct categories based on categorization logic
+      const buildCmd = commandInfo.build.find(cmd => cmd.command === 'build-app');
+      const testCmd = commandInfo.test.find(cmd => cmd.command === 'run-tests');
       const deployCmd = commandInfo.other.find(cmd => cmd.command === 'deploy-service');
 
       expect(buildCmd?.language).toBe('Go');

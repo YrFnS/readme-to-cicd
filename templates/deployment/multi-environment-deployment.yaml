@@ -1,0 +1,276 @@
+name: Multi-Environment Deployment
+type: cd
+
+on:
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  id-token: write
+
+concurrency:
+  group: multi-env-deployment-${{ github.ref }}-${{ inputs.environment || 'auto' }}
+  cancel-in-progress: false
+
+jobs:
+  determine-environment:
+    name: Determine Target Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      should-deploy: ${{ steps.env.outputs.should-deploy }}
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=none" >> $GITHUB_OUTPUT
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  {{#if isContainerized}}
+  build-and-push:
+    name: Build and Push Container
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    if: needs.determine-environment.outputs.should-deploy == 'true'
+    outputs:
+      image-uri: ${{ steps.build.outputs.image-uri }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: {{registryUrl}}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: {{registryUrl}}/{{imageName}}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=${{ needs.determine-environment.outputs.environment }}-
+            type=raw,value=${{ needs.determine-environment.outputs.environment }}-latest
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: {{dockerfilePath}}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set image URI output
+        run: |
+          echo "image-uri=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+  {{/if}}
+
+  {{#if isStaticSite}}
+  build-static:
+    name: Build Static Site
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    if: needs.determine-environment.outputs.should-deploy == 'true'
+    outputs:
+      build-path: ${{ steps.build.outputs.build-path }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      {{#if staticSiteConfig.nodeVersion}}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: {{staticSiteConfig.nodeVersion}}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+      {{/if}}
+
+      - name: Build for environment
+        id: build
+        env:
+          {{#if staticSiteConfig.environmentVariables}}
+          {{#each staticSiteConfig.environmentVariables}}
+          {{@key}}: {{this}}
+          {{/each}}
+          {{/if}}
+          ENVIRONMENT: ${{ needs.determine-environment.outputs.environment }}
+        run: |
+          {{staticSiteConfig.buildCommand}}
+          echo "build-path={{staticSiteConfig.outputDirectory}}" >> $GITHUB_OUTPUT
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-build-${{ needs.determine-environment.outputs.environment }}
+          path: {{staticSiteConfig.outputDirectory}}
+          retention-days: 1
+  {{/if}}
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [determine-environment{{#if isContainerized}}, build-and-push{{/if}}{{#if isStaticSite}}, build-static{{/if}}]
+    if: needs.determine-environment.outputs.environment == 'staging'
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      {{#if isStaticSite}}
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: static-build-staging
+          path: {{staticSiteConfig.outputDirectory}}
+      {{/if}}
+
+      - name: Deploy to staging
+        id: deploy
+        run: |
+          echo "Deploying to staging environment..."
+          {{#if isContainerized}}
+          echo "Container image: ${{ needs.build-and-push.outputs.image-uri }}"
+          {{/if}}
+          {{#if isStaticSite}}
+          echo "Static files ready for deployment"
+          {{/if}}
+          
+          # Add your staging deployment logic here
+          echo "url=https://staging.example.com" >> $GITHUB_OUTPUT
+
+      {{#if enableHealthChecks}}
+      - name: Health check
+        run: |
+          echo "Performing staging health check..."
+          sleep 30
+          curl -f "${{ steps.deploy.outputs.url }}{{healthCheckUrl}}" || exit 1
+      {{/if}}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [determine-environment{{#if isContainerized}}, build-and-push{{/if}}{{#if isStaticSite}}, build-static{{/if}}]
+    if: needs.determine-environment.outputs.environment == 'production'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      {{#if requireApproval}}
+      - name: Wait for approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.PRODUCTION_APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "Production Deployment Approval Required"
+          issue-body: |
+            Please review and approve the production deployment.
+            
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref }}
+            {{#if isContainerized}}
+            **Image:** ${{ needs.build-and-push.outputs.image-uri }}
+            {{/if}}
+      {{/if}}
+
+      {{#if isStaticSite}}
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: static-build-production
+          path: {{staticSiteConfig.outputDirectory}}
+      {{/if}}
+
+      - name: Deploy to production
+        id: deploy
+        run: |
+          echo "Deploying to production environment..."
+          {{#if isContainerized}}
+          echo "Container image: ${{ needs.build-and-push.outputs.image-uri }}"
+          {{/if}}
+          {{#if isStaticSite}}
+          echo "Static files ready for deployment"
+          {{/if}}
+          
+          # Add your production deployment logic here
+          echo "url=https://production.example.com" >> $GITHUB_OUTPUT
+
+      {{#if enableHealthChecks}}
+      - name: Health check
+        run: |
+          echo "Performing production health check..."
+          sleep 30
+          curl -f "${{ steps.deploy.outputs.url }}{{healthCheckUrl}}" || exit 1
+      {{/if}}
+
+      {{#if enableRollback}}
+      - name: Setup rollback capability
+        if: failure()
+        run: |
+          echo "Setting up rollback capability..."
+          # Store current deployment info for potential rollback
+          echo "ROLLBACK_IMAGE=${{ needs.build-and-push.outputs.image-uri }}" >> $GITHUB_ENV
+      {{/if}}
+
+  notify-deployment:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-staging, deploy-production]
+    if: always() && needs.determine-environment.outputs.should-deploy == 'true'
+    steps:
+      - name: Notify success
+        if: needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success'
+        run: |
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          if [[ "$ENV" == "staging" ]]; then
+            URL="${{ needs.deploy-staging.outputs.url }}"
+          else
+            URL="${{ needs.deploy-production.outputs.url }}"
+          fi
+          
+          echo "✅ Deployment to $ENV successful!"
+          echo "URL: $URL"
+
+      - name: Notify failure
+        if: needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure'
+        run: |
+          ENV="${{ needs.determine-environment.outputs.environment }}"
+          echo "❌ Deployment to $ENV failed!"
+          exit 1

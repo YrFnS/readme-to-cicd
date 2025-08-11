@@ -18,7 +18,7 @@ jobs:
     timeout: 30
     strategy:
       matrix:
-        python-version: {{pythonVersions}}
+        python-version: {{toYamlArray pythonVersions}}
     steps:
       - name: "Checkout code"
         uses: "actions/checkout@v4"

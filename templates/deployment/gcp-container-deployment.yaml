@@ -1,0 +1,152 @@
+name: GCP Container Deployment
+type: cd
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  id-token: write
+
+concurrency:
+  group: gcp-deployment-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_REGION: {{gcpRegion}}
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GAR_REPOSITORY: {{imageName}}-repo
+  IMAGE_NAME: {{imageName}}
+  CLOUD_RUN_SERVICE: {{imageName}}-service
+
+jobs:
+  build-and-push:
+    name: Build and Push to GAR
+    runs-on: ubuntu-latest
+    outputs:
+      image-uri: ${{ steps.build.outputs.image-uri }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GAR
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: {{dockerfilePath}}
+          push: true
+          tags: |
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set image URI output
+        run: |
+          echo "image-uri=${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: {{#if (ne securityLevel 'basic')}}true{{else}}false{{/if}}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Scan image with Container Analysis
+        run: |
+          # Enable Container Analysis API if not already enabled
+          gcloud services enable containeranalysis.googleapis.com
+          
+          # Scan the image
+          gcloud container images scan ${{ needs.build-and-push.outputs.image-uri }} \
+            --format="table(vulnerability.severity,vulnerability.cvssScore,package.name,version.name)"
+
+  deploy-to-cloud-run:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan]
+    if: always() && needs.build-and-push.result == 'success' && (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
+    environment: 
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          # Deploy the container to Cloud Run
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image ${{ needs.build-and-push.outputs.image-uri }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --timeout 300 \
+            --format json > deployment-result.json
+          
+          # Extract the service URL
+          SERVICE_URL=$(cat deployment-result.json | jq -r '.status.url')
+          echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+
+      {{#if enableHealthChecks}}
+      - name: Health check
+        run: |
+          echo "Performing health check..."
+          SERVICE_URL=$(cat deployment-result.json | jq -r '.status.url')
+          
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Health check
+          curl -f "$SERVICE_URL{{healthCheckUrl}}" || exit 1
+      {{/if}}
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Google Cloud Run Deployment successful!"
+          echo "Image: ${{ needs.build-and-push.outputs.image-uri }}"
+          echo "Service: ${{ env.CLOUD_RUN_SERVICE }}"
+          echo "URL: ${{ steps.deploy.outputs.url }}"

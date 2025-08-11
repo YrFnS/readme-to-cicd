@@ -1,0 +1,79 @@
+name: Static Site Deployment
+type: cd
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: static-deployment-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: {{staticSiteConfig.nodeVersion}}
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Static Site
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      {{#if staticSiteConfig.nodeVersion}}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      {{/if}}
+
+      {{#if staticSiteConfig.nodeVersion}}
+      - name: Install dependencies
+        run: npm ci
+      {{/if}}
+
+      {{#if staticSiteConfig.environmentVariables}}
+      - name: Build with environment variables
+        env:
+          {{#each staticSiteConfig.environmentVariables}}
+          {{@key}}: {{this}}
+          {{/each}}
+        run: {{staticSiteConfig.buildCommand}}
+      {{else}}
+      - name: Build static site
+        run: {{staticSiteConfig.buildCommand}}
+      {{/if}}
+
+      - name: Deploy static site
+        id: deploy
+        run: |
+          echo "Deploying static site..."
+          echo "Build output: {{staticSiteConfig.outputDirectory}}"
+          # Add your deployment logic here
+          echo "url=https://your-site.example.com" >> $GITHUB_OUTPUT
+
+      {{#if enableHealthChecks}}
+      - name: Health check
+        run: |
+          echo "Performing health check..."
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Health check
+          curl -f "${{ steps.deploy.outputs.url }}" || exit 1
+      {{/if}}
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Static Site Deployment successful!"
+          echo "URL: ${{ steps.deploy.outputs.url }}"
