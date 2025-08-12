@@ -19,3 +19,6 @@ export { CacheStrategyGenerator } from './utils/cache-utils';
 
 // Export workflow specialization types
 export * from './workflow-specialization';
+
+// Export performance optimization and extensibility features
+export * from './performance';
