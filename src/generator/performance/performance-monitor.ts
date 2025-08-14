@@ -9,7 +9,7 @@ import { performance, PerformanceObserver } from 'perf_hooks';
 /**
  * Performance metrics for workflow generation
  */
-export interface PerformanceMetrics {
+export interface WorkflowPerformanceMetrics {
   // Timing metrics
   totalDuration: number;
   templateLoadTime: number;
@@ -60,7 +60,7 @@ export interface BenchmarkConfig {
 export interface BenchmarkResult {
   name: string;
   iterations: number;
-  metrics: PerformanceMetrics;
+  metrics: WorkflowPerformanceMetrics;
   statistics: {
     mean: number;
     median: number;
@@ -212,7 +212,7 @@ export class PerformanceMonitor extends EventEmitter {
   /**
    * Get current performance metrics
    */
-  getMetrics(): PerformanceMetrics {
+  getMetrics(): WorkflowPerformanceMetrics {
     const memoryUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
     

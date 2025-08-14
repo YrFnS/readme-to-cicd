@@ -43,9 +43,9 @@ export interface LogMetadata {
 }
 
 /**
- * Performance metrics
+ * Performance metrics for generation logging
  */
-export interface PerformanceMetrics {
+export interface GenerationLoggerMetrics {
   startTime: number;
   endTime?: number;
   duration?: number;
@@ -126,7 +126,7 @@ const DEFAULT_LOGGER_CONFIG: LoggerConfig = {
 export class GenerationLogger {
   private config: LoggerConfig;
   private logEntries: LogEntry[] = [];
-  private performanceMetrics: Map<string, PerformanceMetrics> = new Map();
+  private performanceMetrics: Map<string, GenerationLoggerMetrics> = new Map();
   private debugContext: Map<string, DebugContext> = new Map();
   private currentCorrelationId: string = '';
   private currentSessionId: string = '';
@@ -398,7 +398,7 @@ export class GenerationLogger {
   /**
    * Get performance metrics for a correlation ID
    */
-  getPerformanceMetrics(correlationId: string): PerformanceMetrics | undefined {
+  getPerformanceMetrics(correlationId: string): GenerationLoggerMetrics | undefined {
     return this.performanceMetrics.get(correlationId);
   }
 
@@ -591,7 +591,7 @@ export class GenerationLogger {
    * Start performance tracking
    */
   private startPerformanceTracking(correlationId: string): void {
-    const metrics: PerformanceMetrics = {
+    const metrics: GenerationLoggerMetrics = {
       startTime: Date.now(),
       memoryStart: this.getMemoryUsage(),
       memoryPeak: this.getMemoryUsage(),

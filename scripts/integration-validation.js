@@ -211,8 +211,8 @@ class IntegrationValidator {
     
     try {
       // Import and validate key interfaces
-      const { ComponentFactory } = require('../src/parser/component-factory');
-      const { IntegrationPipeline } = require('../src/parser/integration-pipeline');
+      const { ComponentFactory } = require('../dist/parser/component-factory');
+      const { IntegrationPipeline } = require('../dist/parser/integration-pipeline');
       
       // Test component factory
       const factory = ComponentFactory.getInstance();
@@ -317,7 +317,7 @@ class IntegrationValidator {
     Logger.step('Validating end-to-end pipeline...');
     
     try {
-      const { executeIntegrationPipeline } = require('../src/parser/integration-pipeline');
+      const { executeIntegrationPipeline } = require('../dist/parser/integration-pipeline');
       
       // Test with sample content
       const testContent = `
@@ -383,7 +383,7 @@ npm test
     Logger.step('Validating performance characteristics...');
     
     try {
-      const { createIntegrationPipeline } = require('../src/parser/integration-pipeline');
+      const { createIntegrationPipeline } = require('../dist/parser/integration-pipeline');
       
       const pipeline = createIntegrationPipeline({
         enablePerformanceMonitoring: true
@@ -441,7 +441,7 @@ npm test
     Logger.step('Validating memory usage...');
     
     try {
-      const { createIntegrationPipeline } = require('../src/parser/integration-pipeline');
+      const { createIntegrationPipeline } = require('../dist/parser/integration-pipeline');
       
       // Measure initial memory
       const initialMemory = process.memoryUsage();

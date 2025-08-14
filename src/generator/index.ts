@@ -15,6 +15,7 @@ export { GoWorkflowGenerator } from './templates/go-generator';
 export { JavaWorkflowGenerator } from './templates/java-generator';
 export { DeploymentGenerator } from './templates/deployment-generator';
 export { SecurityStepGenerator } from './templates/security-step-generator';
+export { PerformanceMonitoringGenerator } from './templates/performance-monitoring-generator';
 export { CacheStrategyGenerator } from './utils/cache-utils';
 
 // Export workflow specialization types

@@ -105,7 +105,7 @@ describe('YAMLUtils', () => {
     });
 
     it('should detect syntax errors', () => {
-      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main'; // Missing colon
+      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main\n    invalid: [unclosed'; // Invalid YAML with unclosed bracket
       
       const result = YAMLUtils.validateSyntax(yaml);
 
@@ -114,7 +114,7 @@ describe('YAMLUtils', () => {
     });
 
     it('should provide line and column information for errors', () => {
-      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main';
+      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main\n    invalid: [unclosed';
       
       const result = YAMLUtils.validateSyntax(yaml);
 
@@ -168,7 +168,7 @@ describe('YAMLUtils', () => {
     });
 
     it('should handle invalid YAML gracefully', () => {
-      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main';
+      const yaml = 'name: Test\non:\n  push:\n    branches\n      - main\n    invalid: [unclosed';
       
       expect(() => YAMLUtils.formatYAML(yaml)).toThrow('YAML formatting failed');
     });

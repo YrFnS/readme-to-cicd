@@ -9,7 +9,7 @@ export {
   LogLevel,
   LogEntry,
   LogMetadata,
-  PerformanceMetrics,
+  GenerationLoggerMetrics,
   StageMetrics,
   DebugContext
 } from './generation-logger';

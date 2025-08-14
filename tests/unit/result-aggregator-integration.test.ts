@@ -12,7 +12,7 @@ class MockLanguageAnalyzer extends BaseAnalyzer {
   readonly name = 'language';
 
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
-    return this.createResult(
+    return this.createSuccessResult(
       {
         languages: [
           { name: 'TypeScript', confidence: 0.9, sources: ['code-block'], frameworks: ['Node.js'] }
@@ -28,7 +28,7 @@ class MockDependencyAnalyzer extends BaseAnalyzer {
   readonly name = 'dependency';
 
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
-    return this.createResult(
+    return this.createSuccessResult(
       {
         packageFiles: [{ name: 'package.json', type: 'npm', mentioned: true, confidence: 0.8 }],
         installCommands: [{ command: 'npm install', confidence: 0.8 }],
@@ -44,7 +44,7 @@ class MockMetadataAnalyzer extends BaseAnalyzer {
   readonly name = 'metadata';
 
   async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
-    return this.createResult(
+    return this.createSuccessResult(
       {
         name: 'test-project',
         description: 'A test project for README parsing',
@@ -61,7 +61,7 @@ describe('ResultAggregator Integration', () => {
   let parser: ReadmeParserImpl;
 
   beforeEach(() => {
-    parser = new ReadmeParserImpl();
+    parser = new ReadmeParserImpl({ useIntegrationPipeline: false });
   });
 
   it('should integrate ResultAggregator with parser when analyzers are registered', async () => {
@@ -155,6 +155,6 @@ import { parser } from './src/parser';
 
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
-    expect(result.errors?.[0].code).toBe('NO_ANALYZERS');
+    expect(result.errors?.[0].code).toBe('ALL_ANALYZERS_FAILED');
   });
 });

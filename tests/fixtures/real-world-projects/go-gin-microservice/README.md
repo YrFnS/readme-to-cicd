@@ -1,19 +1,47 @@
 # Go Gin Microservice
 
-A production-ready Go microservice built with Gin framework, featuring authentication, database integration, and comprehensive testing.
+A high-performance microservice built with Go and the Gin web framework for handling user authentication and profile management.
 
 ## Features
 
-- 🚀 **Gin Framework** - High-performance HTTP web framework
-- 🔐 **JWT Authentication** - Secure token-based authentication
-- 🗄️ **PostgreSQL** - Reliable relational database
-- 📊 **Redis** - Caching and session storage
-- 🧪 **Comprehensive Testing** - Unit and integration tests
-- 📝 **Swagger Documentation** - Auto-generated API docs
-- 🔍 **Structured Logging** - Zap logger for production
-- 🐳 **Docker Support** - Containerized deployment
-- 🔄 **Database Migrations** - Version-controlled schema changes
-- 📈 **Health Checks** - Service monitoring endpoints
+- 🚀 High-performance HTTP server with Gin
+- 🔐 JWT authentication middleware
+- 📊 Structured logging with logrus
+- 🐳 Docker containerization
+- ☸️ Kubernetes deployment ready
+- 📈 Prometheus metrics
+- 🧪 Comprehensive test coverage
+- 🔧 Graceful shutdown
+- 📝 OpenAPI/Swagger documentation
+
+## Tech Stack
+
+- **Language**: Go 1.21
+- **Web Framework**: Gin
+- **Database**: PostgreSQL with GORM
+- **Authentication**: JWT
+- **Logging**: Logrus
+- **Metrics**: Prometheus
+- **Documentation**: Swaggo
+- **Testing**: Testify
+- **Containerization**: Docker
+- **Orchestration**: Kubernetes
+
+## API Endpoints
+
+### Health
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
+
+### Authentication
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/refresh` - Refresh token
+
+### Users
+- `GET /api/v1/users/profile` - Get user profile (authenticated)
+- `PUT /api/v1/users/profile` - Update user profile (authenticated)
+- `GET /api/v1/users` - List users (admin only)
 
 ## Getting Started
 
@@ -21,58 +49,87 @@ A production-ready Go microservice built with Gin framework, featuring authentic
 
 - Go 1.21+
 - PostgreSQL 13+
-- Redis 6+
 - Docker (optional)
 
-### Installation
+### Local Development
 
+1. **Clone the repository**
 ```bash
-# Clone the repository
-git clone https://github.com/example/go-gin-microservice.git
+git clone <repository-url>
 cd go-gin-microservice
-
-# Install dependencies
-go mod download
-
-# Copy environment configuration
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run database migrations
-make migrate-up
-
-# Start the server
-make run
-
-# Or run in development mode with hot reload
-make dev
 ```
 
-### Environment Variables
+2. **Install dependencies**
+```bash
+go mod download
+```
 
-Create a `.env` file with the following variables:
+3. **Set up environment variables**
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
 
-```env
-# Server Configuration
+4. **Run database migrations**
+```bash
+go run cmd/migrate/main.go
+```
+
+5. **Start the server**
+```bash
+go run cmd/server/main.go
+```
+
+The server will start on `http://localhost:8080`
+
+### Docker Development
+
+```bash
+docker-compose up --build
+```
+
+## Project Structure
+
+```
+├── cmd/
+│   ├── server/          # Main application entry point
+│   └── migrate/         # Database migration tool
+├── internal/
+│   ├── api/            # HTTP handlers and routes
+│   ├── auth/           # Authentication logic
+│   ├── config/         # Configuration management
+│   ├── database/       # Database connection and models
+│   ├── middleware/     # HTTP middleware
+│   └── services/       # Business logic
+├── pkg/
+│   ├── logger/         # Logging utilities
+│   └── utils/          # Common utilities
+├── deployments/
+│   ├── docker/         # Docker configurations
+│   └── k8s/           # Kubernetes manifests
+├── docs/              # API documentation
+├── scripts/           # Build and deployment scripts
+└── tests/             # Test files
+```
+
+## Configuration
+
+Environment variables:
+
+```bash
+# Server
 PORT=8080
-GIN_MODE=debug
+GIN_MODE=release
 
-# Database Configuration
+# Database
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=password
-DB_NAME=microservice_db
-DB_SSL_MODE=disable
+DB_NAME=microservice
 
-# Redis Configuration
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-
-# JWT Configuration
-JWT_SECRET=your-jwt-secret-key
+# JWT
+JWT_SECRET=your-secret-key
 JWT_EXPIRY=24h
 
 # Logging
@@ -80,251 +137,165 @@ LOG_LEVEL=info
 LOG_FORMAT=json
 ```
 
-## API Endpoints
+## Testing
 
-### Health Check
-- `GET /health` - Service health status
-- `GET /ready` - Service readiness check
-
-### Authentication
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
-- `POST /api/v1/auth/refresh` - Refresh JWT token
-- `POST /api/v1/auth/logout` - User logout
-
-### Users
-- `GET /api/v1/users` - List users (authenticated)
-- `GET /api/v1/users/:id` - Get user by ID
-- `PUT /api/v1/users/:id` - Update user
-- `DELETE /api/v1/users/:id` - Delete user
-
-### Example Resource
-- `GET /api/v1/items` - List items
-- `POST /api/v1/items` - Create item
-- `GET /api/v1/items/:id` - Get item by ID
-- `PUT /api/v1/items/:id` - Update item
-- `DELETE /api/v1/items/:id` - Delete item
-
-## Development
-
-### Available Commands
-
+### Run all tests
 ```bash
-# Run the application
-make run
-
-# Run in development mode with hot reload
-make dev
-
-# Build the application
-make build
-
-# Run tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Run linting
-make lint
-
-# Format code
-make fmt
-
-# Run database migrations
-make migrate-up
-
-# Rollback database migrations
-make migrate-down
-
-# Generate Swagger documentation
-make swagger
-
-# Build Docker image
-make docker-build
-
-# Run with Docker Compose
-make docker-up
-```
-
-### Project Structure
-
-```
-├── cmd/
-│   └── server/
-│       └── main.go          # Application entry point
-├── internal/
-│   ├── config/              # Configuration management
-│   ├── handlers/            # HTTP handlers
-│   ├── middleware/          # HTTP middleware
-│   ├── models/              # Data models
-│   ├── repository/          # Data access layer
-│   ├── services/            # Business logic
-│   └── utils/               # Utility functions
-├── pkg/
-│   ├── auth/                # Authentication utilities
-│   ├── database/            # Database connection
-│   ├── logger/              # Logging utilities
-│   └── validator/           # Input validation
-├── migrations/              # Database migrations
-├── docs/                    # Swagger documentation
-├── tests/                   # Test files
-├── scripts/                 # Build and deployment scripts
-├── docker-compose.yml       # Docker Compose configuration
-├── Dockerfile               # Docker image configuration
-├── Makefile                 # Build automation
-├── go.mod                   # Go module definition
-└── go.sum                   # Go module checksums
-```
-
-### Testing
-
-```bash
-# Run all tests
 go test ./...
+```
 
-# Run tests with coverage
+### Run tests with coverage
+```bash
 go test -cover ./...
+```
 
-# Run tests with detailed coverage
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+### Run integration tests
+```bash
+go test -tags=integration ./...
+```
 
-# Run specific test package
-go test ./internal/handlers
-
-# Run tests with race detection
-go test -race ./...
-
-# Run benchmarks
+### Run benchmarks
+```bash
 go test -bench=. ./...
 ```
 
-### Database Migrations
+## Building
 
+### Build binary
 ```bash
-# Create a new migration
-migrate create -ext sql -dir migrations -seq create_users_table
-
-# Run migrations
-migrate -path migrations -database "postgresql://user:password@localhost/dbname?sslmode=disable" up
-
-# Rollback migrations
-migrate -path migrations -database "postgresql://user:password@localhost/dbname?sslmode=disable" down 1
+go build -o bin/server cmd/server/main.go
 ```
 
-## Deployment
-
-### Docker
-
+### Build with optimizations
 ```bash
-# Build and run with Docker Compose
-docker-compose up --build
-
-# Run in production mode
-docker-compose -f docker-compose.prod.yml up -d
-
-# Scale the service
-docker-compose up --scale app=3
+CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o bin/server cmd/server/main.go
 ```
 
-### Manual Deployment
+## Docker
 
+### Build image
 ```bash
-# Build for production
-CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/server/main.go
-
-# Run the binary
-./main
+docker build -t go-gin-microservice .
 ```
 
-### Kubernetes
-
+### Run container
 ```bash
-# Apply Kubernetes manifests
-kubectl apply -f k8s/
+docker run -p 8080:8080 go-gin-microservice
+```
 
-# Check deployment status
+### Multi-stage build
+The Dockerfile uses multi-stage builds for optimized production images.
+
+## Kubernetes Deployment
+
+### Deploy to Kubernetes
+```bash
+kubectl apply -f deployments/k8s/
+```
+
+### Check deployment status
+```bash
 kubectl get pods -l app=go-gin-microservice
-
-# View logs
-kubectl logs -f deployment/go-gin-microservice
 ```
 
-## API Documentation
-
-- **Swagger UI**: `http://localhost:8080/swagger/index.html`
-- **OpenAPI Spec**: `http://localhost:8080/swagger/doc.json`
-
-Generate documentation:
-
+### View logs
 ```bash
-# Install swag
-go install github.com/swaggo/swag/cmd/swag@latest
-
-# Generate docs
-swag init -g cmd/server/main.go
+kubectl logs -f deployment/go-gin-microservice
 ```
 
 ## Monitoring
 
-### Health Checks
-
-- `GET /health` - Returns service health status
-- `GET /ready` - Returns service readiness status
-
 ### Metrics
-
-The service exposes Prometheus metrics at `/metrics` endpoint:
-
+Prometheus metrics are available at `/metrics`:
 - HTTP request duration
 - HTTP request count
-- Database connection pool stats
-- Custom business metrics
+- Active connections
+- Memory usage
+- Go runtime metrics
+
+### Health Checks
+- Liveness probe: `/health`
+- Readiness probe: `/health/ready`
 
 ### Logging
-
-Structured logging with Zap:
-
-```go
-logger.Info("User created",
-    zap.String("user_id", userID),
-    zap.String("email", email),
-    zap.Duration("duration", time.Since(start)),
-)
-```
+Structured JSON logging with configurable levels:
+- Request/response logging
+- Error tracking
+- Performance metrics
 
 ## Security
 
-- JWT token authentication
-- Password hashing with bcrypt
-- Input validation and sanitization
+- JWT token validation
+- CORS middleware
+- Rate limiting
+- Input validation
 - SQL injection prevention
-- CORS configuration
-- Rate limiting middleware
-- Security headers middleware
+- Security headers
 
 ## Performance
 
-- Connection pooling for database
-- Redis caching for frequently accessed data
-- Gin's high-performance HTTP router
-- Graceful shutdown handling
-- Request timeout middleware
-- Compression middleware
+- Connection pooling
+- Graceful shutdown
+- Request timeout handling
+- Memory optimization
+- CPU profiling support
+
+## API Documentation
+
+Swagger documentation is available at `/swagger/index.html` when running in development mode.
+
+Generate docs:
+```bash
+swag init -g cmd/server/main.go
+```
+
+## Development Tools
+
+### Code formatting
+```bash
+go fmt ./...
+```
+
+### Linting
+```bash
+golangci-lint run
+```
+
+### Security scanning
+```bash
+gosec ./...
+```
+
+### Dependency updates
+```bash
+go mod tidy
+go mod vendor
+```
+
+## Deployment
+
+### Environment-specific configs
+- Development: `.env.dev`
+- Staging: `.env.staging`
+- Production: `.env.prod`
+
+### CI/CD Pipeline
+The service includes GitHub Actions workflows for:
+- Testing
+- Building
+- Security scanning
+- Docker image building
+- Kubernetes deployment
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`make test`)
-6. Run linting (`make lint`)
-7. Commit your changes (`git commit -m 'Add amazing feature'`)
-8. Push to the branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
+2. Create a feature branch
+3. Write tests for your changes
+4. Ensure all tests pass
+5. Run linting and formatting
+6. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License

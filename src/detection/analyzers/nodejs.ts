@@ -13,8 +13,13 @@ export class NodeJSAnalyzer extends BaseLanguageAnalyzer {
   readonly name = 'NodeJS Analyzer';
   readonly ecosystem = 'nodejs';
 
-  private fileScanner = new FileSystemScanner();
+  private fileScanner: FileSystemScanner;
   private evidenceCollector = new EvidenceCollectorImpl();
+
+  constructor(fileScanner?: FileSystemScanner) {
+    super();
+    this.fileScanner = fileScanner || new FileSystemScanner();
+  }
 
   canAnalyze(projectInfo: ProjectInfo): boolean {
     // Check for Node.js indicators

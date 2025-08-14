@@ -502,6 +502,11 @@ export class MultiEnvironmentGenerator {
       const sourceEnv = sortedEnvs[i];
       const targetEnv = sortedEnvs[i + 1];
 
+      // Add null checks to satisfy TypeScript strict mode
+      if (!sourceEnv || !targetEnv) {
+        continue;
+      }
+
       const promotionConfig: PromotionConfig = {
         sourceEnvironment: sourceEnv.name,
         targetEnvironment: targetEnv.name,
@@ -731,7 +736,7 @@ export class MultiEnvironmentGenerator {
       steps,
       environment: {
         name: environment.name,
-        url: environment.variables.DEPLOYMENT_URL || undefined
+        ...(environment.variables.DEPLOYMENT_URL && { url: environment.variables.DEPLOYMENT_URL })
       },
       outputs: {
         'deployment-id': '${{ steps.generate-id.outputs.deployment-id }}',
@@ -770,7 +775,7 @@ export class MultiEnvironmentGenerator {
           'issue-body': approvalGate.instructions,
           'exclude-workflow-initiator-as-approver': 'false'
         },
-        'timeout-minutes': approvalGate.timeoutMinutes
+        timeout: approvalGate.timeoutMinutes || 60
       }
     ];
 
@@ -781,7 +786,7 @@ export class MultiEnvironmentGenerator {
       needs: [`pre-deploy-${environment.name}`],
       environment: {
         name: `${environment.name}-approval`,
-        url: environment.variables.DEPLOYMENT_URL || undefined
+        ...(environment.variables.DEPLOYMENT_URL && { url: environment.variables.DEPLOYMENT_URL })
       },
       if: `needs.pre-deploy-${environment.name}.outputs.environment-ready == 'true'`
     };
@@ -829,7 +834,7 @@ export class MultiEnvironmentGenerator {
       needs: needsJobs,
       environment: {
         name: environment.name,
-        url: environment.variables.DEPLOYMENT_URL || undefined
+        ...(environment.variables.DEPLOYMENT_URL && { url: environment.variables.DEPLOYMENT_URL })
       },
       timeout: 30,
       outputs: {
@@ -1059,7 +1064,7 @@ export class MultiEnvironmentGenerator {
         env: {
           DATABASE_URL: '${{ secrets.DATABASE_URL }}'
         },
-        if: framework.name.toLowerCase() === 'django'
+        if: framework.name.toLowerCase() === 'django' ? 'true' : 'false'
       },
       {
         name: 'Deploy Python application',
@@ -1250,7 +1255,7 @@ export class MultiEnvironmentGenerator {
       ].join('\n'),
       env: {
         ENVIRONMENT: environment.name,
-        MAX_UNAVAILABLE: config.maxUnavailable || '25%'
+        MAX_UNAVAILABLE: (config.maxUnavailable || '25%').toString()
       }
     });
 
@@ -1366,7 +1371,7 @@ export class MultiEnvironmentGenerator {
     const match = duration.match(/^(\d+)([smh])$/);
     if (!match) return '60'; // Default to 60 seconds
 
-    const value = parseInt(match[1]);
+    const value = parseInt(match[1] || '60', 10);
     const unit = match[2];
 
     switch (unit) {
@@ -1751,7 +1756,7 @@ export class MultiEnvironmentGenerator {
             'issue-title': `Promotion Approval: ${promotion.sourceEnvironment} → ${promotion.targetEnvironment}`,
             'issue-body': 'Please approve the promotion to the next environment'
           },
-          'timeout-minutes': condition.configuration.timeoutMinutes || 60
+          timeout: condition.configuration.timeoutMinutes || 60
         };
 
       case 'time_delay':

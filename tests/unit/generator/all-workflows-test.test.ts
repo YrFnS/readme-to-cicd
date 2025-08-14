@@ -2,10 +2,9 @@
  * Comprehensive test for all workflow generators
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { WorkingWorkflowSpecializationManager } from '../../../src/generator/workflow-specialization/working-workflow-manager';
 import { DetectionResult, GenerationOptions } from '../../../src/generator/interfaces';
-import { beforeEach } from 'node:test';
 
 describe('All Workflow Types Generation', () => {
   let manager: WorkingWorkflowSpecializationManager;

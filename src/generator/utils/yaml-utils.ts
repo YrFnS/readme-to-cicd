@@ -192,8 +192,8 @@ export class YAMLUtils {
 
       return formatted;
     } catch (error) {
-      // Don't throw for invalid YAML, just return the original
-      return yamlContent;
+      // Throw error for invalid YAML as expected by tests
+      throw new Error(`YAML formatting failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -271,12 +271,18 @@ export class YAMLUtils {
       
       const merged = this.deepMerge(baseConfig, overrideConfig);
       
-      return yaml.dump(merged, {
+      let result = yaml.dump(merged, {
         indent: 2,
         lineWidth: 120,
         noRefs: true,
         sortKeys: false
       });
+
+      // Fix the "on" key quoting issue (same as formatYAML)
+      result = result.replace(/^"on":/gm, 'on:');
+      result = result.replace(/^'on':/gm, 'on:');
+
+      return result;
     } catch (error) {
       throw new Error(`YAML merge failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

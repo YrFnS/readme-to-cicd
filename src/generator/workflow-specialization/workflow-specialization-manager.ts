@@ -8,18 +8,24 @@ import { CIWorkflowGenerator } from './ci-workflow-generator';
 import { CDWorkflowGenerator } from './cd-workflow-generator';
 import { ReleaseWorkflowGenerator } from './release-workflow-generator';
 import { MaintenanceWorkflowGenerator } from './maintenance-workflow-generator';
+import { SecurityWorkflowGenerator } from './security-workflow-generator';
+import { PerformanceWorkflowGenerator } from './performance-workflow-generator';
 
 export class WorkflowSpecializationManager {
   private ciGenerator: CIWorkflowGenerator;
   private cdGenerator: CDWorkflowGenerator;
   private releaseGenerator: ReleaseWorkflowGenerator;
   private maintenanceGenerator: MaintenanceWorkflowGenerator;
+  private securityGenerator: SecurityWorkflowGenerator;
+  private performanceGenerator: PerformanceWorkflowGenerator;
 
   constructor() {
     this.ciGenerator = new CIWorkflowGenerator();
     this.cdGenerator = new CDWorkflowGenerator();
     this.releaseGenerator = new ReleaseWorkflowGenerator();
     this.maintenanceGenerator = new MaintenanceWorkflowGenerator();
+    this.securityGenerator = new SecurityWorkflowGenerator();
+    this.performanceGenerator = new PerformanceWorkflowGenerator();
   }
 
   /**
@@ -45,6 +51,12 @@ export class WorkflowSpecializationManager {
       
       case 'maintenance':
         return this.maintenanceGenerator.generateMaintenanceWorkflow(detectionResult, workflowOptions);
+      
+      case 'security':
+        return this.securityGenerator.generateSecurityWorkflow(detectionResult, workflowOptions);
+      
+      case 'performance':
+        return this.performanceGenerator.generatePerformanceWorkflow(detectionResult, workflowOptions);
       
       default:
         throw new Error(`Unsupported workflow type: ${workflowType}`);

@@ -132,6 +132,97 @@ export class DetectionEngine {
   }
 
   /**
+   * Get applicable analyzers for project, loading them on-demand
+   */
+  private async getApplicableAnalyzers(projectInfo: ProjectInfo, evidence: Evidence[]): Promise<LanguageAnalyzer[]> {
+    const applicableAnalyzers: LanguageAnalyzer[] = [];
+    
+    // Determine which ecosystems to check based on project languages and evidence
+    const ecosystemsToCheck = new Set<string>();
+    
+    // Add ecosystems based on project languages
+    projectInfo.languages.forEach(lang => {
+      const langLower = lang.toLowerCase();
+      if (langLower.includes('javascript') || langLower.includes('typescript')) {
+        ecosystemsToCheck.add('nodejs');
+        ecosystemsToCheck.add('frontend');
+      }
+      if (langLower.includes('python')) {
+        ecosystemsToCheck.add('python');
+      }
+      if (langLower.includes('rust')) {
+        ecosystemsToCheck.add('rust');
+      }
+      if (langLower.includes('go')) {
+        ecosystemsToCheck.add('go');
+      }
+      if (langLower.includes('java') || langLower.includes('kotlin') || langLower.includes('scala')) {
+        ecosystemsToCheck.add('java');
+      }
+    });
+    
+    // Add ecosystems based on evidence
+    evidence.forEach(e => {
+      const valueLower = e.value.toLowerCase();
+      if (valueLower.includes('package.json') || valueLower.includes('npm') || valueLower.includes('yarn') || valueLower.includes('node')) {
+        ecosystemsToCheck.add('nodejs');
+      }
+      if (valueLower.includes('requirements.txt') || valueLower.includes('setup.py') || valueLower.includes('pip') || valueLower.includes('python')) {
+        ecosystemsToCheck.add('python');
+      }
+      if (valueLower.includes('cargo.toml') || valueLower.includes('rust')) {
+        ecosystemsToCheck.add('rust');
+      }
+      if (valueLower.includes('go.mod') || valueLower.includes('go.sum')) {
+        ecosystemsToCheck.add('go');
+      }
+      if (valueLower.includes('pom.xml') || valueLower.includes('build.gradle') || valueLower.includes('maven') || valueLower.includes('gradle')) {
+        ecosystemsToCheck.add('java');
+      }
+      if (valueLower.includes('dockerfile') || valueLower.includes('docker-compose')) {
+        ecosystemsToCheck.add('container');
+      }
+      if (valueLower.includes('webpack') || valueLower.includes('vite') || valueLower.includes('react') || valueLower.includes('vue') || valueLower.includes('angular')) {
+        ecosystemsToCheck.add('frontend');
+      }
+    });
+    
+    // If no specific ecosystems identified, try common ones
+    if (ecosystemsToCheck.size === 0) {
+      ecosystemsToCheck.add('nodejs');
+      ecosystemsToCheck.add('python');
+      ecosystemsToCheck.add('frontend');
+    }
+    
+    this.logger.debug('DetectionEngine', 'Loading analyzers for ecosystems', {
+      ecosystems: Array.from(ecosystemsToCheck),
+      projectLanguages: projectInfo.languages,
+      evidenceCount: evidence.length
+    });
+    
+    // Load analyzers for each ecosystem
+    for (const ecosystem of ecosystemsToCheck) {
+      try {
+        const analyzer = await this.getAnalyzerForEcosystem(ecosystem);
+        if (analyzer && analyzer.canAnalyze(projectInfo)) {
+          applicableAnalyzers.push(analyzer);
+          this.logger.debug('DetectionEngine', 'Loaded applicable analyzer', {
+            analyzer: analyzer.name,
+            ecosystem: analyzer.ecosystem
+          });
+        }
+      } catch (error) {
+        this.logger.warn('DetectionEngine', 'Failed to load analyzer for ecosystem', {
+          ecosystem,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    
+    return applicableAnalyzers;
+  }
+
+  /**
    * Analyze project and detect frameworks
    */
   async analyze(projectInfo: ProjectInfo, projectPath?: string): Promise<Omit<DetectionResult, 'detectedAt' | 'executionTime'>> {
@@ -171,8 +262,8 @@ export class DetectionEngine {
           evidenceTypes: [...new Set(evidence.map(e => e.type))]
         });
 
-        // Run applicable analyzers in parallel with improved error handling
-        const applicableAnalyzers = this.analyzers.filter(analyzer => analyzer.canAnalyze(projectInfo));
+        // CRITICAL FIX: Load analyzers on-demand based on project languages and evidence
+        const applicableAnalyzers = await this.getApplicableAnalyzers(projectInfo, evidence);
         this.logger.info('DetectionEngine', 'Running analyzers', {
           totalAnalyzers: this.analyzers.length,
           applicableAnalyzers: applicableAnalyzers.length,

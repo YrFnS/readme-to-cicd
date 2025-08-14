@@ -255,7 +255,8 @@ export class ReadmeParserImpl implements ReadmeParser {
               await this.initializeIntegrationPipeline();
             } catch (initError) {
               console.warn('Failed to initialize IntegrationPipeline, will use fallback processing:', initError);
-              // Continue to fallback - don't return error yet
+              // Set flag to false to avoid repeated attempts
+              this.useIntegrationPipeline = false;
             }
           }
           
@@ -263,17 +264,18 @@ export class ReadmeParserImpl implements ReadmeParser {
             try {
               const pipelineResult = await this.integrationPipeline.execute(content);
               
-              if (pipelineResult.success && pipelineResult.data) {
+              // CRITICAL FIX: Accept pipeline results even with warnings/partial failures
+              if (pipelineResult.success || (pipelineResult.data && Object.keys(pipelineResult.data).length > 0)) {
                 return {
                   success: true,
-                  data: pipelineResult.data,
+                  data: pipelineResult.data || this.createEmptyProjectInfo(),
                   // Always include errors array for consistency
                   errors: pipelineResult.errors || [],
                   ...(pipelineResult.warnings && { warnings: pipelineResult.warnings })
                 };
               } else {
-                // Log pipeline failure but continue with fallback
-                console.warn('IntegrationPipeline failed, using fallback processing. Errors:', pipelineResult.errors);
+                // Only fall back if pipeline completely failed with no data
+                console.warn('IntegrationPipeline failed completely, using fallback processing. Errors:', pipelineResult.errors);
                 // Continue to fallback processing
               }
             } catch (pipelineError) {
@@ -377,21 +379,28 @@ export class ReadmeParserImpl implements ReadmeParser {
       
       // Step 2: Set language contexts on CommandExtractor
       const commandExtractorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'CommandExtractor') as any;
-      if (commandExtractorAdapter && languageContexts.length > 0) {
-        // CRITICAL FIX: Use the adapter's setLanguageContexts method
-        if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
-          commandExtractorAdapter.setLanguageContexts(languageContexts);
-        } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
-          // Try to access the underlying extractor directly
-          commandExtractorAdapter.extractor.setLanguageContexts(languageContexts);
+      if (commandExtractorAdapter) {
+        // CRITICAL FIX: Always set language contexts, even if empty
+        const contextsToSet = languageContexts.length > 0 ? languageContexts : [];
+        
+        try {
+          // Try the adapter's setLanguageContexts method first
+          if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
+            commandExtractorAdapter.setLanguageContexts(contextsToSet);
+            console.log(`Set ${contextsToSet.length} language contexts on CommandExtractorAdapter`);
+          } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
+            // Fallback to accessing the underlying extractor directly
+            commandExtractorAdapter.extractor.setLanguageContexts(contextsToSet);
+            console.log(`Set ${contextsToSet.length} language contexts on CommandExtractor directly`);
+          } else {
+            console.warn('CommandExtractor does not have setLanguageContexts method available');
+          }
+        } catch (contextError) {
+          console.warn('Failed to set language contexts on CommandExtractor:', contextError);
+          // Continue processing - this shouldn't be fatal
         }
-      } else if (commandExtractorAdapter && languageContexts.length === 0) {
-        // CRITICAL FIX: Even with no contexts, ensure the extractor is aware
-        if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
-          commandExtractorAdapter.setLanguageContexts([]);
-        } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
-          commandExtractorAdapter.extractor.setLanguageContexts([]);
-        }
+      } else {
+        console.warn('CommandExtractor adapter not found in registry');
       }
       
       // Step 3: Run all analyzers with context coordination
@@ -740,6 +749,52 @@ export class ReadmeParserImpl implements ReadmeParser {
         severity: 'error',
         details: details ? { ...details, timestamp: new Date().toISOString() } : undefined
       }]
+    };
+  }
+
+  /**
+   * Create empty project info structure for fallback scenarios
+   */
+  private createEmptyProjectInfo(): ProjectInfo {
+    return {
+      metadata: { 
+        name: '', 
+        description: '', 
+        structure: [], 
+        environment: [] 
+      },
+      languages: [],
+      dependencies: { 
+        packageFiles: [], 
+        installCommands: [], 
+        packages: [], 
+        dependencies: [], 
+        devDependencies: [] 
+      },
+      commands: { 
+        install: [], 
+        build: [], 
+        test: [], 
+        run: [], 
+        other: [] 
+      },
+      testing: { 
+        frameworks: [], 
+        tools: [], 
+        configFiles: [], 
+        confidence: 0, 
+        testFiles: [], 
+        commands: [], 
+        coverage: { enabled: false, tools: [] } 
+      },
+      confidence: { 
+        overall: 0, 
+        languages: 0, 
+        dependencies: 0, 
+        commands: 0, 
+        testing: 0, 
+        metadata: 0 
+      }
     };
   }
 }

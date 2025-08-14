@@ -28,6 +28,7 @@ export interface JobTemplate {
   if?: string;
   environment?: string | JobEnvironmentConfig;
   permissions?: PermissionConfig;
+  services?: Record<string, any>;
   timeout?: number;
   continueOnError?: boolean;
   outputs?: Record<string, string>;

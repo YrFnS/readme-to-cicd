@@ -1,730 +1,455 @@
 /**
- * Regression test manager for tracking framework detection accuracy over time
- * and preventing detection accuracy degradation
+ * Regression Test Manager for tracking workflow generation quality over time
  */
 
-import { writeFile, readFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { DetectionResult } from '../../src/detection/interfaces/detection-result';
-import { FrameworkInfo } from '../../src/detection/interfaces/framework-info';
-import { ProjectInfo } from '../../src/detection/interfaces/framework-detector';
+import { DetectionResult } from '../../src/generator/interfaces';
 
-export interface RegressionTestCase {
-  id: string;
+export interface BaselineResult {
   name: string;
-  description: string;
-  projectInfo: ProjectInfo;
-  expectedResults: ExpectedDetectionResults;
-  createdAt: string;
-  lastUpdated: string;
+  detectionResult: DetectionResult;
+  expectedScore: number;
+  expectedFeatures: string[];
+  timestamp: string;
   version: string;
 }
 
-export interface ExpectedDetectionResults {
-  frameworks: ExpectedFramework[];
-  buildTools: ExpectedBuildTool[];
-  containers: ExpectedContainer[];
-  minOverallConfidence: number;
-  maxWarnings: number;
-  tags: string[];
-}
-
-export interface ExpectedFramework {
-  name: string;
-  ecosystem: string;
-  type?: string;
-  minConfidence: number;
-  required: boolean;
-}
-
-export interface ExpectedBuildTool {
-  name: string;
-  minConfidence: number;
-  required: boolean;
-}
-
-export interface ExpectedContainer {
-  type: string;
-  required: boolean;
-}
-
-export interface RegressionTestResult {
-  testCaseId: string;
-  testName: string;
-  passed: boolean;
-  score: number;
-  actualResults: DetectionResult;
-  frameworkMatches: FrameworkMatchResult[];
-  buildToolMatches: BuildToolMatchResult[];
-  containerMatches: ContainerMatchResult[];
-  confidenceCheck: ConfidenceCheckResult;
-  warningCheck: WarningCheckResult;
-  executionTime: number;
-  memoryUsage: number;
-  timestamp: string;
-}
-
-export interface FrameworkMatchResult {
-  expected: ExpectedFramework;
-  actual?: FrameworkInfo;
-  matched: boolean;
-  confidenceMet: boolean;
-  score: number;
-  issues: string[];
-}
-
-export interface BuildToolMatchResult {
-  expected: ExpectedBuildTool;
-  actual?: any;
-  matched: boolean;
-  confidenceMet: boolean;
-  score: number;
-  issues: string[];
-}
-
-export interface ContainerMatchResult {
-  expected: ExpectedContainer;
-  actual?: any;
-  matched: boolean;
-  score: number;
-  issues: string[];
-}
-
-export interface ConfidenceCheckResult {
-  expected: number;
-  actual: number;
-  passed: boolean;
-  score: number;
-}
-
-export interface WarningCheckResult {
-  maxExpected: number;
-  actual: number;
-  passed: boolean;
-  score: number;
-  warnings: string[];
-}
-
-export interface RegressionReport {
-  totalTests: number;
-  passedTests: number;
-  failedTests: number;
-  averageScore: number;
-  averageExecutionTime: number;
-  averageMemoryUsage: number;
-  frameworkAccuracy: number;
-  buildToolAccuracy: number;
-  containerAccuracy: number;
-  confidenceAccuracy: number;
-  regressions: RegressionIssue[];
-  improvements: ImprovementNote[];
-  timestamp: string;
+export interface QualityComparison {
+  overallDegradation: number;
+  criticalRegressions: RegressionIssue[];
+  improvements: QualityImprovement[];
+  stableTests: string[];
 }
 
 export interface RegressionIssue {
-  testCaseId: string;
   testName: string;
-  issueType: 'framework_missing' | 'confidence_low' | 'performance_degraded' | 'new_warnings';
-  description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  previousScore?: number;
+  previousScore: number;
   currentScore: number;
+  degradation: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
 }
 
-export interface ImprovementNote {
-  testCaseId: string;
+export interface QualityImprovement {
   testName: string;
-  improvementType: 'accuracy_improved' | 'performance_improved' | 'warnings_reduced';
-  description: string;
-  previousScore?: number;
+  previousScore: number;
   currentScore: number;
+  improvement: number;
+  description: string;
+}
+
+export interface CurrentResult {
+  name: string;
+  score: number;
+  workflowSize: number;
+  optimizations: number;
+  warnings: number;
 }
 
 export class RegressionTestManager {
-  private testCasesPath: string;
-  private resultsPath: string;
-  private reportsPath: string;
+  private baselinePath: string;
+  private version: string = '2.0.0';
 
-  constructor(baseDir: string = join(__dirname, '..', 'regression-data')) {
-    this.testCasesPath = join(baseDir, 'test-cases');
-    this.resultsPath = join(baseDir, 'results');
-    this.reportsPath = join(baseDir, 'reports');
+  constructor(baselinePath?: string) {
+    this.baselinePath = baselinePath || join(__dirname, '..', 'fixtures', 'regression-baselines');
   }
 
   /**
-   * Initialize regression test directories
+   * Get baseline results for regression testing
    */
-  async initialize(): Promise<void> {
-    await mkdir(this.testCasesPath, { recursive: true });
-    await mkdir(this.resultsPath, { recursive: true });
-    await mkdir(this.reportsPath, { recursive: true });
-  }
-
-  /**
-   * Create a new regression test case
-   */
-  async createTestCase(testCase: Omit<RegressionTestCase, 'createdAt' | 'lastUpdated' | 'version'>): Promise<void> {
-    const fullTestCase: RegressionTestCase = {
-      ...testCase,
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      version: '1.0.0'
-    };
-
-    const filePath = join(this.testCasesPath, `${testCase.id}.json`);
-    await writeFile(filePath, JSON.stringify(fullTestCase, null, 2));
-  }
-
-  /**
-   * Load all regression test cases
-   */
-  async loadTestCases(): Promise<RegressionTestCase[]> {
+  async getBaselineResults(): Promise<BaselineResult[]> {
     try {
-      const { readdir } = await import('fs/promises');
-      const files = await readdir(this.testCasesPath);
-      const testCases: RegressionTestCase[] = [];
-
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const filePath = join(this.testCasesPath, file);
-          const content = await readFile(filePath, 'utf-8');
-          const testCase = JSON.parse(content) as RegressionTestCase;
-          testCases.push(testCase);
-        }
-      }
-
-      return testCases.sort((a, b) => a.name.localeCompare(b.name));
+      const baselineFile = join(this.baselinePath, 'baseline-results.json');
+      const content = await readFile(baselineFile, 'utf-8');
+      return JSON.parse(content);
     } catch (error) {
-      console.warn('Could not load regression test cases:', error);
-      return [];
+      // If no baseline exists, create default baseline
+      return this.createDefaultBaseline();
     }
   }
 
   /**
-   * Validate detection results against expected results
+   * Save baseline results
    */
-  validateResults(
-    testCase: RegressionTestCase,
-    actualResults: DetectionResult,
-    executionTime: number,
-    memoryUsage: number
-  ): RegressionTestResult {
-    const frameworkMatches = this.validateFrameworks(
-      testCase.expectedResults.frameworks,
-      actualResults.frameworks
-    );
+  async saveBaselineResults(results: BaselineResult[]): Promise<void> {
+    try {
+      await mkdir(this.baselinePath, { recursive: true });
+      const baselineFile = join(this.baselinePath, 'baseline-results.json');
+      await writeFile(baselineFile, JSON.stringify(results, null, 2));
+    } catch (error) {
+      console.warn('Failed to save baseline results:', error);
+    }
+  }
 
-    const buildToolMatches = this.validateBuildTools(
-      testCase.expectedResults.buildTools,
-      actualResults.buildTools
-    );
-
-    const containerMatches = this.validateContainers(
-      testCase.expectedResults.containers,
-      actualResults.containers
-    );
-
-    const confidenceCheck = this.validateConfidence(
-      testCase.expectedResults.minOverallConfidence,
-      actualResults.confidence.score
-    );
-
-    const warningCheck = this.validateWarnings(
-      testCase.expectedResults.maxWarnings,
-      actualResults.warnings
-    );
-
-    // Calculate overall score
-    const frameworkScore = frameworkMatches.reduce((sum, match) => sum + match.score, 0) / Math.max(frameworkMatches.length, 1);
-    const buildToolScore = buildToolMatches.reduce((sum, match) => sum + match.score, 0) / Math.max(buildToolMatches.length, 1);
-    const containerScore = containerMatches.reduce((sum, match) => sum + match.score, 0) / Math.max(containerMatches.length, 1);
+  /**
+   * Compare current results with baseline
+   */
+  compareWithBaseline(currentResults: CurrentResult[], baselineResults: BaselineResult[]): QualityComparison {
+    const criticalRegressions: RegressionIssue[] = [];
+    const improvements: QualityImprovement[] = [];
+    const stableTests: string[] = [];
     
-    const overallScore = (
-      frameworkScore * 0.4 +
-      buildToolScore * 0.3 +
-      containerScore * 0.1 +
-      confidenceCheck.score * 0.15 +
-      warningCheck.score * 0.05
-    );
+    let totalDegradation = 0;
+    let comparisonCount = 0;
 
-    const passed = overallScore >= 0.7 && 
-                  frameworkMatches.every(m => !m.expected.required || m.matched) &&
-                  buildToolMatches.every(m => !m.expected.required || m.matched) &&
-                  containerMatches.every(m => !m.expected.required || m.matched) &&
-                  confidenceCheck.passed &&
-                  warningCheck.passed;
-
-    return {
-      testCaseId: testCase.id,
-      testName: testCase.name,
-      passed,
-      score: overallScore,
-      actualResults,
-      frameworkMatches,
-      buildToolMatches,
-      containerMatches,
-      confidenceCheck,
-      warningCheck,
-      executionTime,
-      memoryUsage,
-      timestamp: new Date().toISOString()
-    };
-  }
-
-  /**
-   * Validate framework detection results
-   */
-  private validateFrameworks(
-    expected: ExpectedFramework[],
-    actual: FrameworkInfo[]
-  ): FrameworkMatchResult[] {
-    return expected.map(expectedFramework => {
-      const actualFramework = actual.find(f =>
-        f.name.toLowerCase() === expectedFramework.name.toLowerCase() &&
-        f.ecosystem === expectedFramework.ecosystem
-      );
-
-      const matched = !!actualFramework;
-      const confidenceMet = actualFramework ? actualFramework.confidence >= expectedFramework.minConfidence : false;
+    for (const baseline of baselineResults) {
+      const current = currentResults.find(r => r.name === baseline.name);
       
-      const issues: string[] = [];
-      if (!matched && expectedFramework.required) {
-        issues.push(`Required framework ${expectedFramework.name} not detected`);
-      }
-      if (matched && !confidenceMet) {
-        issues.push(`Framework ${expectedFramework.name} confidence too low: ${actualFramework?.confidence} < ${expectedFramework.minConfidence}`);
-      }
-      if (matched && expectedFramework.type && actualFramework?.type !== expectedFramework.type) {
-        issues.push(`Framework ${expectedFramework.name} type mismatch: expected ${expectedFramework.type}, got ${actualFramework?.type}`);
-      }
-
-      let score = 0;
-      if (matched) {
-        score += 0.5; // Base score for detection
-        if (confidenceMet) score += 0.3; // Confidence bonus
-        if (!expectedFramework.type || actualFramework?.type === expectedFramework.type) score += 0.2; // Type bonus
+      if (!current) {
+        criticalRegressions.push({
+          testName: baseline.name,
+          previousScore: baseline.expectedScore,
+          currentScore: 0,
+          degradation: baseline.expectedScore,
+          severity: 'critical',
+          description: 'Test case no longer exists or fails to execute'
+        });
+        continue;
       }
 
-      return {
-        expected: expectedFramework,
-        actual: actualFramework,
-        matched,
-        confidenceMet,
-        score,
-        issues
-      };
-    });
-  }
+      const scoreDifference = current.score - baseline.expectedScore;
+      comparisonCount++;
 
-  /**
-   * Validate build tool detection results
-   */
-  private validateBuildTools(
-    expected: ExpectedBuildTool[],
-    actual: any[]
-  ): BuildToolMatchResult[] {
-    return expected.map(expectedTool => {
-      const actualTool = actual.find(bt =>
-        bt.name.toLowerCase() === expectedTool.name.toLowerCase()
-      );
-
-      const matched = !!actualTool;
-      const confidenceMet = actualTool ? actualTool.confidence >= expectedTool.minConfidence : false;
-      
-      const issues: string[] = [];
-      if (!matched && expectedTool.required) {
-        issues.push(`Required build tool ${expectedTool.name} not detected`);
+      if (scoreDifference < -0.2) {
+        // Significant degradation (>20%)
+        criticalRegressions.push({
+          testName: baseline.name,
+          previousScore: baseline.expectedScore,
+          currentScore: current.score,
+          degradation: Math.abs(scoreDifference),
+          severity: this.calculateSeverity(Math.abs(scoreDifference)),
+          description: `Quality score dropped by ${(Math.abs(scoreDifference) * 100).toFixed(1)}%`
+        });
+        totalDegradation += Math.abs(scoreDifference);
+      } else if (scoreDifference > 0.1) {
+        // Significant improvement (>10%)
+        improvements.push({
+          testName: baseline.name,
+          previousScore: baseline.expectedScore,
+          currentScore: current.score,
+          improvement: scoreDifference,
+          description: `Quality score improved by ${(scoreDifference * 100).toFixed(1)}%`
+        });
+      } else {
+        // Stable performance
+        stableTests.push(baseline.name);
       }
-      if (matched && !confidenceMet) {
-        issues.push(`Build tool ${expectedTool.name} confidence too low: ${actualTool?.confidence} < ${expectedTool.minConfidence}`);
-      }
+    }
 
-      let score = 0;
-      if (matched) {
-        score += 0.6; // Base score for detection
-        if (confidenceMet) score += 0.4; // Confidence bonus
-      }
-
-      return {
-        expected: expectedTool,
-        actual: actualTool,
-        matched,
-        confidenceMet,
-        score,
-        issues
-      };
-    });
-  }
-
-  /**
-   * Validate container detection results
-   */
-  private validateContainers(
-    expected: ExpectedContainer[],
-    actual: any[]
-  ): ContainerMatchResult[] {
-    return expected.map(expectedContainer => {
-      const actualContainer = actual.find(c => c.type === expectedContainer.type);
-      const matched = !!actualContainer;
-      
-      const issues: string[] = [];
-      if (!matched && expectedContainer.required) {
-        issues.push(`Required container ${expectedContainer.type} not detected`);
-      }
-
-      const score = matched ? 1.0 : 0.0;
-
-      return {
-        expected: expectedContainer,
-        actual: actualContainer,
-        matched,
-        score,
-        issues
-      };
-    });
-  }
-
-  /**
-   * Validate overall confidence score
-   */
-  private validateConfidence(expected: number, actual: number): ConfidenceCheckResult {
-    const passed = actual >= expected;
-    const score = passed ? 1.0 : actual / expected;
+    const overallDegradation = comparisonCount > 0 ? totalDegradation / comparisonCount : 0;
 
     return {
-      expected,
-      actual,
-      passed,
-      score
-    };
-  }
-
-  /**
-   * Validate warning count
-   */
-  private validateWarnings(maxExpected: number, actualWarnings: any[]): WarningCheckResult {
-    const actual = actualWarnings.length;
-    const passed = actual <= maxExpected;
-    const score = passed ? 1.0 : Math.max(0, 1 - (actual - maxExpected) * 0.1);
-
-    return {
-      maxExpected,
-      actual,
-      passed,
-      score,
-      warnings: actualWarnings.map(w => w.message || w.toString())
-    };
-  }
-
-  /**
-   * Save regression test results
-   */
-  async saveResults(results: RegressionTestResult[]): Promise<void> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = join(this.resultsPath, `results-${timestamp}.json`);
-    await writeFile(filePath, JSON.stringify(results, null, 2));
-  }
-
-  /**
-   * Generate regression report
-   */
-  generateReport(results: RegressionTestResult[], previousResults?: RegressionTestResult[]): RegressionReport {
-    const totalTests = results.length;
-    const passedTests = results.filter(r => r.passed).length;
-    const failedTests = totalTests - passedTests;
-
-    const averageScore = results.reduce((sum, r) => sum + r.score, 0) / totalTests;
-    const averageExecutionTime = results.reduce((sum, r) => sum + r.executionTime, 0) / totalTests;
-    const averageMemoryUsage = results.reduce((sum, r) => sum + r.memoryUsage, 0) / totalTests;
-
-    // Calculate accuracy metrics
-    const frameworkAccuracy = this.calculateFrameworkAccuracy(results);
-    const buildToolAccuracy = this.calculateBuildToolAccuracy(results);
-    const containerAccuracy = this.calculateContainerAccuracy(results);
-    const confidenceAccuracy = results.filter(r => r.confidenceCheck.passed).length / totalTests;
-
-    // Identify regressions and improvements
-    const regressions = this.identifyRegressions(results, previousResults);
-    const improvements = this.identifyImprovements(results, previousResults);
-
-    return {
-      totalTests,
-      passedTests,
-      failedTests,
-      averageScore,
-      averageExecutionTime,
-      averageMemoryUsage,
-      frameworkAccuracy,
-      buildToolAccuracy,
-      containerAccuracy,
-      confidenceAccuracy,
-      regressions,
+      overallDegradation,
+      criticalRegressions,
       improvements,
-      timestamp: new Date().toISOString()
+      stableTests
     };
   }
 
   /**
-   * Calculate framework detection accuracy
+   * Update baseline with current results
    */
-  private calculateFrameworkAccuracy(results: RegressionTestResult[]): number {
-    const totalFrameworks = results.reduce((sum, r) => sum + r.frameworkMatches.length, 0);
-    const matchedFrameworks = results.reduce((sum, r) => 
-      sum + r.frameworkMatches.filter(m => m.matched).length, 0
-    );
-    return totalFrameworks > 0 ? matchedFrameworks / totalFrameworks : 1;
+  async updateBaseline(currentResults: CurrentResult[]): Promise<void> {
+    const baselineResults: BaselineResult[] = currentResults.map(result => ({
+      name: result.name,
+      detectionResult: this.createDetectionResultForBaseline(result.name),
+      expectedScore: result.score,
+      expectedFeatures: this.getExpectedFeaturesForTest(result.name),
+      timestamp: new Date().toISOString(),
+      version: this.version
+    }));
+
+    await this.saveBaselineResults(baselineResults);
   }
 
   /**
-   * Calculate build tool detection accuracy
+   * Generate regression test report
    */
-  private calculateBuildToolAccuracy(results: RegressionTestResult[]): number {
-    const totalBuildTools = results.reduce((sum, r) => sum + r.buildToolMatches.length, 0);
-    const matchedBuildTools = results.reduce((sum, r) => 
-      sum + r.buildToolMatches.filter(m => m.matched).length, 0
-    );
-    return totalBuildTools > 0 ? matchedBuildTools / totalBuildTools : 1;
-  }
+  generateRegressionReport(comparison: QualityComparison): string {
+    let report = '\n' + '='.repeat(80) + '\n';
+    report += '📊 REGRESSION TEST REPORT\n';
+    report += '='.repeat(80) + '\n';
 
-  /**
-   * Calculate container detection accuracy
-   */
-  private calculateContainerAccuracy(results: RegressionTestResult[]): number {
-    const totalContainers = results.reduce((sum, r) => sum + r.containerMatches.length, 0);
-    const matchedContainers = results.reduce((sum, r) => 
-      sum + r.containerMatches.filter(m => m.matched).length, 0
-    );
-    return totalContainers > 0 ? matchedContainers / totalContainers : 1;
-  }
+    // Overall summary
+    report += `\n📈 Overall Quality Change: ${(comparison.overallDegradation * 100).toFixed(1)}% degradation\n`;
+    report += `✅ Stable Tests: ${comparison.stableTests.length}\n`;
+    report += `📈 Improvements: ${comparison.improvements.length}\n`;
+    report += `⚠️  Regressions: ${comparison.criticalRegressions.length}\n`;
 
-  /**
-   * Identify regressions compared to previous results
-   */
-  private identifyRegressions(
-    currentResults: RegressionTestResult[],
-    previousResults?: RegressionTestResult[]
-  ): RegressionIssue[] {
-    if (!previousResults) return [];
-
-    const regressions: RegressionIssue[] = [];
-
-    for (const current of currentResults) {
-      const previous = previousResults.find(p => p.testCaseId === current.testCaseId);
-      if (!previous) continue;
-
-      // Check for score regression
-      if (current.score < previous.score - 0.1) {
-        regressions.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          issueType: 'framework_missing',
-          description: `Overall score decreased from ${previous.score.toFixed(3)} to ${current.score.toFixed(3)}`,
-          severity: current.score < 0.5 ? 'critical' : current.score < 0.7 ? 'high' : 'medium',
-          previousScore: previous.score,
-          currentScore: current.score
-        });
-      }
-
-      // Check for performance regression
-      if (current.executionTime > previous.executionTime * 1.5) {
-        regressions.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          issueType: 'performance_degraded',
-          description: `Execution time increased from ${previous.executionTime}ms to ${current.executionTime}ms`,
-          severity: current.executionTime > previous.executionTime * 2 ? 'high' : 'medium',
-          previousScore: previous.executionTime,
-          currentScore: current.executionTime
-        });
-      }
-
-      // Check for new warnings
-      if (current.warningCheck.actual > previous.warningCheck.actual) {
-        regressions.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          issueType: 'new_warnings',
-          description: `Warning count increased from ${previous.warningCheck.actual} to ${current.warningCheck.actual}`,
-          severity: 'low',
-          previousScore: previous.warningCheck.actual,
-          currentScore: current.warningCheck.actual
-        });
-      }
+    // Critical regressions
+    if (comparison.criticalRegressions.length > 0) {
+      report += '\n❌ CRITICAL REGRESSIONS:\n';
+      report += '-'.repeat(40) + '\n';
+      
+      comparison.criticalRegressions.forEach(regression => {
+        report += `• ${regression.testName} (${regression.severity.toUpperCase()})\n`;
+        report += `  Previous: ${(regression.previousScore * 100).toFixed(1)}% → Current: ${(regression.currentScore * 100).toFixed(1)}%\n`;
+        report += `  Degradation: ${(regression.degradation * 100).toFixed(1)}%\n`;
+        report += `  Issue: ${regression.description}\n\n`;
+      });
     }
 
-    return regressions;
-  }
-
-  /**
-   * Identify improvements compared to previous results
-   */
-  private identifyImprovements(
-    currentResults: RegressionTestResult[],
-    previousResults?: RegressionTestResult[]
-  ): ImprovementNote[] {
-    if (!previousResults) return [];
-
-    const improvements: ImprovementNote[] = [];
-
-    for (const current of currentResults) {
-      const previous = previousResults.find(p => p.testCaseId === current.testCaseId);
-      if (!previous) continue;
-
-      // Check for accuracy improvement
-      if (current.score > previous.score + 0.05) {
-        improvements.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          improvementType: 'accuracy_improved',
-          description: `Overall score improved from ${previous.score.toFixed(3)} to ${current.score.toFixed(3)}`,
-          previousScore: previous.score,
-          currentScore: current.score
-        });
-      }
-
-      // Check for performance improvement
-      if (current.executionTime < previous.executionTime * 0.8) {
-        improvements.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          improvementType: 'performance_improved',
-          description: `Execution time improved from ${previous.executionTime}ms to ${current.executionTime}ms`,
-          previousScore: previous.executionTime,
-          currentScore: current.executionTime
-        });
-      }
-
-      // Check for warning reduction
-      if (current.warningCheck.actual < previous.warningCheck.actual) {
-        improvements.push({
-          testCaseId: current.testCaseId,
-          testName: current.testName,
-          improvementType: 'warnings_reduced',
-          description: `Warning count reduced from ${previous.warningCheck.actual} to ${current.warningCheck.actual}`,
-          previousScore: previous.warningCheck.actual,
-          currentScore: current.warningCheck.actual
-        });
-      }
+    // Improvements
+    if (comparison.improvements.length > 0) {
+      report += '\n✅ IMPROVEMENTS:\n';
+      report += '-'.repeat(40) + '\n';
+      
+      comparison.improvements.forEach(improvement => {
+        report += `• ${improvement.testName}\n`;
+        report += `  Previous: ${(improvement.previousScore * 100).toFixed(1)}% → Current: ${(improvement.currentScore * 100).toFixed(1)}%\n`;
+        report += `  Improvement: ${(improvement.improvement * 100).toFixed(1)}%\n`;
+        report += `  Details: ${improvement.description}\n\n`;
+      });
     }
 
-    return improvements;
+    // Stable tests
+    if (comparison.stableTests.length > 0) {
+      report += '\n🔄 STABLE TESTS:\n';
+      report += '-'.repeat(40) + '\n';
+      comparison.stableTests.forEach(test => {
+        report += `• ${test}\n`;
+      });
+    }
+
+    // Recommendations
+    report += '\n💡 RECOMMENDATIONS:\n';
+    report += '-'.repeat(40) + '\n';
+    
+    if (comparison.criticalRegressions.length > 0) {
+      report += '• Investigate critical regressions immediately\n';
+      report += '• Review recent changes that may have affected workflow generation\n';
+      report += '• Consider rolling back problematic changes\n';
+    }
+    
+    if (comparison.overallDegradation > 0.1) {
+      report += '• Overall quality has degraded significantly\n';
+      report += '• Review and update baseline expectations if intentional\n';
+    }
+    
+    if (comparison.improvements.length > comparison.criticalRegressions.length) {
+      report += '• More improvements than regressions - good progress!\n';
+      report += '• Consider updating baseline to reflect improvements\n';
+    }
+
+    report += '\n' + '='.repeat(80) + '\n';
+    
+    return report;
   }
 
   /**
-   * Save regression report
+   * Calculate severity of regression
    */
-  async saveReport(report: RegressionReport): Promise<void> {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = join(this.reportsPath, `report-${timestamp}.json`);
-    await writeFile(filePath, JSON.stringify(report, null, 2));
+  private calculateSeverity(degradation: number): 'low' | 'medium' | 'high' | 'critical' {
+    if (degradation >= 0.5) return 'critical';
+    if (degradation >= 0.3) return 'high';
+    if (degradation >= 0.2) return 'medium';
+    return 'low';
   }
 
   /**
-   * Generate default regression test cases
+   * Create default baseline for initial setup
    */
-  async createDefaultTestCases(): Promise<void> {
-    const defaultTestCases: Omit<RegressionTestCase, 'createdAt' | 'lastUpdated' | 'version'>[] = [
+  private createDefaultBaseline(): BaselineResult[] {
+    return [
       {
-        id: 'react-typescript-basic',
-        name: 'React TypeScript Basic Detection',
-        description: 'Basic React application with TypeScript',
-        projectInfo: {
-          languages: ['JavaScript', 'TypeScript'],
-          configFiles: [
-            { name: 'package.json', path: '/package.json', type: 'npm' },
-            { name: 'tsconfig.json', path: '/tsconfig.json', type: 'typescript' }
-          ],
-          dependencies: [
-            { name: 'package.json', path: '/package.json', type: 'npm' }
-          ],
-          metadata: {
-            name: 'react-typescript-app',
-            description: 'React TypeScript application',
-            version: '1.0.0'
-          }
-        },
-        expectedResults: {
-          frameworks: [
-            { name: 'React', ecosystem: 'nodejs', type: 'frontend_framework', minConfidence: 0.8, required: true },
-            { name: 'TypeScript', ecosystem: 'nodejs', minConfidence: 0.7, required: true }
-          ],
-          buildTools: [
-            { name: 'npm', minConfidence: 0.9, required: true }
-          ],
+        name: 'React App Regression',
+        detectionResult: {
+          languages: [{ name: 'JavaScript', confidence: 0.9, sources: ['package.json'] }],
+          frameworks: [{ name: 'React', ecosystem: 'nodejs', confidence: 0.8, type: 'frontend_framework' }],
+          buildTools: [{ name: 'npm', confidence: 0.9, configFile: 'package.json' }],
           containers: [],
-          minOverallConfidence: 0.7,
-          maxWarnings: 2,
-          tags: ['react', 'typescript', 'frontend']
-        }
+          deploymentTargets: ['vercel'],
+          confidence: { score: 0.8, factors: ['React project detected'] },
+          warnings: []
+        },
+        expectedScore: 0.85,
+        expectedFeatures: ['setup-node', 'npm ci', 'npm run build', 'npm test'],
+        timestamp: new Date().toISOString(),
+        version: this.version
       },
-
       {
-        id: 'django-python-api',
-        name: 'Django Python API Detection',
-        description: 'Django REST API with Python',
-        projectInfo: {
-          languages: ['Python'],
-          configFiles: [
-            { name: 'requirements.txt', path: '/requirements.txt', type: 'pip' }
-          ],
-          dependencies: [
-            { name: 'requirements.txt', path: '/requirements.txt', type: 'pip' }
-          ],
-          metadata: {
-            name: 'django-api',
-            description: 'Django REST API',
-            version: '1.0.0'
-          }
+        name: 'Python Django Regression',
+        detectionResult: {
+          languages: [{ name: 'Python', confidence: 0.9, sources: ['requirements.txt'] }],
+          frameworks: [{ name: 'Django', ecosystem: 'python', confidence: 0.8, type: 'web_framework' }],
+          buildTools: [{ name: 'pip', confidence: 0.9, configFile: 'requirements.txt' }],
+          containers: [{ type: 'docker', configFiles: ['Dockerfile'] }],
+          deploymentTargets: ['aws'],
+          confidence: { score: 0.8, factors: ['Django project detected'] },
+          warnings: []
         },
-        expectedResults: {
-          frameworks: [
-            { name: 'Django', ecosystem: 'python', type: 'web_framework', minConfidence: 0.8, required: true }
-          ],
-          buildTools: [
-            { name: 'pip', minConfidence: 0.9, required: true }
-          ],
-          containers: [],
-          minOverallConfidence: 0.7,
-          maxWarnings: 1,
-          tags: ['django', 'python', 'api']
-        }
+        expectedScore: 0.82,
+        expectedFeatures: ['setup-python', 'pip install', 'python manage.py test', 'collectstatic'],
+        timestamp: new Date().toISOString(),
+        version: this.version
       },
-
       {
-        id: 'go-gin-microservice',
-        name: 'Go Gin Microservice Detection',
-        description: 'Go microservice with Gin framework',
-        projectInfo: {
-          languages: ['Go'],
-          configFiles: [
-            { name: 'go.mod', path: '/go.mod', type: 'go' }
-          ],
-          dependencies: [
-            { name: 'go.mod', path: '/go.mod', type: 'go' }
-          ],
-          metadata: {
-            name: 'go-gin-service',
-            description: 'Go Gin microservice',
-            version: '1.0.0'
-          }
+        name: 'Go Microservice Regression',
+        detectionResult: {
+          languages: [{ name: 'Go', confidence: 0.9, sources: ['go.mod'] }],
+          frameworks: [{ name: 'Gin', ecosystem: 'go', confidence: 0.8, type: 'web_framework' }],
+          buildTools: [{ name: 'go', confidence: 0.9, configFile: 'go.mod' }],
+          containers: [{ type: 'docker', configFiles: ['Dockerfile'] }],
+          deploymentTargets: ['kubernetes'],
+          confidence: { score: 0.8, factors: ['Go microservice detected'] },
+          warnings: []
         },
-        expectedResults: {
-          frameworks: [
-            { name: 'Gin', ecosystem: 'go', type: 'web_framework', minConfidence: 0.7, required: true }
-          ],
-          buildTools: [
-            { name: 'go', minConfidence: 0.9, required: true }
-          ],
+        expectedScore: 0.80,
+        expectedFeatures: ['setup-go', 'go build', 'go test ./...', 'docker build'],
+        timestamp: new Date().toISOString(),
+        version: this.version
+      },
+      {
+        name: 'Rust CLI Tool Regression',
+        detectionResult: {
+          languages: [{ name: 'Rust', confidence: 0.9, sources: ['Cargo.toml'] }],
+          frameworks: [{ name: 'Clap', ecosystem: 'rust', confidence: 0.7, type: 'cli_framework' }],
+          buildTools: [{ name: 'cargo', confidence: 0.9, configFile: 'Cargo.toml' }],
           containers: [],
-          minOverallConfidence: 0.7,
-          maxWarnings: 1,
-          tags: ['go', 'gin', 'microservice']
-        }
+          deploymentTargets: ['github-releases'],
+          confidence: { score: 0.8, factors: ['Rust CLI tool detected'] },
+          warnings: []
+        },
+        expectedScore: 0.78,
+        expectedFeatures: ['rust-toolchain', 'cargo build', 'cargo test', 'cargo clippy'],
+        timestamp: new Date().toISOString(),
+        version: this.version
+      },
+      {
+        name: 'Java Spring Boot Regression',
+        detectionResult: {
+          languages: [{ name: 'Java', confidence: 0.9, sources: ['pom.xml'] }],
+          frameworks: [{ name: 'Spring Boot', ecosystem: 'java', confidence: 0.8, type: 'web_framework' }],
+          buildTools: [{ name: 'maven', confidence: 0.9, configFile: 'pom.xml' }],
+          containers: [{ type: 'docker', configFiles: ['Dockerfile'] }],
+          deploymentTargets: ['aws'],
+          confidence: { score: 0.8, factors: ['Spring Boot application detected'] },
+          warnings: []
+        },
+        expectedScore: 0.83,
+        expectedFeatures: ['setup-java', './mvnw compile', './mvnw test', 'docker build'],
+        timestamp: new Date().toISOString(),
+        version: this.version
       }
     ];
+  }
 
-    for (const testCase of defaultTestCases) {
-      await this.createTestCase(testCase);
+  /**
+   * Create detection result for baseline (simplified)
+   */
+  private createDetectionResultForBaseline(testName: string): DetectionResult {
+    // This is a simplified version - in practice, you'd store the actual detection results
+    const baseResult: DetectionResult = {
+      languages: [],
+      frameworks: [],
+      buildTools: [],
+      containers: [],
+      deploymentTargets: [],
+      confidence: { score: 0.8, factors: [] },
+      warnings: []
+    };
+
+    if (testName.includes('React')) {
+      baseResult.languages.push({ name: 'JavaScript', confidence: 0.9, sources: ['package.json'] });
+      baseResult.frameworks.push({ name: 'React', ecosystem: 'nodejs', confidence: 0.8, type: 'frontend_framework' });
+      baseResult.buildTools.push({ name: 'npm', confidence: 0.9, configFile: 'package.json' });
+    }
+
+    if (testName.includes('Django')) {
+      baseResult.languages.push({ name: 'Python', confidence: 0.9, sources: ['requirements.txt'] });
+      baseResult.frameworks.push({ name: 'Django', ecosystem: 'python', confidence: 0.8, type: 'web_framework' });
+      baseResult.buildTools.push({ name: 'pip', confidence: 0.9, configFile: 'requirements.txt' });
+    }
+
+    if (testName.includes('Go')) {
+      baseResult.languages.push({ name: 'Go', confidence: 0.9, sources: ['go.mod'] });
+      baseResult.frameworks.push({ name: 'Gin', ecosystem: 'go', confidence: 0.8, type: 'web_framework' });
+      baseResult.buildTools.push({ name: 'go', confidence: 0.9, configFile: 'go.mod' });
+    }
+
+    if (testName.includes('Rust')) {
+      baseResult.languages.push({ name: 'Rust', confidence: 0.9, sources: ['Cargo.toml'] });
+      baseResult.frameworks.push({ name: 'Clap', ecosystem: 'rust', confidence: 0.7, type: 'cli_framework' });
+      baseResult.buildTools.push({ name: 'cargo', confidence: 0.9, configFile: 'Cargo.toml' });
+    }
+
+    if (testName.includes('Java')) {
+      baseResult.languages.push({ name: 'Java', confidence: 0.9, sources: ['pom.xml'] });
+      baseResult.frameworks.push({ name: 'Spring Boot', ecosystem: 'java', confidence: 0.8, type: 'web_framework' });
+      baseResult.buildTools.push({ name: 'maven', confidence: 0.9, configFile: 'pom.xml' });
+    }
+
+    return baseResult;
+  }
+
+  /**
+   * Get expected features for a test
+   */
+  private getExpectedFeaturesForTest(testName: string): string[] {
+    if (testName.includes('React')) {
+      return ['setup-node', 'npm ci', 'npm run build', 'npm test'];
+    }
+    
+    if (testName.includes('Django')) {
+      return ['setup-python', 'pip install', 'python manage.py test', 'collectstatic'];
+    }
+    
+    if (testName.includes('Go')) {
+      return ['setup-go', 'go build', 'go test ./...', 'docker build'];
+    }
+    
+    if (testName.includes('Rust')) {
+      return ['rust-toolchain', 'cargo build', 'cargo test', 'cargo clippy'];
+    }
+    
+    if (testName.includes('Java')) {
+      return ['setup-java', './mvnw compile', './mvnw test', 'docker build'];
+    }
+    
+    return [];
+  }
+
+  /**
+   * Check if baseline needs updating
+   */
+  async shouldUpdateBaseline(): Promise<boolean> {
+    try {
+      const baseline = await this.getBaselineResults();
+      
+      if (baseline.length === 0) {
+        return true; // No baseline exists
+      }
+
+      // Check if baseline is old (more than 30 days)
+      const oldestBaseline = baseline.reduce((oldest, current) => {
+        const currentDate = new Date(current.timestamp);
+        const oldestDate = new Date(oldest.timestamp);
+        return currentDate < oldestDate ? current : oldest;
+      });
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      return new Date(oldestBaseline.timestamp) < thirtyDaysAgo;
+    } catch (error) {
+      return true; // Error reading baseline, should update
+    }
+  }
+
+  /**
+   * Archive old baseline
+   */
+  async archiveBaseline(): Promise<void> {
+    try {
+      const baseline = await this.getBaselineResults();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const archiveFile = join(this.baselinePath, `baseline-archive-${timestamp}.json`);
+      
+      await mkdir(this.baselinePath, { recursive: true });
+      await writeFile(archiveFile, JSON.stringify(baseline, null, 2));
+    } catch (error) {
+      console.warn('Failed to archive baseline:', error);
     }
   }
 }

@@ -321,10 +321,12 @@ export class MetadataExtractor implements ContentAnalyzer {
     const invalidNames = [
       'readme', 'readme.md', 'project', 'installation', 'getting started',
       'usage', 'documentation', 'docs', 'api', 'examples', 'license',
-      'contributing', 'changelog', 'todo', 'features', 'requirements'
+      'contributing', 'changelog', 'todo', 'features', 'requirements',
+      'untitled', 'new project', 'my project', 'test', 'example', 
+      'sample', 'demo', 'hello world', 'guide', 'tutorial'
     ];
     
-    return !invalidNames.includes(name.toLowerCase());
+    return !invalidNames.includes(name.toLowerCase().trim());
   }
 
   private cleanProjectName(name: string): string {

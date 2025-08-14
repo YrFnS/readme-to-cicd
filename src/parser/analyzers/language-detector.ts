@@ -85,7 +85,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       fileExtensions: ['.rb'],
       frameworks: ['Rails', 'Sinatra']
     }],
-    ['C/C++', {
+    ['C++', {
       keywords: ['cpp', 'c++', 'cmake', 'make'],
       codeBlocks: ['cpp', 'c++'],
       fileExtensions: ['.cpp', '.cc', '.cxx'],

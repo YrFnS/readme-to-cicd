@@ -40,7 +40,7 @@ export {
 // Performance monitoring
 export {
   PerformanceMonitor,
-  PerformanceMetrics,
+  WorkflowPerformanceMetrics,
   BenchmarkConfig,
   BenchmarkResult,
   performanceMonitor,

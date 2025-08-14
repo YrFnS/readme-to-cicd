@@ -1,18 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JavaAnalyzer } from '../../../src/detection/analyzers/java';
 import { ProjectInfo } from '../../../src/detection/interfaces/language-analyzer';
-import { FileSystemScanner } from '../../../src/detection/utils/file-scanner';
-
-// Mock the FileSystemScanner
-vi.mock('../../../src/detection/utils/file-scanner');
 
 describe('JavaAnalyzer', () => {
   let analyzer: JavaAnalyzer;
   let mockFileScanner: any;
 
   beforeEach(() => {
-    analyzer = new JavaAnalyzer();
-    mockFileScanner = vi.mocked(FileSystemScanner.prototype);
+    mockFileScanner = {
+      fileExists: vi.fn(),
+      readConfigFile: vi.fn(),
+      findConfigFiles: vi.fn(),
+      scanProjectFiles: vi.fn()
+    };
+    analyzer = new JavaAnalyzer(mockFileScanner);
   });
 
   describe('canAnalyze', () => {

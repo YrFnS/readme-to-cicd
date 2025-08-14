@@ -13,8 +13,13 @@ export class JavaAnalyzer extends BaseLanguageAnalyzer {
   readonly name = 'Java Analyzer';
   readonly ecosystem = 'java';
 
-  private fileScanner = new FileSystemScanner();
+  private fileScanner: FileSystemScanner;
   private evidenceCollector = new EvidenceCollectorImpl();
+
+  constructor(fileScanner?: FileSystemScanner) {
+    super();
+    this.fileScanner = fileScanner || new FileSystemScanner();
+  }
 
   canAnalyze(projectInfo: ProjectInfo): boolean {
     // Check for Java/JVM indicators
@@ -718,6 +723,12 @@ export class JavaAnalyzer extends BaseLanguageAnalyzer {
       recommendations.push('Add a build configuration file (pom.xml for Maven or build.gradle for Gradle) to define your Java project structure.');
     }
 
+    // Multi-module project detection (check before framework-specific logic)
+    if (mavenPom?.project?.modules && 
+        (Array.isArray(mavenPom.project.modules.module) && mavenPom.project.modules.module.length > 0)) {
+      recommendations.push('Multi-module Maven project detected. Ensure proper module dependencies and build order.');
+    }
+
     if (frameworks.length === 0) {
       if (buildTools.length > 0) {
         recommendations.push('No specific Java frameworks detected. Consider adding framework dependencies to your build configuration.');
@@ -744,11 +755,6 @@ export class JavaAnalyzer extends BaseLanguageAnalyzer {
 
     if (frameworkNames.includes('micronaut')) {
       recommendations.push('Micronaut supports ahead-of-time compilation. Consider using GraalVM native image for better startup performance.');
-    }
-
-    // Multi-module project detection
-    if (mavenPom?.project?.modules) {
-      recommendations.push('Multi-module Maven project detected. Ensure proper module dependencies and build order.');
     }
 
     return recommendations;
