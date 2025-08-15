@@ -40,9 +40,9 @@ export class ParseErrorImpl extends Error implements ParseError {
     this.column = options.column;
     this.timestamp = new Date().toISOString();
     this.category = options.category || this.categorizeError(code);
-    this.isRecoverable = this.severity === 'warning' || 
-                        this.category === 'analysis' ||
-                        this.code.includes('PARTIAL');
+    this._isRecoverable = this.severity === 'warning' || 
+                         this.category === 'analysis' ||
+                         this.code.includes('PARTIAL');
 
     // Maintain error stack trace
     if (options.cause) {
@@ -113,9 +113,16 @@ export class ParseErrorImpl extends Error implements ParseError {
 
 
   /**
-   * Check if this error is recoverable
+   * Check if this error is recoverable (property for interface compatibility)
    */
-  public readonly isRecoverable: boolean;
+  private readonly _isRecoverable: boolean;
+
+  /**
+   * Check if this error is recoverable (property getter for interface compatibility)
+   */
+  public get isRecoverable(): boolean {
+    return this._isRecoverable;
+  }
 }
 
 /**

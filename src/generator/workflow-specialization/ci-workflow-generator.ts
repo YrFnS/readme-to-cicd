@@ -972,6 +972,7 @@ export class CIWorkflowGenerator {
           languages.push('csharp');
           break;
         case 'cpp':
+        case 'c/c++':
         case 'c++':
           languages.push('cpp');
           break;

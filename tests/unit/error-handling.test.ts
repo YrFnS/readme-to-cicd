@@ -57,17 +57,17 @@ describe('ParseErrorImpl', () => {
 
   it('should determine if error is recoverable', () => {
     const warningError = new ParseErrorImpl('TEST_WARNING', 'Warning', 'Test', 'warning');
-    expect(warningError.isRecoverable()).toBe(true);
+    expect(warningError.isRecoverable).toBe(true);
 
     const analysisError = new ParseErrorImpl('ANALYZER_FAILED', 'Analysis failed', 'Test', 'error', {
       category: 'analysis'
     });
-    expect(analysisError.isRecoverable()).toBe(true);
+    expect(analysisError.isRecoverable).toBe(true);
 
     const fileError = new ParseErrorImpl('FILE_NOT_FOUND', 'File not found', 'Test', 'error', {
       category: 'file-system'
     });
-    expect(fileError.isRecoverable()).toBe(false);
+    expect(fileError.isRecoverable).toBe(false);
   });
 
   it('should convert to JSON correctly', () => {

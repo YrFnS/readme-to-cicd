@@ -1,71 +1,82 @@
-/**
- * Simple integration test to verify our fixes
- */
-
-const { ReadmeParserImpl } = require('./src/parser/readme-parser');
+const { ReadmeParserImpl } = require('./dist/parser/readme-parser');
 
 async function testIntegration() {
-  console.log('Testing README Parser Integration...');
+  console.log('🔧 Testing README Parser Integration...');
   
   const parser = new ReadmeParserImpl({
     useIntegrationPipeline: true,
-    enableCaching: true,
-    enablePerformanceMonitoring: true
+    enablePerformanceMonitoring: false,
+    enableCaching: false
   });
-  
+
   const testContent = `
 # My Node.js Project
 
-A simple Node.js application with TypeScript.
+A simple Node.js application.
 
 ## Installation
 
 \`\`\`bash
 npm install
-npm run build
 npm test
+npm start
 \`\`\`
 
-## Development
+## Build
 
 \`\`\`bash
-npm run dev
-npm run lint
+npm run build
 \`\`\`
 `;
 
   try {
-    console.log('Parsing content...');
+    console.log('📝 Parsing test content...');
     const result = await parser.parseContent(testContent);
     
-    console.log('Result success:', result.success);
-    console.log('Errors:', result.errors?.length || 0);
-    console.log('Warnings:', result.warnings?.length || 0);
-    
+    console.log('✅ Parse result:', {
+      success: result.success,
+      hasData: !!result.data,
+      errorCount: result.errors?.length || 0,
+      warningCount: result.warnings?.length || 0
+    });
+
     if (result.success && result.data) {
-      console.log('Languages detected:', result.data.languages?.length || 0);
-      console.log('Commands found:', Object.keys(result.data.commands || {}).reduce((total, key) => total + (result.data.commands[key]?.length || 0), 0));
-      console.log('Overall confidence:', result.data.confidence?.overall || 0);
+      console.log('📊 Languages detected:', result.data.languages?.length || 0);
+      console.log('🔧 Commands found:', {
+        install: result.data.commands?.install?.length || 0,
+        test: result.data.commands?.test?.length || 0,
+        build: result.data.commands?.build?.length || 0,
+        run: result.data.commands?.run?.length || 0
+      });
       
-      // Check if commands have language information
-      const allCommands = Object.values(result.data.commands || {}).flat();
-      const commandsWithLanguage = allCommands.filter(cmd => cmd.language);
-      console.log('Commands with language info:', commandsWithLanguage.length, '/', allCommands.length);
+      // Check if commands have language associations
+      const allCommands = [
+        ...(result.data.commands?.install || []),
+        ...(result.data.commands?.test || []),
+        ...(result.data.commands?.build || []),
+        ...(result.data.commands?.run || [])
+      ];
       
-      if (commandsWithLanguage.length > 0) {
-        console.log('Sample command with language:', {
-          command: commandsWithLanguage[0].command,
-          language: commandsWithLanguage[0].language
-        });
+      console.log('🏷️ Command language associations:');
+      allCommands.forEach((cmd, i) => {
+        console.log(`  ${i + 1}. "${cmd.command}" -> language: ${cmd.language || 'MISSING'}`);
+      });
+      
+      if (allCommands.length > 0 && allCommands.every(cmd => cmd.language)) {
+        console.log('✅ SUCCESS: All commands have language associations!');
+      } else {
+        console.log('❌ ISSUE: Some commands missing language associations');
       }
     }
-    
-    console.log('Integration test completed successfully!');
-    
+
+    if (result.errors?.length > 0) {
+      console.log('❌ Errors:', result.errors.map(e => e.message));
+    }
+
   } catch (error) {
-    console.error('Integration test failed:', error.message);
+    console.error('💥 Test failed:', error.message);
     console.error(error.stack);
   }
 }
 
-testIntegration();
+testIntegration().catch(console.error);

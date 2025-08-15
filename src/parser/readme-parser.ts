@@ -82,12 +82,20 @@ export class ReadmeParserImpl implements ReadmeParser {
       (options?.performanceOptions ? new PerformanceMonitor(options.performanceOptions) : globalPerformanceMonitor) :
       new PerformanceMonitor({ enabled: false });
     
-    // CRITICAL FIX: Always use IntegrationPipeline for proper component integration
-    this.useIntegrationPipeline = options?.useIntegrationPipeline ?? true;
+    // CRITICAL FIX: Always use IntegrationPipeline by default for proper component integration
+    this.useIntegrationPipeline = options?.useIntegrationPipeline !== false; // Default to true unless explicitly disabled
     
-    // CRITICAL FIX: Initialize IntegrationPipeline synchronously and ensure it's available
+    // CRITICAL FIX: Initialize IntegrationPipeline more robustly
     if (this.useIntegrationPipeline) {
-      this.initializeIntegrationPipelineSync();
+      try {
+        this.initializeIntegrationPipelineSync();
+      } catch (error) {
+        console.warn('Failed to initialize IntegrationPipeline in constructor, will retry on-demand:', error);
+        this.integrationPipeline = null;
+        // Don't disable the flag - we'll try again later
+      }
+    } else {
+      this.integrationPipeline = null;
     }
     
     // Auto-register default analyzers (fallback for when IntegrationPipeline is not used)
@@ -103,11 +111,16 @@ export class ReadmeParserImpl implements ReadmeParser {
       this.integrationPipeline = new IntegrationPipeline({
         enableLogging: false, // Reduce noise
         logLevel: 'warn',
-        enablePerformanceMonitoring: this.performanceMonitor !== null
+        enablePerformanceMonitoring: this.performanceMonitor !== null,
+        pipelineTimeout: 30000, // 30 second timeout
+        enableRecovery: true,
+        maxRetries: 2
       });
+      console.log('IntegrationPipeline initialized successfully in constructor');
     } catch (error) {
-      console.warn('Failed to initialize IntegrationPipeline during construction, will retry on-demand:', error);
+      console.warn('Failed to initialize IntegrationPipeline during construction:', error);
       this.integrationPipeline = null;
+      throw error; // Re-throw to be caught by constructor
     }
   }
 
@@ -255,8 +268,7 @@ export class ReadmeParserImpl implements ReadmeParser {
               await this.initializeIntegrationPipeline();
             } catch (initError) {
               console.warn('Failed to initialize IntegrationPipeline, will use fallback processing:', initError);
-              // Set flag to false to avoid repeated attempts
-              this.useIntegrationPipeline = false;
+              // Don't disable the flag permanently, just skip this time
             }
           }
           
@@ -264,17 +276,27 @@ export class ReadmeParserImpl implements ReadmeParser {
             try {
               const pipelineResult = await this.integrationPipeline.execute(content);
               
-              // CRITICAL FIX: Accept pipeline results even with warnings/partial failures
-              if (pipelineResult.success || (pipelineResult.data && Object.keys(pipelineResult.data).length > 0)) {
+              // CRITICAL FIX: Always prefer pipeline results when available and valid
+              if (pipelineResult.success && pipelineResult.data) {
                 return {
                   success: true,
-                  data: pipelineResult.data || this.createEmptyProjectInfo(),
-                  // Always include errors array for consistency
+                  data: pipelineResult.data,
                   errors: pipelineResult.errors || [],
                   ...(pipelineResult.warnings && { warnings: pipelineResult.warnings })
                 };
+              } else if (pipelineResult.data && Object.keys(pipelineResult.data).length > 0) {
+                // Partial success - return data with errors as warnings
+                return {
+                  success: true,
+                  data: pipelineResult.data,
+                  errors: [], // Convert errors to warnings for partial success
+                  warnings: [
+                    ...(pipelineResult.warnings || []),
+                    ...(pipelineResult.errors?.map(e => e.message) || [])
+                  ]
+                };
               } else {
-                // Only fall back if pipeline completely failed with no data
+                // Pipeline failed completely, log and fall back
                 console.warn('IntegrationPipeline failed completely, using fallback processing. Errors:', pipelineResult.errors);
                 // Continue to fallback processing
               }
@@ -387,20 +409,25 @@ export class ReadmeParserImpl implements ReadmeParser {
           // Try the adapter's setLanguageContexts method first
           if (typeof commandExtractorAdapter.setLanguageContexts === 'function') {
             commandExtractorAdapter.setLanguageContexts(contextsToSet);
-            console.log(`Set ${contextsToSet.length} language contexts on CommandExtractorAdapter`);
+            console.log(`✅ Set ${contextsToSet.length} language contexts on CommandExtractorAdapter`);
           } else if (commandExtractorAdapter.extractor && typeof commandExtractorAdapter.extractor.setLanguageContexts === 'function') {
             // Fallback to accessing the underlying extractor directly
             commandExtractorAdapter.extractor.setLanguageContexts(contextsToSet);
-            console.log(`Set ${contextsToSet.length} language contexts on CommandExtractor directly`);
+            console.log(`✅ Set ${contextsToSet.length} language contexts on CommandExtractor directly`);
           } else {
-            console.warn('CommandExtractor does not have setLanguageContexts method available');
+            console.warn('⚠️ CommandExtractor does not have setLanguageContexts method available');
+            // Try to add the method dynamically as a fallback
+            if (commandExtractorAdapter.extractor) {
+              commandExtractorAdapter.extractor.languageContexts = contextsToSet;
+              console.log(`🔧 Set language contexts directly on extractor property as fallback`);
+            }
           }
         } catch (contextError) {
-          console.warn('Failed to set language contexts on CommandExtractor:', contextError);
+          console.warn('❌ Failed to set language contexts on CommandExtractor:', contextError);
           // Continue processing - this shouldn't be fatal
         }
       } else {
-        console.warn('CommandExtractor adapter not found in registry');
+        console.warn('⚠️ CommandExtractor adapter not found in registry');
       }
       
       // Step 3: Run all analyzers with context coordination
@@ -503,9 +530,24 @@ export class ReadmeParserImpl implements ReadmeParser {
       const allWarnings = aggregatorWarnings.map(w => w.message);
 
       // CRITICAL FIX: Calculate confidence more fairly - don't penalize for failed analyzers if we have good results
+      const successRate = successfulAnalyzers / analyzers.length;
       const confidenceAdjustment = resultsMap.size > 0 ? 
-        Math.max(0.7, successfulAnalyzers / analyzers.length) : // Don't go below 0.7 if we have any results
-        (successfulAnalyzers / analyzers.length);
+        Math.max(0.75, successRate) : // Don't go below 0.75 if we have any results
+        successRate;
+
+      // CRITICAL FIX: Boost confidence if we have language context integration working
+      const hasLanguageContexts = languageContexts.length > 0;
+      const contextBonus = hasLanguageContexts ? 0.05 : 0;
+      
+      // Additional boost for successful command extraction with language association
+      const commandResult = resultsMap.get('CommandExtractor');
+      const hasLanguageAssociatedCommands = commandResult?.data && 
+        Object.values(commandResult.data).some((commands: any) => 
+          Array.isArray(commands) && commands.some((cmd: any) => cmd.language && cmd.language !== 'Shell')
+        );
+      const commandBonus = hasLanguageAssociatedCommands ? 0.05 : 0;
+
+      const finalConfidenceMultiplier = Math.min(confidenceAdjustment + contextBonus + commandBonus, 1.0);
 
       const result: ParseResult = {
         success: true,
@@ -513,7 +555,7 @@ export class ReadmeParserImpl implements ReadmeParser {
           ...projectInfo,
           confidence: {
             ...projectInfo.confidence,
-            overall: projectInfo.confidence.overall * confidenceAdjustment
+            overall: Math.max(projectInfo.confidence.overall * finalConfidenceMultiplier, 0.7) // Ensure minimum confidence
           }
         },
         // CRITICAL FIX: Always include errors array, even if empty
