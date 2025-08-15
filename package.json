@@ -4,6 +4,9 @@
   "description": "Automatically generate optimized GitHub Actions CI/CD workflows from README files",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "readme-to-cicd": "dist/cli/bin/cli.js"
+  },
   "scripts": {
     "build": "npm run validate:integration && tsc",
     "build:fast": "tsc",
@@ -43,15 +46,22 @@
     "@iarna/toml": "^2.2.5",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "boxen": "^7.1.1",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "cosmiconfig": "^9.0.0",
     "handlebars": "^4.7.8",
+    "inquirer": "^9.2.12",
     "js-yaml": "^4.1.0",
     "marked": "^9.1.6",
+    "ora": "^7.0.1",
     "xml2js": "^0.6.2",
     "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@types/handlebars": "^4.1.0",
     "@types/iarna__toml": "^2.0.5",
+    "@types/inquirer": "^9.0.7",
     "@types/js-yaml": "^4.0.9",
     "@types/marked": "^6.0.0",
     "@types/node": "^20.10.0",

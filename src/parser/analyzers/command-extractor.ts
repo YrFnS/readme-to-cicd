@@ -246,7 +246,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     const commands: Command[] = [];
     // CRITICAL FIX: Ensure content is a string and handle edge cases
     if (!content) {
-      return;
+      return commands;
     }
     
     // Convert content to string if it's not already
