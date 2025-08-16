@@ -10,6 +10,8 @@ import * as fs from 'fs/promises';
 import { ComponentOrchestrator } from './component-orchestrator';
 import { Logger } from './logger';
 import { ErrorHandler } from './error-handler';
+import { PerformanceMonitor } from './performance-monitor';
+import { MemoryOptimizer } from './memory-optimizer';
 import {
   CLIOptions,
   CLIResult,
@@ -51,16 +53,22 @@ export class BatchProcessor {
   private logger: Logger;
   private errorHandler: ErrorHandler;
   private config: BatchProcessorConfig;
+  private performanceMonitor?: PerformanceMonitor;
+  private memoryOptimizer?: MemoryOptimizer;
 
   constructor(
     orchestrator: ComponentOrchestrator,
     logger: Logger,
     errorHandler: ErrorHandler,
-    config: Partial<BatchProcessorConfig> = {}
+    config: Partial<BatchProcessorConfig> = {},
+    performanceMonitor?: PerformanceMonitor,
+    memoryOptimizer?: MemoryOptimizer
   ) {
     this.orchestrator = orchestrator;
     this.logger = logger;
     this.errorHandler = errorHandler;
+    this.performanceMonitor = performanceMonitor;
+    this.memoryOptimizer = memoryOptimizer;
     this.config = {
       maxConcurrency: 4,
       projectDetectionTimeout: 30000,
@@ -71,18 +79,30 @@ export class BatchProcessor {
     };
 
     this.logger.debug('BatchProcessor initialized', {
-      config: this.config
+      config: this.config,
+      performanceOptimization: !!this.performanceMonitor,
+      memoryOptimization: !!this.memoryOptimizer
     });
   }
 
   /**
-   * Process multiple projects based on batch options
+   * Process multiple projects based on batch options with performance optimization
    */
   async processBatch(
     batchOptions: BatchProcessingOptions,
     cliOptions: CLIOptions,
     progressCallback?: BatchProgressCallback
   ): Promise<BatchProcessingResult> {
+    const batchTimerId = this.performanceMonitor?.startTimer(
+      'batch-processing',
+      'other',
+      { 
+        directories: batchOptions.directories.length,
+        parallel: batchOptions.parallel,
+        maxConcurrency: batchOptions.maxConcurrency || this.config.maxConcurrency
+      }
+    );
+
     const startTime = Date.now();
     
     this.logger.info('Starting batch processing', {
@@ -91,6 +111,11 @@ export class BatchProcessor {
       parallel: batchOptions.parallel,
       maxConcurrency: batchOptions.maxConcurrency || this.config.maxConcurrency
     });
+
+    // Monitor initial memory state
+    if (this.memoryOptimizer) {
+      await this.memoryOptimizer.monitorMemory();
+    }
 
     try {
       // Phase 1: Project Detection
@@ -147,10 +172,23 @@ export class BatchProcessor {
         totalTime: batchResult.totalExecutionTime
       });
 
+      // End performance monitoring
+      this.performanceMonitor?.endTimer(batchTimerId!, {
+        success: true,
+        totalProjects: batchResult.totalProjects,
+        successfulProjects: batchResult.successfulProjects
+      });
+
       return batchResult;
 
     } catch (error) {
       this.logger.error('Batch processing failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      // End performance monitoring with error
+      this.performanceMonitor?.endTimer(batchTimerId!, {
+        success: false,
         error: error instanceof Error ? error.message : String(error)
       });
 
@@ -365,7 +403,7 @@ export class BatchProcessor {
   }
 
   /**
-   * Process multiple projects with optional parallelization
+   * Process multiple projects with optional parallelization and memory optimization
    */
   private async processProjects(
     projects: ProjectInfo[],
@@ -376,15 +414,26 @@ export class BatchProcessor {
     const results: BatchProjectResult[] = [];
     
     if (batchOptions.parallel) {
-      // Parallel processing with concurrency control
-      const concurrency = Math.min(
+      // Optimize concurrency based on memory constraints
+      let concurrency = Math.min(
         batchOptions.maxConcurrency || this.config.maxConcurrency,
         projects.length
       );
 
+      // Adjust concurrency based on memory pressure
+      if (this.memoryOptimizer) {
+        const memoryContext = this.memoryOptimizer.optimizeBatchProcessing(
+          projects.length,
+          concurrency,
+          5 * 1024 * 1024 // Estimate 5MB per project
+        );
+        concurrency = memoryContext.currentBatchSize;
+      }
+
       this.logger.info('Starting parallel processing', {
         totalProjects: projects.length,
-        concurrency
+        concurrency,
+        memoryOptimized: !!this.memoryOptimizer
       });
 
       const chunks = this.chunkArray(projects, concurrency);
@@ -429,6 +478,11 @@ export class BatchProcessor {
             currentProject: project.name,
             phase: 'processing'
           });
+        }
+
+        // Trigger garbage collection after each chunk if memory optimizer is available
+        if (this.memoryOptimizer && results.length % concurrency === 0) {
+          await this.memoryOptimizer.triggerGCIfNeeded();
         }
       }
 

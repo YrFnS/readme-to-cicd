@@ -1,10 +1,12 @@
-import { CLIOptions, CLIResult, BatchProcessingOptions } from './types';
+import { CLIOptions, CLIResult, BatchProcessingOptions, CLIConfig } from './types';
 import { Logger } from './logger';
 import { ErrorHandler } from './error-handler';
 import { CommandParser } from './command-parser';
 import { ComponentOrchestrator } from './component-orchestrator';
 import { BatchProcessor } from './batch-processor';
 import { ConfigExporter, ImportOptions } from './config-exporter';
+import { CIEnvironmentDetector, MachineOutputFormatter, CIExitCodeManager } from './ci-environment';
+import { InitCommand, InitCommandOptions } from './init-command';
 
 /**
  * Main CLI Application class
@@ -17,11 +19,16 @@ export class CLIApplication {
   private componentOrchestrator: ComponentOrchestrator;
   private batchProcessor: BatchProcessor;
   private configExporter: ConfigExporter;
+  private initCommand: InitCommand;
+  private ciEnvironment: CIEnvironmentDetector;
+  private machineOutputFormatter: MachineOutputFormatter;
 
   constructor(
     private readonly logger: Logger,
     private readonly errorHandler: ErrorHandler
   ) {
+    this.ciEnvironment = new CIEnvironmentDetector();
+    this.machineOutputFormatter = new MachineOutputFormatter(this.ciEnvironment);
     this.commandParser = new CommandParser();
     this.componentOrchestrator = new ComponentOrchestrator(
       this.logger,
@@ -47,6 +54,7 @@ export class CLIApplication {
       }
     );
     this.configExporter = new ConfigExporter();
+    this.initCommand = new InitCommand(this.logger, this.errorHandler);
   }
 
   /**
@@ -56,22 +64,39 @@ export class CLIApplication {
     const startTime = Date.now();
     
     try {
-      this.logger.debug('Starting CLI application', { args });
+      this.logger.debug('Starting CLI application', { 
+        args,
+        ciEnvironment: this.ciEnvironment.getEnvironmentInfo()
+      });
       
       // Parse arguments using CommandParser
       const options = this.parseArguments(args);
-      this.logger.debug('Parsed CLI options', { options });
+      
+      // Apply CI environment configuration
+      const enhancedOptions = await this.applyCIEnvironmentConfiguration(options);
+      
+      this.logger.debug('Parsed CLI options with CI configuration', { options: enhancedOptions });
       
       // Execute the command
-      const result = await this.executeCommand(options);
+      const result = await this.executeCommand(enhancedOptions);
       
       // Add execution time to summary
       result.summary.executionTime = Date.now() - startTime;
       
+      // Handle CI-specific output formatting and exit codes
+      await this.handleCIOutput(result, enhancedOptions);
+      
       return result;
     } catch (error) {
       this.logger.error('CLI execution failed', { error });
-      return this.errorHandler.handleCLIError(error as Error);
+      const errorResult = this.errorHandler.handleCLIError(error as Error);
+      
+      // Handle CI exit codes for errors
+      if (this.ciEnvironment.isCI()) {
+        CIExitCodeManager.exit(errorResult);
+      }
+      
+      return errorResult;
     }
   }
 
@@ -113,17 +138,114 @@ export class CLIApplication {
   }
 
   /**
+   * Apply CI environment configuration to CLI options
+   */
+  private async applyCIEnvironmentConfiguration(options: CLIOptions): Promise<CLIOptions> {
+    // Load configuration from CI environment variables
+    const ciConfig = this.ciEnvironment.loadConfigurationFromEnvironment();
+    
+    // Apply CI-specific option overrides
+    const enhancedOptions: CLIOptions = { ...options };
+    
+    // Force non-interactive mode in CI environments
+    if (this.ciEnvironment.shouldUseNonInteractiveMode()) {
+      enhancedOptions.interactive = false;
+      enhancedOptions.quiet = enhancedOptions.quiet || this.ciEnvironment.isCI();
+      
+      this.logger.info('CI environment detected, using non-interactive mode', {
+        provider: this.ciEnvironment.getCIProvider(),
+        isCI: this.ciEnvironment.isCI()
+      });
+    }
+    
+    // Apply CI configuration defaults
+    if (ciConfig.defaults) {
+      enhancedOptions.outputDir = enhancedOptions.outputDir || ciConfig.defaults.outputDirectory;
+      enhancedOptions.workflowType = enhancedOptions.workflowType || ciConfig.defaults.workflowTypes;
+    }
+    
+    // Apply Git configuration from CI environment
+    if (ciConfig.git && !enhancedOptions.config) {
+      // CI environment Git settings would be applied through configuration loading
+      this.logger.debug('CI Git configuration available', { gitConfig: ciConfig.git });
+    }
+    
+    return enhancedOptions;
+  }
+
+  /**
+   * Handle CI-specific output formatting and exit codes
+   */
+  private async handleCIOutput(result: CLIResult, options: CLIOptions): Promise<void> {
+    // Check if machine-readable output is requested or if running in CI
+    const shouldOutputMachineReadable = this.ciEnvironment.isCI() || options.ci;
+    
+    this.logger.debug('Checking CI output requirements', {
+      isCI: this.ciEnvironment.isCI(),
+      ciFlag: options.ci,
+      shouldOutput: shouldOutputMachineReadable
+    });
+    
+    if (shouldOutputMachineReadable) {
+      // Determine output format (default to JSON for CI)
+      const format = process.env.README_TO_CICD_OUTPUT_FORMAT === 'xml' ? 'xml' : 'json';
+      
+      // Generate machine-readable output
+      const machineOutput = this.machineOutputFormatter.formatOutput(result, options, format);
+      const outputString = this.machineOutputFormatter.stringify(machineOutput);
+      
+      // Output to stdout for CI consumption
+      console.log(outputString);
+      
+      this.logger.debug('Machine-readable output generated', {
+        format,
+        success: result.success,
+        filesGenerated: result.generatedFiles.length
+      });
+    }
+    
+    // Handle exit codes in CI environments or when --ci flag is used
+    if (this.ciEnvironment.isCI() || options.ci) {
+      const exitCode = CIExitCodeManager.getExitCode(result);
+      
+      this.logger.info('CI execution completed', {
+        success: result.success,
+        exitCode,
+        exitCodeDescription: CIExitCodeManager.getExitCodeDescription(exitCode),
+        provider: this.ciEnvironment.getCIProvider(),
+        explicitCIMode: options.ci
+      });
+      
+      // Note: We don't call process.exit here to allow the caller to handle it
+      // The exit code is available through CIExitCodeManager.getExitCode(result)
+    }
+  }
+
+  /**
    * Configure logging based on CLI options
    */
   private configureLogging(options: CLIOptions): void {
-    if (options.quiet) {
-      this.logger.setLevel('error');
-    } else if (options.debug) {
-      this.logger.setLevel('debug');
-    } else if (options.verbose) {
-      this.logger.setLevel('info');
+    // In CI environments, adjust logging levels for better CI output
+    if (this.ciEnvironment.isCI()) {
+      if (options.debug) {
+        this.logger.setLevel('debug');
+      } else if (options.verbose) {
+        this.logger.setLevel('info');
+      } else {
+        // In CI, default to warn level to reduce noise
+        this.logger.setLevel('warn');
+      }
     } else {
-      this.logger.setLevel('warn');
+      // Standard logging configuration for interactive use
+      if (options.quiet) {
+        this.logger.setLevel('error');
+      } else if (options.debug) {
+        this.logger.setLevel('debug');
+      } else if (options.verbose) {
+        this.logger.setLevel('info');
+      } else {
+        this.logger.setLevel('warn');
+      }
     }
   }
 
@@ -279,28 +401,42 @@ export class CLIApplication {
   }
 
   /**
-   * Execute init command (placeholder for future implementation)
+   * Execute init command using InitCommand
    */
   private async executeInitCommand(options: CLIOptions): Promise<CLIResult> {
     this.logger.info('Executing init command', { options });
     
-    // Placeholder implementation - will be expanded in future tasks
-    return {
-      success: true,
-      generatedFiles: [],
-      errors: [],
-      warnings: [],
-      summary: {
-        totalTime: 0,
-        filesGenerated: 0,
-        workflowsCreated: 0,
-        frameworksDetected: [],
-        optimizationsApplied: 0,
-        executionTime: 0,
-        filesProcessed: 0,
-        workflowsGenerated: 0
-      }
-    };
+    try {
+      // Extract init-specific options from CLI options
+      const initOptions: InitCommandOptions = {
+        template: this.getTemplateFromOptions(options) || 'basic',
+        interactive: options.interactive || false,
+        outputPath: options.config,
+        overwrite: false // Could be added as CLI option in the future
+      };
+
+      // Execute the init command
+      return await this.initCommand.execute(initOptions);
+      
+    } catch (error) {
+      this.logger.error('Init command failed', { error });
+      return this.errorHandler.handleCLIError(error as Error);
+    }
+  }
+
+  /**
+   * Extract template type from CLI options
+   */
+  private getTemplateFromOptions(options: CLIOptions): 'basic' | 'enterprise' | 'team' | undefined {
+    // The template option would be parsed from the init command
+    // For now, we'll check if it's available in the options
+    const template = (options as any).template;
+    
+    if (template && ['basic', 'enterprise', 'team'].includes(template)) {
+      return template as 'basic' | 'enterprise' | 'team';
+    }
+    
+    return undefined;
   }
 
   /**

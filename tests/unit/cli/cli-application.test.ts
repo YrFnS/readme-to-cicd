@@ -43,5 +43,13 @@ describe('CLIApplication', () => {
       expect(result.errors.length).toBeGreaterThan(0);
       expect(result.errors[0].message).toContain('README file not found');
     });
+
+    it('should execute init command successfully', async () => {
+      // Test init command execution
+      const result = await cliApp.run(['node', 'cli.js', 'init', '--template', 'basic']);
+      
+      expect(result.success).toBe(true);
+      expect(result.generatedFiles).toContain('.readme-to-cicd.json');
+    });
   });
 });

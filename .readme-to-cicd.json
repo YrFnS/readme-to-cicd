@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "outputDirectory": ".github/workflows",
+    "workflowTypes": [
+      "ci",
+      "cd",
+      "security"
+    ],
+    "includeComments": true,
+    "optimizationLevel": "standard"
+  },
+  "templates": {},
+  "organization": {},
+  "output": {
+    "format": "yaml",
+    "indentation": 2,
+    "includeMetadata": true,
+    "backupExisting": true
+  },
+  "git": {
+    "autoCommit": false,
+    "commitMessage": "feat: add automated CI/CD workflows"
+  },
+  "ui": {
+    "colorOutput": true,
+    "progressIndicators": true,
+    "verboseLogging": false,
+    "interactivePrompts": true
+  }
+}

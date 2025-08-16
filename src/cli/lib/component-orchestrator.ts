@@ -3,6 +3,8 @@
  * 
  * Coordinates the README Parser, Framework Detection, and YAML Generator components
  * to provide a unified workflow execution pipeline with error handling and recovery.
+ * Enhanced with performance optimization capabilities including caching, lazy loading,
+ * and memory management.
  */
 
 import { ReadmeParserImpl, ParseResult } from '../../parser';
@@ -12,6 +14,10 @@ import { CLIOptions, CLIResult, CLIError, ExecutionSummary, WorkflowType } from 
 import { Logger } from './logger';
 import { ErrorHandler } from './error-handler';
 import { OutputHandler, WorkflowFile } from './output-handler';
+import { CacheManager } from './cache-manager';
+import { PerformanceMonitor } from './performance-monitor';
+import { CLILazyLoader } from './lazy-loader';
+import { MemoryOptimizer } from './memory-optimizer';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
@@ -70,15 +76,22 @@ export interface OrchestrationOptions {
 
 /**
  * Main component orchestrator that coordinates README Parser, Framework Detection, and YAML Generator
+ * Enhanced with performance optimization capabilities
  */
 export class ComponentOrchestrator {
-  private readmeParser: ReadmeParserImpl;
-  private frameworkDetector: FrameworkDetectorImpl;
-  private yamlGenerator: YAMLGeneratorImpl;
+  private readmeParser?: ReadmeParserImpl;
+  private frameworkDetector?: FrameworkDetectorImpl;
+  private yamlGenerator?: YAMLGeneratorImpl;
   private outputHandler: OutputHandler;
   private logger: Logger;
   private errorHandler: ErrorHandler;
   private options: OrchestrationOptions;
+  
+  // Performance optimization components
+  private cacheManager: CacheManager;
+  private performanceMonitor: PerformanceMonitor;
+  private lazyLoader: CLILazyLoader;
+  private memoryOptimizer: MemoryOptimizer;
 
   constructor(
     logger: Logger,
@@ -96,20 +109,25 @@ export class ComponentOrchestrator {
       ...options
     };
 
-    // Initialize components
-    this.readmeParser = new ReadmeParserImpl({
-      enableCaching: true,
-      ...(this.options.enablePerformanceTracking !== undefined && { 
-        enablePerformanceMonitoring: this.options.enablePerformanceTracking 
-      }),
-      useIntegrationPipeline: true
+    // Initialize performance optimization components
+    this.performanceMonitor = new PerformanceMonitor(this.logger, {
+      enableProfiling: this.options.enablePerformanceTracking,
+      enableMemoryTracking: true,
+      slowOperationThreshold: 1000
     });
 
-    this.frameworkDetector = new FrameworkDetectorImpl();
+    this.cacheManager = new CacheManager(this.logger, {
+      maxSize: 50 * 1024 * 1024, // 50MB
+      defaultTtl: 30 * 60 * 1000, // 30 minutes
+      enablePersistence: true
+    });
 
-    this.yamlGenerator = new YAMLGeneratorImpl({
-      cacheEnabled: true,
-      advancedPatternsEnabled: true
+    this.lazyLoader = new CLILazyLoader(this.logger, this.performanceMonitor);
+
+    this.memoryOptimizer = new MemoryOptimizer(this.logger, this.performanceMonitor, {
+      enableGCOptimization: true,
+      gcThresholdMB: 100,
+      maxHeapUsageMB: 512
     });
 
     this.outputHandler = new OutputHandler(logger, {
@@ -122,14 +140,48 @@ export class ComponentOrchestrator {
 
     this.logger.debug('ComponentOrchestrator initialized', {
       options: this.options,
-      components: ['ReadmeParser', 'FrameworkDetector', 'YAMLGenerator', 'OutputHandler']
+      components: ['ReadmeParser', 'FrameworkDetector', 'YAMLGenerator', 'OutputHandler'],
+      performanceOptimization: true
     });
   }
 
   /**
-   * Execute the complete workflow pipeline
+   * Initialize components with lazy loading
+   */
+  private async initializeComponents(): Promise<void> {
+    if (!this.readmeParser) {
+      const ReadmeParserClass = await this.lazyLoader.getReadmeParser();
+      this.readmeParser = new ReadmeParserClass({
+        enableCaching: true,
+        enablePerformanceMonitoring: this.options.enablePerformanceTracking,
+        useIntegrationPipeline: true
+      });
+    }
+
+    if (!this.frameworkDetector) {
+      const FrameworkDetectorClass = await this.lazyLoader.getFrameworkDetector();
+      this.frameworkDetector = new FrameworkDetectorClass();
+    }
+
+    if (!this.yamlGenerator) {
+      const YAMLGeneratorClass = await this.lazyLoader.getYamlGenerator();
+      this.yamlGenerator = new YAMLGeneratorClass({
+        cacheEnabled: true,
+        advancedPatternsEnabled: true
+      });
+    }
+  }
+
+  /**
+   * Execute the complete workflow pipeline with performance optimization
    */
   async executeWorkflow(cliOptions: CLIOptions): Promise<CLIResult> {
+    const workflowTimerId = this.performanceMonitor.startTimer(
+      'complete-workflow',
+      'other',
+      { command: cliOptions.command, dryRun: cliOptions.dryRun }
+    );
+
     const context = this.createExecutionContext(cliOptions);
     
     try {
@@ -140,22 +192,43 @@ export class ComponentOrchestrator {
         dryRun: cliOptions.dryRun
       });
 
+      // Initialize components with lazy loading
+      await this.performanceMonitor.timeFunction(
+        'initialize-components',
+        () => this.initializeComponents(),
+        'other'
+      );
+
+      // Monitor memory before execution
+      await this.memoryOptimizer.monitorMemory();
+
       // Handle dry-run mode
       if (cliOptions.dryRun) {
-        return await this.executeDryRun(context);
+        const result = await this.executeDryRun(context);
+        this.performanceMonitor.endTimer(workflowTimerId, { success: true, dryRun: true });
+        return result;
       }
 
-      // Execute the pipeline steps
+      // Execute the pipeline steps with performance monitoring
       await this.executeParsingStep(context);
       await this.executeDetectionStep(context);
       await this.executeGenerationStep(context);
       await this.executeOutputStep(context);
 
+      // Trigger GC if needed after processing
+      await this.memoryOptimizer.triggerGCIfNeeded();
+
       // Mark as complete
       context.currentStep = 'complete';
       context.totalExecutionTime = Date.now() - context.startTime.getTime();
 
-      return this.createSuccessResult(context);
+      const result = this.createSuccessResult(context);
+      this.performanceMonitor.endTimer(workflowTimerId, { 
+        success: true, 
+        filesGenerated: result.generatedFiles.length 
+      });
+
+      return result;
 
     } catch (error) {
       context.currentStep = 'error';
@@ -165,6 +238,11 @@ export class ComponentOrchestrator {
         executionId: context.executionId,
         error: error instanceof Error ? error.message : String(error),
         currentStep: context.currentStep
+      });
+
+      this.performanceMonitor.endTimer(workflowTimerId, { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
       });
 
       return this.createErrorResult(context, error);

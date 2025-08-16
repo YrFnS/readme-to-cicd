@@ -7,13 +7,16 @@
 
 import { Command, Option, CommanderError } from 'commander';
 import { CLIOptions, WorkflowType, CLIError } from './types';
+import { HelpSystem, HelpRequest } from './help-system';
 
 export class CommandParser {
   private program: Command;
   private parsedOptions: CLIOptions | null = null;
+  private helpSystem: HelpSystem;
 
   constructor() {
     this.program = new Command();
+    this.helpSystem = new HelpSystem();
     this.setupProgram();
   }
 
@@ -41,10 +44,26 @@ export class CommandParser {
       return this.parsedOptions;
     } catch (error) {
       if (error instanceof CommanderError) {
-        throw this.createParseError(new Error(error.message));
+        throw this.createParseErrorWithSuggestions(new Error(error.message), args);
       }
-      throw this.createParseError(error as Error);
+      throw this.createParseErrorWithSuggestions(error as Error, args);
     }
+  }
+
+  /**
+   * Get comprehensive help for a command or error
+   */
+  async getHelp(request: HelpRequest): Promise<string> {
+    const helpResponse = await this.helpSystem.getHelp(request);
+    return this.helpSystem.formatHelp(helpResponse);
+  }
+
+  /**
+   * Get help for command errors with suggestions
+   */
+  getErrorHelp(error: CLIError, command?: string): string {
+    const helpResponse = this.helpSystem.getErrorHelp(error, command);
+    return this.helpSystem.formatHelp(helpResponse);
   }
 
   /**
@@ -78,7 +97,8 @@ export class CommandParser {
       .addOption(new Option('-d, --debug', 'Enable debug output with internal processing steps'))
       .addOption(new Option('-q, --quiet', 'Suppress all non-essential output'))
       .addOption(new Option('-c, --config <path>', 'Load configuration from specified file'))
-      .addOption(new Option('-i, --interactive', 'Enable interactive mode with prompts'));
+      .addOption(new Option('-i, --interactive', 'Enable interactive mode with prompts'))
+      .addOption(new Option('--ci', 'Optimize output for CI/CD environments with machine-readable formats'));
   }
 
   /**
@@ -257,11 +277,15 @@ export class CommandParser {
       debug: Boolean(options.debug),
       quiet: Boolean(options.quiet),
       config: options.config,
+      ci: Boolean(options.ci),
       
       // Export/Import specific options
       output: options.output,
       configFile: options.configFile,
       merge: Boolean(options.merge),
+      
+      // Init specific options
+      template: options.template,
       
       // Batch processing options
       directories: options.directories,
@@ -335,35 +359,73 @@ export class CommandParser {
   }
 
   /**
-   * Create a standardized parse error
+   * Create a standardized parse error with command suggestions
    */
-  private createParseError(error: Error): CLIError {
+  private createParseErrorWithSuggestions(error: Error, args: string[]): CLIError {
     let message = error.message;
+    let suggestions: string[] = [];
+    let errorCode = 'PARSE_ERROR';
     
-    // Handle specific commander error types
+    // Handle specific commander error types with enhanced suggestions
     if (message.includes('unknown command')) {
       const commandMatch = message.match(/unknown command '([^']+)'/);
       if (commandMatch) {
-        message = `Invalid command: ${commandMatch[1]}. Valid commands are: generate, validate, init, export, import`;
+        const unknownCommand = commandMatch[1];
+        message = `Invalid command: ${unknownCommand}`;
+        errorCode = 'UNKNOWN_COMMAND';
+        
+        // Get command suggestions from help system
+        const commandSuggestions = this.helpSystem['commandSuggestionEngine'].suggestCommands(unknownCommand);
+        suggestions = [
+          ...commandSuggestions.map(cmd => `Did you mean: readme-to-cicd ${cmd}?`),
+          'Run "readme-to-cicd --help" to see all available commands',
+          'Check command spelling and syntax'
+        ];
       }
     } else if (message.includes('argument') && message.includes('invalid')) {
       const typeMatch = message.match(/option.*'([^']+)'.*argument '([^']+)' is invalid/);
       if (typeMatch && typeMatch[1] && typeMatch[1].includes('workflow-type')) {
         message = `Invalid workflow types: ${typeMatch[2]}. Valid types are: ci, cd, release`;
+        suggestions = [
+          'Use: --workflow-type ci',
+          'Use: --workflow-type ci cd',
+          'Use: --workflow-type ci cd release',
+          'Run "readme-to-cicd generate --help" for more options'
+        ];
+      }
+    } else if (message.includes('unknown option')) {
+      const optionMatch = message.match(/unknown option '([^']+)'/);
+      if (optionMatch) {
+        const unknownOption = optionMatch[1];
+        
+        // Try to suggest similar options
+        const currentCommand = this.extractCommandFromArgs(args);
+        if (currentCommand) {
+          const optionSuggestions = this.helpSystem['commandSuggestionEngine'].suggestOptions(currentCommand, unknownOption);
+          suggestions = [
+            ...optionSuggestions.map(opt => `Did you mean: ${opt}?`),
+            `Run "readme-to-cicd ${currentCommand} --help" for available options`
+          ];
+        }
       }
     }
     
-    return {
-      code: 'PARSE_ERROR',
-      message,
-      category: 'user-input',
-      severity: 'error',
-      suggestions: [
+    // Default suggestions if none were generated
+    if (suggestions.length === 0) {
+      suggestions = [
         'Check command syntax with --help',
         'Verify all required arguments are provided',
         'Ensure option values are valid'
-      ],
-      context: { originalError: error.message }
+      ];
+    }
+    
+    return {
+      code: errorCode,
+      message,
+      category: 'user-input',
+      severity: 'error',
+      suggestions,
+      context: { originalError: error.message, args }
     };
   }
 
@@ -455,5 +517,26 @@ Examples:
   $ readme-to-cicd import team-config.json             # Import configuration
   $ readme-to-cicd import config.json --merge          # Merge with existing config
 `;
+  }
+
+  /**
+   * Extract command from arguments array
+   */
+  private extractCommandFromArgs(args: string[]): string | null {
+    // Skip program name and find first non-option argument
+    for (let i = 2; i < args.length; i++) {
+      const arg = args[i];
+      if (!arg.startsWith('-') && !arg.startsWith('--')) {
+        return arg;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Create a standardized parse error (legacy method for compatibility)
+   */
+  private createParseError(error: Error): CLIError {
+    return this.createParseErrorWithSuggestions(error, []);
   }
 }

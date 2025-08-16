@@ -34,11 +34,15 @@ export interface CLIOptions {
   debug: boolean;
   quiet: boolean;
   config?: string;
+  ci?: boolean;
   
   // Export/Import specific options
   output?: string;
   configFile?: string;
   merge?: boolean;
+  
+  // Init specific options
+  template?: 'basic' | 'enterprise' | 'team';
   
   // Batch processing options
   directories?: string[];
@@ -234,6 +238,53 @@ export interface ProjectDetectionResult {
   totalDirectoriesScanned: number;
   excludedDirectories: number;
   detectionTime: number;
+}
+
+// CI/CD Environment Integration Types
+export interface CIEnvironment {
+  isCI(): boolean;
+  getCIProvider(): CIProvider;
+  getEnvironmentVariables(): Record<string, string>;
+  shouldUseNonInteractiveMode(): boolean;
+  loadConfigurationFromEnvironment(): Partial<CLIConfig>;
+}
+
+export type CIProvider = 'github' | 'gitlab' | 'jenkins' | 'azure' | 'circleci' | 'travis' | 'bitbucket' | 'unknown';
+
+export interface CIEnvironmentInfo {
+  provider: CIProvider;
+  isCI: boolean;
+  buildId?: string;
+  branchName?: string;
+  commitSha?: string;
+  pullRequestNumber?: string;
+  environmentVariables: Record<string, string>;
+}
+
+export interface MachineReadableOutput {
+  format: 'json' | 'xml';
+  result: CLIResult;
+  metadata: {
+    version: string;
+    timestamp: string;
+    environment: CIEnvironmentInfo;
+    executionContext: {
+      command: string;
+      options: CLIOptions;
+      workingDirectory: string;
+    };
+  };
+}
+
+export interface CIExitCodes {
+  SUCCESS: 0;
+  GENERAL_ERROR: 1;
+  CONFIGURATION_ERROR: 2;
+  PROCESSING_ERROR: 3;
+  FILE_SYSTEM_ERROR: 4;
+  GIT_ERROR: 5;
+  VALIDATION_ERROR: 6;
+  TIMEOUT_ERROR: 7;
 }
 
 // Export types from shared - temporarily defined locally
