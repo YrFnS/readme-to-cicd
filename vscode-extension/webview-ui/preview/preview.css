@@ -1,0 +1,995 @@
+/* Preview Panel Styles */
+.preview-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    overflow: hidden;
+}
+
+.preview-container.split-view {
+    flex-direction: column;
+}
+
+.preview-container.full-preview {
+    flex-direction: column;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-sideBar-background);
+}
+
+.preview-header h1 {
+    margin: 0;
+    font-size: 1.4em;
+    color: var(--vscode-foreground);
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.preview-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.workflow-tabs {
+    display: flex;
+    background-color: var(--vscode-tab-inactiveBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    overflow-x: auto;
+}
+
+.workflow-tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-right: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-tab-inactiveBackground);
+    color: var(--vscode-tab-inactiveForeground);
+    white-space: nowrap;
+}
+
+.workflow-tab.active {
+    background-color: var(--vscode-tab-activeBackground);
+    color: var(--vscode-tab-activeForeground);
+}
+
+.workflow-tab:hover {
+    background-color: var(--vscode-tab-hoverBackground);
+}
+
+.workflow-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: var(--vscode-editorGroupHeader-tabsBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.file-name {
+    font-weight: bold;
+    color: var(--vscode-foreground);
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 2px;
+    color: var(--vscode-foreground);
+}
+
+.icon-btn:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.yaml-content {
+    flex: 1;
+    margin: 0;
+    padding: 15px;
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    line-height: 1.4;
+    overflow: auto;
+    white-space: pre-wrap;
+    border: none;
+    outline: none;
+}
+
+.preview-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-sideBar-background);
+}
+
+.validation-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-indicator {
+    font-size: 16px;
+}
+
+.status-indicator.valid {
+    color: var(--vscode-testing-iconPassed);
+}
+
+.status-indicator.invalid {
+    color: var(--vscode-testing-iconFailed);
+}
+
+.status-indicator.warning {
+    color: var(--vscode-testing-iconQueued);
+}
+
+.footer-actions {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: var(--vscode-font-family);
+    font-size: 13px;
+}
+
+.primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.secondary:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.tertiary {
+    background-color: transparent;
+    color: var(--vscode-foreground);
+    border: 1px solid var(--vscode-button-border);
+}
+
+.tertiary:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+/* Lo
+ading and Error States */
+.preview-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 20px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--vscode-progressBar-background);
+    border-top: 4px solid var(--vscode-progressBar-foreground);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.preview-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 20px;
+    padding: 20px;
+    text-align: center;
+}
+
+.preview-error h2 {
+    color: var(--vscode-errorForeground);
+    margin: 0;
+}
+
+.preview-error p {
+    color: var(--vscode-descriptionForeground);
+    margin: 0;
+}
+
+/* Toolbar Styles */
+.preview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: var(--vscode-editorGroupHeader-tabsBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    min-height: 48px;
+    position: relative;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolbar-section.left {
+    flex: 1;
+    justify-content: flex-start;
+}
+
+.toolbar-section.center {
+    flex: 0;
+    justify-content: center;
+}
+
+.toolbar-section.right {
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--vscode-panel-border);
+    margin: 0 8px;
+}
+
+.toolbar-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.toolbar-button:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+    border-color: var(--vscode-button-border);
+}
+
+.toolbar-button.active {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.toolbar-button.primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-background);
+}
+
+.toolbar-button.primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.toolbar-button.save {
+    background-color: var(--vscode-testing-iconPassed);
+    color: white;
+}
+
+.toolbar-button.cancel {
+    background-color: var(--vscode-testing-iconFailed);
+    color: white;
+}
+
+.button-icon {
+    font-size: 14px;
+}
+
+.button-text {
+    font-weight: 500;
+}
+
+.toolbar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.title-icon {
+    font-size: 16px;
+}
+
+.changes-indicator {
+    color: var(--vscode-testing-iconQueued);
+    font-size: 18px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.split-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.split-slider {
+    width: 80px;
+}
+
+.unsaved-changes-banner {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--vscode-testing-iconQueued);
+    color: white;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10;
+}
+
+.banner-action {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.banner-action:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Content Layout */
+.preview-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.configuration-section {
+    background-color: var(--vscode-sideBar-background);
+    border-right: 1px solid var(--vscode-panel-border);
+    overflow-y: auto;
+}
+
+.preview-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Configuration Panel Styles */
+.configuration-panel {
+    padding: 16px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.panel-header h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--vscode-foreground);
+}
+
+.panel-header p {
+    margin: 0 0 20px 0;
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.config-section {
+    margin-bottom: 24px;
+}
+
+.config-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: var(--vscode-foreground);
+}
+
+.section-icon {
+    font-size: 16px;
+}
+
+.framework-list,
+.workflow-type-list,
+.deployment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.framework-item,
+.workflow-type-item,
+.deployment-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.framework-item:hover,
+.workflow-type-item:hover,
+.deployment-item:hover {
+    background-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder);
+}
+
+.workflow-type-content {
+    flex: 1;
+}
+
+.workflow-type-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.workflow-type-description {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.config-summary {
+    margin-top: 24px;
+    padding: 16px;
+    background-color: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 4px;
+}
+
+.config-summary h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+}
+
+.summary-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.summary-label {
+    font-weight: 500;
+}
+
+.summary-value {
+    color: var(--vscode-descriptionForeground);
+}
+
+.config-actions {
+    margin-top: 16px;
+}
+
+.config-button {
+    padding: 8px 16px;
+    border: 1px solid var(--vscode-button-border);
+    border-radius: 4px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.config-button:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Workflow Tabs Styles */
+.workflow-tabs {
+    background-color: var(--vscode-editorGroupHeader-tabsBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.workflow-tabs.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+}
+
+.tabs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.tabs-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tabs-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.tab-action {
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.tab-action:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.tabs-container {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.workflow-tab {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    border-right: 1px solid var(--vscode-panel-border);
+    background-color: var(--vscode-tab-inactiveBackground);
+    color: var(--vscode-tab-inactiveForeground);
+    cursor: pointer;
+    min-width: 200px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.workflow-tab:hover {
+    background-color: var(--vscode-tab-hoverBackground);
+}
+
+.workflow-tab.active {
+    background-color: var(--vscode-tab-activeBackground);
+    color: var(--vscode-tab-activeForeground);
+}
+
+.tab-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.tab-name {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.tab-type {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.tab-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.tab-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--vscode-focusBorder);
+}
+
+.tabs-summary {
+    padding: 8px 16px;
+    background-color: var(--vscode-editorWidget-background);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.workflow-types {
+    display: flex;
+    gap: 4px;
+}
+
+.type-badge {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* Workflow Preview Styles */
+.workflow-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: var(--vscode-editorGroupHeader-tabsBackground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.workflow-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.workflow-info h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.workflow-path,
+.workflow-size {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.validation-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.status-valid {
+    color: var(--vscode-testing-iconPassed);
+}
+
+.status-invalid {
+    color: var(--vscode-testing-iconFailed);
+}
+
+.status-warnings {
+    color: var(--vscode-testing-iconQueued);
+}
+
+.preview-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.editor-container,
+.syntax-highlighted {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.line-numbers {
+    background-color: var(--vscode-editorLineNumber-background);
+    border-right: 1px solid var(--vscode-panel-border);
+    padding: 16px 8px;
+    min-width: 50px;
+    text-align: right;
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    line-height: 1.4;
+    color: var(--vscode-editorLineNumber-foreground);
+    user-select: none;
+}
+
+.line-numbers pre {
+    margin: 0;
+    white-space: pre;
+}
+
+.yaml-editor {
+    flex: 1;
+    padding: 16px;
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    line-height: 1.4;
+    border: none;
+    outline: none;
+    resize: none;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+}
+
+.yaml-content {
+    flex: 1;
+    margin: 0;
+    padding: 16px;
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-editor-font-family);
+    font-size: var(--vscode-editor-font-size);
+    line-height: 1.4;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+}
+
+/* YAML Syntax Highlighting */
+.yaml-keyword {
+    color: var(--vscode-symbolIcon-keywordForeground, #569cd6);
+    font-weight: 600;
+}
+
+.yaml-string {
+    color: var(--vscode-symbolIcon-stringForeground, #ce9178);
+}
+
+.yaml-value {
+    color: var(--vscode-symbolIcon-variableForeground, #9cdcfe);
+}
+
+.yaml-comment {
+    color: var(--vscode-symbolIcon-colorForeground, #6a9955);
+    font-style: italic;
+}
+
+.yaml-number {
+    color: var(--vscode-symbolIcon-numberForeground, #b5cea8);
+}
+
+.yaml-boolean {
+    color: var(--vscode-symbolIcon-booleanForeground, #569cd6);
+    font-weight: 600;
+}
+
+.yaml-action {
+    color: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+    font-weight: 500;
+}
+
+/* Validation Issues */
+.validation-issues {
+    background-color: var(--vscode-editorWidget-background);
+    border-top: 1px solid var(--vscode-editorWidget-border);
+    padding: 12px 16px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.validation-issues h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    color: var(--vscode-foreground);
+}
+
+.validation-issue {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    font-size: 12px;
+}
+
+.validation-issue:last-child {
+    border-bottom: none;
+}
+
+.validation-issue.error {
+    color: var(--vscode-errorForeground);
+}
+
+.validation-issue.warning {
+    color: var(--vscode-testing-iconQueued);
+}
+
+.validation-issue.info {
+    color: var(--vscode-foreground);
+}
+
+.issue-location {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.issue-message {
+    flex: 1;
+}
+
+.issue-code {
+    font-family: var(--vscode-editor-font-family);
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.8;
+}
+
+.preview-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: var(--vscode-statusBar-background);
+    border-top: 1px solid var(--vscode-panel-border);
+    font-size: 12px;
+}
+
+.workflow-stats {
+    display: flex;
+    gap: 16px;
+    color: var(--vscode-statusBar-foreground);
+}
+
+.editor-help {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 800px) {
+    .preview-content {
+        flex-direction: column;
+    }
+    
+    .configuration-section {
+        border-right: none;
+        border-bottom: 1px solid var(--vscode-panel-border);
+    }
+    
+    .toolbar-section.left .toolbar-group {
+        flex-wrap: wrap;
+    }
+    
+    .button-text {
+        display: none;
+    }
+    
+    .workflow-tab {
+        min-width: 150px;
+    }
+    
+    .tab-details {
+        display: none;
+    }
+}
+
+/* Accessibility */
+.workflow-tab:focus,
+.toolbar-button:focus,
+.config-button:focus {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .workflow-tab,
+    .toolbar-button,
+    .config-button {
+        border-width: 2px;
+    }
+    
+    .yaml-keyword,
+    .yaml-string,
+    .yaml-value,
+    .yaml-comment,
+    .yaml-number,
+    .yaml-boolean,
+    .yaml-action {
+        font-weight: bold;
+    }
+}

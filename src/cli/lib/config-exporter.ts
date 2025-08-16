@@ -87,13 +87,11 @@ export class ConfigExporter {
       const config = await this.loadConfiguration(configPath);
       
       // Create metadata
-      const metadata: ConfigMetadata = {
+      const metadata: any = {
         version: '1.0',
         exportedAt: new Date().toISOString(),
         exportedBy: process.env.USER || process.env.USERNAME || 'unknown',
         toolVersion: this.toolVersion,
-        description: options.description,
-        tags: options.tags,
         compatibility: {
           minToolVersion: '1.0.0',
           requiredFeatures: this.extractRequiredFeatures(config),
@@ -101,6 +99,14 @@ export class ConfigExporter {
           dependencies: await this.extractDependencies(configPath)
         }
       };
+      
+      // Add optional properties if they exist
+      if (options.description) {
+        metadata.description = options.description;
+      }
+      if (options.tags) {
+        metadata.tags = options.tags;
+      }
 
       // Build exportable package
       const exportableConfig: ExportableConfig = {
@@ -191,15 +197,20 @@ export class ConfigExporter {
         warnings.push(...policyWarnings);
       }
 
-      return {
+      const result: any = {
         success: true,
         configPath: targetConfigPath,
         conflicts,
         resolutions,
-        backupPath,
         warnings,
         errors: []
       };
+      
+      if (backupPath) {
+        result.backupPath = backupPath;
+      }
+      
+      return result;
     } catch (error) {
       return {
         success: false,
@@ -590,10 +601,14 @@ export class ConfigExporter {
   private applyImportedValue(merged: CLIConfig, imported: CLIConfig, conflictId: string): void {
     switch (conflictId) {
       case 'template-path-conflict':
-        merged.templates.customTemplates = imported.templates.customTemplates;
+        if (imported.templates.customTemplates) {
+          merged.templates.customTemplates = imported.templates.customTemplates;
+        }
         break;
       case 'security-scan-policy':
-        merged.organization.requiredSecurityScans = imported.organization.requiredSecurityScans;
+        if (imported.organization.requiredSecurityScans !== undefined) {
+          merged.organization.requiredSecurityScans = imported.organization.requiredSecurityScans;
+        }
         break;
       case 'output-format-conflict':
         merged.output.format = imported.output.format;

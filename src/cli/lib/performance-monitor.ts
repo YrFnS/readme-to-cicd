@@ -116,12 +116,15 @@ export class PerformanceMonitor {
 
     const timerId = `${name}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const timer: TimerHandle = {
+    const timer: any = {
       name,
       startTime: performance.now(),
-      category,
-      metadata
+      category
     };
+    
+    if (metadata) {
+      timer.metadata = metadata;
+    }
 
     this.activeTimers.set(timerId, timer);
 
@@ -226,7 +229,7 @@ export class PerformanceMonitor {
       const originalMethod = descriptor.value;
 
       descriptor.value = async function (...args: any[]) {
-        const monitor = this.performanceMonitor || this.monitor;
+        const monitor = (this as any).performanceMonitor || (this as any).monitor;
         if (!monitor || !(monitor instanceof PerformanceMonitor)) {
           return originalMethod.apply(this, args);
         }
@@ -257,14 +260,17 @@ export class PerformanceMonitor {
       return;
     }
 
-    const metric: PerformanceMetric = {
+    const metric: any = {
       name,
       startTime: performance.now() - duration,
       endTime: performance.now(),
       duration,
-      category,
-      metadata
+      category
     };
+    
+    if (metadata) {
+      metric.metadata = metadata;
+    }
 
     this.addMetric(metric);
   }

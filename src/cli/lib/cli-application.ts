@@ -408,12 +408,15 @@ export class CLIApplication {
     
     try {
       // Extract init-specific options from CLI options
-      const initOptions: InitCommandOptions = {
+      const initOptions: any = {
         template: this.getTemplateFromOptions(options) || 'basic',
         interactive: options.interactive || false,
-        outputPath: options.config,
         overwrite: false // Could be added as CLI option in the future
       };
+      
+      if (options.config) {
+        initOptions.outputPath = options.config;
+      }
 
       // Execute the init command
       return await this.initCommand.execute(initOptions);

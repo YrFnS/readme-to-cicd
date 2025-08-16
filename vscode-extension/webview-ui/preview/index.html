@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' vscode-resource:; script-src 'unsafe-inline' vscode-resource:;">
+    <title>Workflow Preview</title>
+    <link rel="stylesheet" href="preview.css">
+</head>
+<body>
+    <div class="container">
+        <header class="preview-header">
+            <h1>Workflow Preview</h1>
+            <div class="header-actions">
+                <button id="edit-config-btn" class="secondary">Edit Configuration</button>
+                <button id="refresh-btn" class="secondary">Refresh</button>
+            </div>
+        </header>
+
+        <div class="preview-content">
+            <div class="workflow-tabs">
+                <!-- Workflow tabs will be populated by JavaScript -->
+            </div>
+
+            <div class="workflow-editor">
+                <div class="editor-toolbar">
+                    <span class="file-name" id="current-file">ci.yml</span>
+                    <div class="toolbar-actions">
+                        <button id="copy-btn" class="icon-btn" title="Copy to clipboard">📋</button>
+                        <button id="download-btn" class="icon-btn" title="Download file">💾</button>
+                    </div>
+                </div>
+                <pre id="workflow-content" class="yaml-content">
+# Loading workflow preview...
+                </pre>
+            </div>
+        </div>
+
+        <footer class="preview-footer">
+            <div class="validation-status">
+                <span id="validation-indicator" class="status-indicator">✓</span>
+                <span id="validation-message">Workflow is valid</span>
+            </div>
+            <div class="footer-actions">
+                <button id="approve-btn" class="primary">Approve & Generate</button>
+                <button id="cancel-btn" class="tertiary">Cancel</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="preview.js"></script>
+</body>
+</html>

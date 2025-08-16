@@ -1,0 +1,116 @@
+/* Configuration Panel Styles */
+.container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+}
+
+h1 {
+    color: var(--vscode-foreground);
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: var(--vscode-foreground);
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+section {
+    margin-bottom: 30px;
+    padding: 15px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    background-color: var(--vscode-editor-background);
+}
+
+.framework-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.workflow-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.deployment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+}
+
+input[type="checkbox"] {
+    accent-color: var(--vscode-button-background);
+}
+
+select {
+    padding: 8px;
+    border: 1px solid var(--vscode-input-border);
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 2px;
+    font-family: var(--vscode-font-family);
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--vscode-panel-border);
+}
+
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: var(--vscode-font-family);
+    font-size: 13px;
+}
+
+.primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.secondary:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.tertiary {
+    background-color: transparent;
+    color: var(--vscode-foreground);
+    border: 1px solid var(--vscode-button-border);
+}
+
+.tertiary:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+}

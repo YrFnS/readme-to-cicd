@@ -375,7 +375,8 @@ export class CommandParser {
         errorCode = 'UNKNOWN_COMMAND';
         
         // Get command suggestions from help system
-        const commandSuggestions = this.helpSystem['commandSuggestionEngine'].suggestCommands(unknownCommand);
+        const commandSuggestions = unknownCommand ? 
+          this.helpSystem['commandSuggestionEngine'].suggestCommands(unknownCommand) : [];
         suggestions = [
           ...commandSuggestions.map(cmd => `Did you mean: readme-to-cicd ${cmd}?`),
           'Run "readme-to-cicd --help" to see all available commands',
@@ -400,7 +401,7 @@ export class CommandParser {
         
         // Try to suggest similar options
         const currentCommand = this.extractCommandFromArgs(args);
-        if (currentCommand) {
+        if (currentCommand && unknownOption) {
           const optionSuggestions = this.helpSystem['commandSuggestionEngine'].suggestOptions(currentCommand, unknownOption);
           suggestions = [
             ...optionSuggestions.map(opt => `Did you mean: ${opt}?`),
@@ -526,7 +527,7 @@ Examples:
     // Skip program name and find first non-option argument
     for (let i = 2; i < args.length; i++) {
       const arg = args[i];
-      if (!arg.startsWith('-') && !arg.startsWith('--')) {
+      if (arg && !arg.startsWith('-') && !arg.startsWith('--')) {
         return arg;
       }
     }

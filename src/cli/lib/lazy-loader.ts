@@ -54,7 +54,7 @@ export class LazyLoader {
   private metadata = new Map<string, ModuleMetadata>();
   private config: LazyLoaderConfig;
   private logger: Logger;
-  private performanceMonitor?: PerformanceMonitor;
+  private performanceMonitor: PerformanceMonitor | undefined;
 
   constructor(
     logger: Logger,
@@ -353,7 +353,7 @@ export class CLILazyLoader extends LazyLoader {
     // Core components (critical)
     this.register(
       'readme-parser',
-      () => import('../../parser/readme-parser-impl'),
+      () => import('../../parser/readme-parser'),
       { critical: true }
     );
 
@@ -419,7 +419,7 @@ export class CLILazyLoader extends LazyLoader {
    * Get README parser with lazy loading
    */
   async getReadmeParser() {
-    const module = await this.load('readme-parser');
+    const module = await this.load('readme-parser') as any;
     return module.ReadmeParserImpl;
   }
 
@@ -427,7 +427,7 @@ export class CLILazyLoader extends LazyLoader {
    * Get framework detector with lazy loading
    */
   async getFrameworkDetector() {
-    const module = await this.load('framework-detection');
+    const module = await this.load('framework-detection') as any;
     return module.FrameworkDetector;
   }
 
@@ -435,7 +435,7 @@ export class CLILazyLoader extends LazyLoader {
    * Get YAML generator with lazy loading
    */
   async getYamlGenerator() {
-    const module = await this.load('yaml-generator');
+    const module = await this.load('yaml-generator') as any;
     return module.YamlGenerator;
   }
 

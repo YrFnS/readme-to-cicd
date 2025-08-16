@@ -1,0 +1,220 @@
+{
+  "name": "readme-to-cicd",
+  "displayName": "README to CI/CD",
+  "description": "Generate GitHub Actions workflows from README files",
+  "version": "0.1.0",
+  "publisher": "readme-to-cicd",
+  "icon": "media/icon.svg",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets",
+    "Formatters"
+  ],
+  "keywords": [
+    "github-actions",
+    "ci-cd",
+    "workflow",
+    "automation",
+    "readme"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown",
+    "workspaceContains:**/README.md"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "readme-to-cicd.generateWorkflow",
+        "title": "Generate CI/CD Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "readme-to-cicd.previewWorkflow",
+        "title": "Preview Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "readme-to-cicd.validateWorkflow",
+        "title": "Validate Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(check)"
+      },
+      {
+        "command": "readme-to-cicd.openConfiguration",
+        "title": "Open Configuration",
+        "category": "README to CI/CD",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "readme-to-cicd.refreshDetection",
+        "title": "Refresh Framework Detection",
+        "category": "README to CI/CD",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "readme-to-cicd.generateWorkflow",
+          "when": "resourceFilename == README.md",
+          "group": "readme-to-cicd@1"
+        },
+        {
+          "command": "readme-to-cicd.previewWorkflow",
+          "when": "resourceFilename == README.md",
+          "group": "readme-to-cicd@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "readme-to-cicd.generateWorkflow",
+          "when": "resourceFilename == README.md",
+          "group": "readme-to-cicd@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "readme-to-cicd.generateWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.previewWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.validateWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.openConfiguration",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.refreshDetection",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "readme-to-cicd.workflowExplorer",
+          "name": "Workflow Explorer",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "readme-to-cicd",
+          "title": "README to CI/CD",
+          "icon": "$(gear)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "README to CI/CD",
+      "properties": {
+        "readme-to-cicd.defaultOutputDirectory": {
+          "type": "string",
+          "default": ".github/workflows",
+          "description": "Default directory for generated workflow files"
+        },
+        "readme-to-cicd.enableAutoGeneration": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically generate workflows when README changes"
+        },
+        "readme-to-cicd.showPreviewByDefault": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show preview panel before generating workflows"
+        },
+        "readme-to-cicd.enableInlineValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time validation of workflow files"
+        },
+        "readme-to-cicd.notificationLevel": {
+          "type": "string",
+          "enum": [
+            "all",
+            "errors",
+            "none"
+          ],
+          "default": "all",
+          "description": "Level of notifications to show"
+        },
+        "readme-to-cicd.preferredWorkflowTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ci",
+              "cd",
+              "release",
+              "maintenance"
+            ]
+          },
+          "default": [
+            "ci"
+          ],
+          "description": "Default workflow types to generate"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "webpack": "webpack --mode development",
+    "webpack-dev": "webpack --mode development --watch",
+    "webpack-prod": "webpack --mode production"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/sinon": "^17.0.2",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.1",
+    "@typescript-eslint/parser": "^6.4.1",
+    "@vscode/test-electron": "^2.3.4",
+    "@vscode/vsce": "^2.19.0",
+    "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^7.1.2",
+    "eslint": "^8.47.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "sinon": "^17.0.1",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.4.4",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "handlebars": "^4.7.8",
+    "js-yaml": "^4.1.0",
+    "marked": "^9.1.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
+}

@@ -66,7 +66,7 @@ export interface BatchMemoryContext {
 export class MemoryOptimizer {
   private config: MemoryOptimizerConfig;
   private logger: Logger;
-  private performanceMonitor?: PerformanceMonitor;
+  private performanceMonitor: PerformanceMonitor | undefined;
   private cleanupCallbacks: CleanupCallback[] = [];
   private memoryPressureCallbacks: MemoryPressureCallback[] = [];
   private cleanupTimer?: NodeJS.Timeout;
@@ -109,7 +109,7 @@ export class MemoryOptimizer {
     const heapUsagePercent = memUsage.heapUsed / memUsage.heapTotal;
     const memoryPressure = Math.min(1, memUsage.heapUsed / (this.config.maxHeapUsageMB * 1024 * 1024));
 
-    return {
+    const stats: any = {
       heapUsed: memUsage.heapUsed,
       heapTotal: memUsage.heapTotal,
       external: memUsage.external,
@@ -117,9 +117,14 @@ export class MemoryOptimizer {
       arrayBuffers: memUsage.arrayBuffers || 0,
       heapUsagePercent,
       memoryPressure,
-      gcCount: this.gcCount,
-      lastGCTime: this.lastGCTime
+      gcCount: this.gcCount
     };
+    
+    if (this.lastGCTime !== undefined) {
+      stats.lastGCTime = this.lastGCTime;
+    }
+    
+    return stats;
   }
 
   /**
@@ -393,13 +398,17 @@ export class MemoryOptimizer {
     const batchSize = options.batchSize || 10;
     const memoryThreshold = options.memoryThreshold || this.config.memoryPressureThreshold;
     const enableGC = options.enableGC !== false;
+    const self = this;
 
     return async function* (items: T[]) {
       let currentBatch: T[] = [];
       const results: R[] = [];
 
       for (let i = 0; i < items.length; i++) {
-        currentBatch.push(items[i]);
+        const item = items[i];
+        if (item !== undefined) {
+          currentBatch.push(item);
+        }
 
         if (currentBatch.length >= batchSize || i === items.length - 1) {
           // Process current batch
@@ -411,10 +420,10 @@ export class MemoryOptimizer {
           currentBatch = [];
 
           // Check memory pressure
-          const stats = this.getMemoryStats();
+          const stats = self.getMemoryStats();
           if (stats.memoryPressure > memoryThreshold) {
             if (enableGC) {
-              await this.triggerGCIfNeeded();
+              await self.triggerGCIfNeeded();
             }
             
             // Yield results to free memory

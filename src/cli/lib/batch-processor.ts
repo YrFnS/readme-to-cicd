@@ -53,8 +53,8 @@ export class BatchProcessor {
   private logger: Logger;
   private errorHandler: ErrorHandler;
   private config: BatchProcessorConfig;
-  private performanceMonitor?: PerformanceMonitor;
-  private memoryOptimizer?: MemoryOptimizer;
+  private performanceMonitor: PerformanceMonitor | undefined;
+  private memoryOptimizer: MemoryOptimizer | undefined;
 
   constructor(
     orchestrator: ComponentOrchestrator,

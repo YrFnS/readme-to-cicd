@@ -111,7 +111,7 @@ export class ComponentOrchestrator {
 
     // Initialize performance optimization components
     this.performanceMonitor = new PerformanceMonitor(this.logger, {
-      enableProfiling: this.options.enablePerformanceTracking,
+      enableProfiling: this.options.enablePerformanceTracking ?? true,
       enableMemoryTracking: true,
       slowOperationThreshold: 1000
     });
@@ -313,8 +313,12 @@ export class ComponentOrchestrator {
       }
 
       // Execute parsing with retry logic
+      if (!this.readmeParser) {
+        throw new Error('README parser not initialized');
+      }
+      
       context.parseResult = await this.executeWithRetry(
-        () => this.readmeParser.parseFile(readmePath),
+        () => this.readmeParser!.parseFile(readmePath),
         'README parsing',
         context
       );
@@ -358,8 +362,12 @@ export class ComponentOrchestrator {
       const projectInfo = this.convertToProjectInfo(context.parseResult.data);
 
       // Execute detection with retry logic
+      if (!this.frameworkDetector) {
+        throw new Error('Framework detector not initialized');
+      }
+      
       context.detectionResult = await this.executeWithRetry(
-        () => this.frameworkDetector.detectFrameworks(projectInfo, context.workingDirectory),
+        () => this.frameworkDetector!.detectFrameworks(projectInfo, context.workingDirectory),
         'Framework detection',
         context
       );
@@ -404,15 +412,23 @@ export class ComponentOrchestrator {
       // Execute generation based on workflow types
       if (context.options.workflowType && context.options.workflowType.length > 0) {
         // Generate specific workflow types
+        if (!this.yamlGenerator) {
+          throw new Error('YAML generator not initialized');
+        }
+        
         context.generationResults = await this.executeWithRetry(
-          () => this.yamlGenerator.generateMultipleWorkflows(generatorDetectionResult, context.options.workflowType!),
+          () => this.yamlGenerator!.generateMultipleWorkflows(generatorDetectionResult, context.options.workflowType!),
           'YAML generation (multiple workflows)',
           context
         );
       } else {
         // Generate recommended workflows
+        if (!this.yamlGenerator) {
+          throw new Error('YAML generator not initialized');
+        }
+        
         context.generationResults = await this.executeWithRetry(
-          () => this.yamlGenerator.generateRecommendedWorkflows(generatorDetectionResult, generationOptions),
+          () => this.yamlGenerator!.generateRecommendedWorkflows(generatorDetectionResult, generationOptions),
           'YAML generation (recommended workflows)',
           context
         );
@@ -530,6 +546,10 @@ export class ComponentOrchestrator {
     const generatorDetectionResult = this.convertDetectionResultForGenerator(context.detectionResult);
     
     // For dry-run, we'll use the recommended workflows logic to determine what would be generated
+    if (!this.yamlGenerator) {
+      throw new Error('YAML generator not initialized');
+    }
+    
     const simulatedWorkflows = await this.yamlGenerator.generateRecommendedWorkflows(
       generatorDetectionResult,
       generationOptions
@@ -902,8 +922,8 @@ export class ComponentOrchestrator {
     generator: any;
   } {
     return {
-      parser: this.readmeParser.getPerformanceStats(),
-      detector: this.frameworkDetector.getPerformanceStats(),
+      parser: this.readmeParser?.getPerformanceStats() || {},
+      detector: this.frameworkDetector?.getPerformanceStats() || {},
       generator: {} // YAMLGenerator doesn't expose stats in the same way
     };
   }
@@ -912,8 +932,8 @@ export class ComponentOrchestrator {
    * Clear component caches
    */
   clearCaches(): void {
-    this.readmeParser.clearPerformanceData();
-    this.frameworkDetector.clearCaches();
+    this.readmeParser?.clearPerformanceData();
+    this.frameworkDetector?.clearCaches();
     this.logger.info('Component caches cleared');
   }
 }

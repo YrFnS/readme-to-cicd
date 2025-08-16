@@ -358,7 +358,8 @@ export class InitCommand {
           },
           git: {
             autoCommit: false,
-            commitMessage: 'feat: add automated CI/CD workflows'
+            commitMessage: 'feat: add automated CI/CD workflows',
+            createPR: false
           },
           ui: {
             colorOutput: true,

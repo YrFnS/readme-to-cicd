@@ -86,7 +86,7 @@ export class HelpSystem {
         baseHelp.suggestions = this.commandSuggestionEngine.suggestCommands(request.command);
       } else {
         // Remove suggestions if disabled
-        baseHelp.suggestions = undefined;
+        delete (baseHelp as any).suggestions;
       }
     }
 
@@ -127,7 +127,7 @@ export class HelpSystem {
     // Add command suggestions if it's a command not found error
     if (error.code === 'UNKNOWN_COMMAND' && command) {
       errorHelp.suggestions = [
-        ...errorHelp.suggestions,
+        ...(errorHelp.suggestions || []),
         ...this.commandSuggestionEngine.suggestCommands(command)
       ];
     }

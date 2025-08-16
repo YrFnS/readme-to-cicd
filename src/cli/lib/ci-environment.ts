@@ -98,12 +98,17 @@ export class CIEnvironmentDetector implements CIEnvironment {
     }
 
     // Load Git configuration for CI
-    config.git = {
+    const gitConfig: any = {
       autoCommit: this.environmentVariables.README_TO_CICD_AUTO_COMMIT === 'true',
       commitMessage: this.environmentVariables.README_TO_CICD_COMMIT_MESSAGE || 'feat: update CI/CD workflows',
-      createPR: this.environmentVariables.README_TO_CICD_CREATE_PR === 'true',
-      branchName: this.environmentVariables.README_TO_CICD_BRANCH_NAME
+      createPR: this.environmentVariables.README_TO_CICD_CREATE_PR === 'true'
     };
+    
+    if (this.environmentVariables.README_TO_CICD_BRANCH_NAME) {
+      gitConfig.branchName = this.environmentVariables.README_TO_CICD_BRANCH_NAME;
+    }
+    
+    config.git = gitConfig;
 
     // Load organization policies from environment
     if (this.environmentVariables.README_TO_CICD_REQUIRED_SECURITY_SCANS) {
@@ -127,6 +132,31 @@ export class CIEnvironmentDetector implements CIEnvironment {
   }
 
   /**
+   * Helper to create CI environment info with proper optional property handling
+   */
+  private createCIEnvironmentInfo(
+    provider: CIProvider,
+    isCI: boolean,
+    buildId?: string,
+    branchName?: string,
+    commitSha?: string,
+    pullRequestNumber?: string
+  ): CIEnvironmentInfo {
+    const info: any = {
+      provider,
+      isCI,
+      environmentVariables: this.filterCIVariables(this.environmentVariables)
+    };
+    
+    if (buildId) info.buildId = buildId;
+    if (branchName) info.branchName = branchName;
+    if (commitSha) info.commitSha = commitSha;
+    if (pullRequestNumber) info.pullRequestNumber = pullRequestNumber;
+    
+    return info;
+  }
+
+  /**
    * Detects the CI/CD environment and provider
    */
   private detectEnvironment(): CIEnvironmentInfo {
@@ -134,93 +164,86 @@ export class CIEnvironmentDetector implements CIEnvironment {
     
     // GitHub Actions
     if (env.GITHUB_ACTIONS === 'true') {
-      return {
-        provider: 'github',
-        isCI: true,
-        buildId: env.GITHUB_RUN_ID,
-        branchName: env.GITHUB_REF_NAME,
-        commitSha: env.GITHUB_SHA,
-        pullRequestNumber: env.GITHUB_EVENT_NAME === 'pull_request' ? 
-          env.GITHUB_EVENT_PATH?.match(/"number":\s*(\d+)/)?.[1] : undefined,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'github',
+        true,
+        env.GITHUB_RUN_ID,
+        env.GITHUB_REF_NAME,
+        env.GITHUB_SHA,
+        env.GITHUB_EVENT_NAME === 'pull_request' ? 
+          env.GITHUB_EVENT_PATH?.match(/"number":\s*(\d+)/)?.[1] : undefined
+      );
     }
 
     // GitLab CI
     if (env.GITLAB_CI === 'true') {
-      return {
-        provider: 'gitlab',
-        isCI: true,
-        buildId: env.CI_PIPELINE_ID,
-        branchName: env.CI_COMMIT_REF_NAME,
-        commitSha: env.CI_COMMIT_SHA,
-        pullRequestNumber: env.CI_MERGE_REQUEST_IID,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'gitlab',
+        true,
+        env.CI_PIPELINE_ID,
+        env.CI_COMMIT_REF_NAME,
+        env.CI_COMMIT_SHA,
+        env.CI_MERGE_REQUEST_IID
+      );
     }
 
     // Jenkins
     if (env.JENKINS_URL || env.BUILD_NUMBER) {
-      return {
-        provider: 'jenkins',
-        isCI: true,
-        buildId: env.BUILD_NUMBER,
-        branchName: env.GIT_BRANCH || env.BRANCH_NAME,
-        commitSha: env.GIT_COMMIT,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'jenkins',
+        true,
+        env.BUILD_NUMBER,
+        env.GIT_BRANCH || env.BRANCH_NAME,
+        env.GIT_COMMIT
+      );
     }
 
     // Azure DevOps
     if (env.TF_BUILD === 'True' || env.AZURE_PIPELINES === 'true') {
-      return {
-        provider: 'azure',
-        isCI: true,
-        buildId: env.BUILD_BUILDID,
-        branchName: env.BUILD_SOURCEBRANCH?.replace('refs/heads/', ''),
-        commitSha: env.BUILD_SOURCEVERSION,
-        pullRequestNumber: env.SYSTEM_PULLREQUEST_PULLREQUESTNUMBER,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'azure',
+        true,
+        env.BUILD_BUILDID,
+        env.BUILD_SOURCEBRANCH?.replace('refs/heads/', ''),
+        env.BUILD_SOURCEVERSION,
+        env.SYSTEM_PULLREQUEST_PULLREQUESTNUMBER
+      );
     }
 
     // CircleCI
     if (env.CIRCLECI === 'true') {
-      return {
-        provider: 'circleci',
-        isCI: true,
-        buildId: env.CIRCLE_BUILD_NUM,
-        branchName: env.CIRCLE_BRANCH,
-        commitSha: env.CIRCLE_SHA1,
-        pullRequestNumber: env.CIRCLE_PR_NUMBER,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'circleci',
+        true,
+        env.CIRCLE_BUILD_NUM,
+        env.CIRCLE_BRANCH,
+        env.CIRCLE_SHA1,
+        env.CIRCLE_PR_NUMBER
+      );
     }
 
     // Travis CI
     if (env.TRAVIS === 'true') {
-      return {
-        provider: 'travis',
-        isCI: true,
-        buildId: env.TRAVIS_BUILD_NUMBER,
-        branchName: env.TRAVIS_BRANCH,
-        commitSha: env.TRAVIS_COMMIT,
-        pullRequestNumber: env.TRAVIS_PULL_REQUEST !== 'false' ? env.TRAVIS_PULL_REQUEST : undefined,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'travis',
+        true,
+        env.TRAVIS_BUILD_NUMBER,
+        env.TRAVIS_BRANCH,
+        env.TRAVIS_COMMIT,
+        env.TRAVIS_PULL_REQUEST !== 'false' ? env.TRAVIS_PULL_REQUEST : undefined
+      );
     }
 
     // Bitbucket Pipelines
     if (env.BITBUCKET_BUILD_NUMBER) {
-      return {
-        provider: 'bitbucket',
-        isCI: true,
-        buildId: env.BITBUCKET_BUILD_NUMBER,
-        branchName: env.BITBUCKET_BRANCH,
-        commitSha: env.BITBUCKET_COMMIT,
-        pullRequestNumber: env.BITBUCKET_PR_ID,
-        environmentVariables: this.filterCIVariables(env)
-      };
+      return this.createCIEnvironmentInfo(
+        'bitbucket',
+        true,
+        env.BITBUCKET_BUILD_NUMBER,
+        env.BITBUCKET_BRANCH,
+        env.BITBUCKET_COMMIT,
+        env.BITBUCKET_PR_ID
+      );
     }
 
     // Generic CI detection
@@ -229,11 +252,7 @@ export class CIEnvironmentDetector implements CIEnvironment {
       env[indicator] === 'true' || env[indicator] === '1'
     );
 
-    return {
-      provider: isGenericCI ? 'unknown' : 'unknown',
-      isCI: isGenericCI,
-      environmentVariables: isGenericCI ? this.filterCIVariables(env) : {}
-    };
+    return this.createCIEnvironmentInfo('unknown', isGenericCI);
   }
 
   /**
