@@ -98,8 +98,8 @@ export class CommandParser {
   private setupGenerateCommand(): void {
     const generateCommand = this.program
       .command('generate [readme-path]')
-      .description('Generate CI/CD workflows from README file')
-      .argument('[readme-path]', 'Path to README file (defaults to ./README.md)')
+      .description('Generate CI/CD workflows from README file or multiple projects')
+      .argument('[readme-path]', 'Path to README file or directory (defaults to ./README.md)')
       .addOption(new Option('-o, --output-dir <dir>', 'Output directory for generated workflows')
         .default('.github/workflows'))
       .addOption(new Option('-w, --workflow-type <types...>', 'Workflow types to generate')
@@ -108,6 +108,21 @@ export class CommandParser {
       .addOption(new Option('-f, --framework <frameworks...>', 'Override automatic framework detection'))
       .addOption(new Option('--dry-run', 'Show what would be generated without creating files')
         .default(false))
+      
+      // Batch processing options
+      .addOption(new Option('--directories <dirs...>', 'Process multiple directories (enables batch mode)'))
+      .addOption(new Option('-r, --recursive', 'Recursively scan subdirectories for projects')
+        .default(false))
+      .addOption(new Option('-p, --parallel', 'Process multiple projects in parallel')
+        .default(false))
+      .addOption(new Option('--max-concurrency <num>', 'Maximum number of parallel processes')
+        .argParser(parseInt)
+        .default(4))
+      .addOption(new Option('--continue-on-error', 'Continue processing other projects when one fails')
+        .default(true))
+      .addOption(new Option('--project-pattern <pattern>', 'Regex pattern to filter project names'))
+      .addOption(new Option('--exclude-patterns <patterns...>', 'Patterns to exclude directories from scanning'))
+      
       .addHelpText('after', this.getGenerateExamples());
 
     generateCommand.action((readmePath, options, command) => {
@@ -227,6 +242,9 @@ export class CommandParser {
     // Validate mutually exclusive options
     this.validateMutuallyExclusiveOptions(options);
 
+    // Validate batch processing options
+    this.validateBatchProcessingOptions(options);
+
     return {
       command: command as CLIOptions['command'],
       readmePath: options.readmePath,
@@ -238,7 +256,21 @@ export class CommandParser {
       verbose: Boolean(options.verbose),
       debug: Boolean(options.debug),
       quiet: Boolean(options.quiet),
-      config: options.config
+      config: options.config,
+      
+      // Export/Import specific options
+      output: options.output,
+      configFile: options.configFile,
+      merge: Boolean(options.merge),
+      
+      // Batch processing options
+      directories: options.directories,
+      recursive: Boolean(options.recursive),
+      parallel: Boolean(options.parallel),
+      maxConcurrency: options.maxConcurrency,
+      continueOnError: Boolean(options.continueOnError),
+      projectPattern: options.projectPattern,
+      excludePatterns: options.excludePatterns
     };
   }
 
@@ -266,6 +298,39 @@ export class CommandParser {
     // Debug implies verbose, so quiet conflicts with debug
     if (options.debug && options.quiet) {
       throw new Error('Options --debug and --quiet are mutually exclusive');
+    }
+  }
+
+  /**
+   * Validate batch processing options
+   */
+  private validateBatchProcessingOptions(options: any): void {
+    // Validate max concurrency
+    if (options.maxConcurrency !== undefined) {
+      const concurrency = parseInt(options.maxConcurrency);
+      if (isNaN(concurrency) || concurrency < 1 || concurrency > 32) {
+        throw new Error('Max concurrency must be a number between 1 and 32');
+      }
+    }
+
+    // Validate project pattern is valid regex
+    if (options.projectPattern) {
+      try {
+        new RegExp(options.projectPattern);
+      } catch (error) {
+        throw new Error(`Invalid project pattern regex: ${options.projectPattern}`);
+      }
+    }
+
+    // Interactive mode conflicts with parallel processing
+    if (options.interactive && options.parallel) {
+      throw new Error('Interactive mode cannot be used with parallel processing');
+    }
+
+    // Warn if parallel is used without directories
+    if (options.parallel && !options.directories) {
+      // This is not an error, but parallel won't have effect with single project
+      // We'll let the CLI handle this gracefully
     }
   }
 
@@ -325,14 +390,24 @@ For more help on specific commands, use:
   private getGenerateExamples(): string {
     return `
 Examples:
-  $ readme-to-cicd generate                                    # Basic generation
-  $ readme-to-cicd generate ./docs/README.md                  # Specific README file
-  $ readme-to-cicd generate -o ./workflows                    # Custom output directory
-  $ readme-to-cicd generate -w ci cd                          # Specific workflow types
-  $ readme-to-cicd generate -f nodejs react                   # Override framework detection
-  $ readme-to-cicd generate --dry-run --verbose               # Preview with details
-  $ readme-to-cicd generate --interactive                     # Interactive mode
-  $ readme-to-cicd generate --config ./custom-config.json    # Custom configuration
+  Single Project:
+    $ readme-to-cicd generate                                    # Basic generation
+    $ readme-to-cicd generate ./docs/README.md                  # Specific README file
+    $ readme-to-cicd generate -o ./workflows                    # Custom output directory
+    $ readme-to-cicd generate -w ci cd                          # Specific workflow types
+    $ readme-to-cicd generate -f nodejs react                   # Override framework detection
+    $ readme-to-cicd generate --dry-run --verbose               # Preview with details
+    $ readme-to-cicd generate --interactive                     # Interactive mode
+    $ readme-to-cicd generate --config ./custom-config.json    # Custom configuration
+
+  Batch Processing:
+    $ readme-to-cicd generate --directories ./projects ./apps   # Process multiple directories
+    $ readme-to-cicd generate --directories . --recursive       # Recursively find all projects
+    $ readme-to-cicd generate --directories . -r --parallel     # Parallel processing
+    $ readme-to-cicd generate --directories . -r -p --max-concurrency 8  # Custom concurrency
+    $ readme-to-cicd generate --directories . --project-pattern "api-.*" # Filter by pattern
+    $ readme-to-cicd generate --directories . --exclude-patterns "test*" "temp*"  # Exclude patterns
+    $ readme-to-cicd generate --directories . -r --continue-on-error=false  # Stop on first error
 `;
   }
 

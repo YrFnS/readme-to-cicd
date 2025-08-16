@@ -59,7 +59,7 @@ export interface WorkflowValidationWarning {
     column?: number;
     path?: string;
   };
-  category: 'deprecation' | 'optimization' | 'maintenance' | 'compatibility';
+  category: 'deprecation' | 'optimization' | 'maintenance' | 'compatibility' | 'best-practice' | 'security';
 }
 
 /**
@@ -110,8 +110,8 @@ export interface WorkflowChange {
   type: 'add' | 'modify' | 'remove';
   description: string;
   location: string;
-  oldValue?: string;
-  newValue?: string;
+  oldValue?: string | undefined;
+  newValue?: string | undefined;
   reason: string;
 }
 
@@ -359,8 +359,8 @@ export class WorkflowValidator {
             type: 'modify',
             description: improvement.title,
             location: improvement.id,
-            oldValue: improvement.before,
-            newValue: improvement.after,
+            oldValue: improvement.before || undefined,
+            newValue: improvement.after || undefined,
             reason: improvement.description
           });
         }

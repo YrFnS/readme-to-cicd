@@ -10,26 +10,31 @@
 ## Key Libraries & Frameworks
 
 ### Parsing & Processing
-- **Unified**: Markdown parsing and AST manipulation
-- **js-yaml**: YAML generation and validation
+- **marked**: Markdown parsing and AST manipulation
+- **js-yaml**: YAML generation and validation  
+- **yaml**: Alternative YAML processing
 - **Handlebars**: Template engine for workflow generation
+- **xml2js**: XML parsing for project files
+- **@iarna/toml**: TOML file parsing
 
 ### CLI & User Interface
 - **Commander.js**: Command-line interface framework
 - **Inquirer.js**: Interactive command-line prompts
-- **VSCode Extension API**: IDE integration
+- **ora**: Terminal spinners and progress indicators
+- **chalk**: Terminal string styling
+- **boxen**: Terminal box drawing
 
-### Infrastructure & Deployment
-- **Docker**: Containerization
-- **Kubernetes**: Container orchestration
-- **GitHub Actions**: CI/CD platform integration
+### Validation & Configuration
+- **ajv**: JSON schema validation
+- **ajv-formats**: Additional validation formats
+- **cosmiconfig**: Configuration file discovery
 
-## Databases
-
-- **PostgreSQL**: Primary database for structured data
-- **Redis**: Caching and session storage
-- **MongoDB**: Configuration and document storage
-- **Apache Kafka**: Message queuing for Agent Hooks
+### Development & Testing
+- **Vitest**: Fast unit testing framework
+- **@vitest/coverage-v8**: Code coverage reporting
+- **ESLint**: Code linting and quality
+- **Prettier**: Code formatting
+- **TypeScript**: Static type checking
 
 ## Development Tools
 
@@ -41,48 +46,49 @@ npm run format
 npm run type-check
 
 # Testing
-npm test
+npm run test
+npm run test:watch
 npm run test:coverage
-npm run test:e2e
+npm run test:unit
+npm run test:integration
+npm run test:performance
+npm run test:all
 
-# Security
-npm audit
-npm run security:scan
-```
+# Validation
+npm run validate:interfaces
+npm run validate:integration
+npm run validate:build
 
-### Build & Development
-```bash
-# Development
-npm run dev
-npm run watch
-
-# Building
+# Build
 npm run build
-npm run build:prod
-
-# Documentation
-npm run docs:generate
-npm run docs:serve
+npm run build:fast
+npm run dev
 ```
 
 ## Architecture Patterns
 
-- **Modular Design**: 7 independent components
-- **Event-Driven**: Agent Hooks use event-based automation
-- **Plugin Architecture**: Extensible framework detection
-- **Template-Based**: YAML generation via templates
-- **Microservices Ready**: Designed for distributed deployment
+- **Result Pattern**: Error handling without exceptions
+- **Analyzer Pattern**: Pluggable content analysis
+- **Factory Pattern**: Component instantiation
+- **Pipeline Pattern**: Sequential data processing
+- **Template-Based**: YAML generation via Handlebars
+- **Interface-First**: TypeScript contracts define boundaries
 
-## Performance & Monitoring
+## Current Implementation Status
 
-- **Prometheus**: Metrics collection
-- **Grafana**: Monitoring dashboards
-- **ELK Stack**: Logging and analytics
-- **Caching**: Redis for performance optimization
+### ✅ Completed
+- **README Parser**: Core parsing with 5 content analyzers
+- **Framework Detection**: Partial implementation with extensible rules
+- **YAML Generator**: Template-based workflow generation
+- **CLI Tool**: Command-line interface structure
+- **Validation**: Interface and integration validation
 
-## Security Standards
+### 🚧 In Progress
+- **Integration Pipeline**: Connecting components properly
+- **Command-Language Association**: Fixing analyzer integration
+- **Confidence Scoring**: Improving detection accuracy
 
-- **OAuth 2.0**: Authentication
-- **HashiCorp Vault**: Secret management
-- **SAST/DAST**: Security scanning integration
-- **Compliance**: SOC2, HIPAA, PCI-DSS support
+### 📋 Planned
+- **VSCode Extension**: IDE integration
+- **Agent Hooks**: Intelligent automation
+- **Deployment**: Production orchestration

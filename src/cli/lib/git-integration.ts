@@ -380,10 +380,12 @@ export class GitIntegration {
       const stats = result.stdout.trim().split('\t');
       
       if (stats.length >= 2) {
+        const additions = parseInt(stats[0] || '0') || 0;
+        const deletions = parseInt(stats[1] || '0') || 0;
         return {
-          additions: parseInt(stats[0]) || 0,
-          deletions: parseInt(stats[1]) || 0,
-          changes: (parseInt(stats[0]) || 0) + (parseInt(stats[1]) || 0)
+          additions,
+          deletions,
+          changes: additions + deletions
         };
       }
     } catch (error) {

@@ -34,6 +34,20 @@ export interface CLIOptions {
   debug: boolean;
   quiet: boolean;
   config?: string;
+  
+  // Export/Import specific options
+  output?: string;
+  configFile?: string;
+  merge?: boolean;
+  
+  // Batch processing options
+  directories?: string[];
+  recursive?: boolean;
+  parallel?: boolean;
+  maxConcurrency?: number;
+  continueOnError?: boolean;
+  projectPattern?: string;
+  excludePatterns?: string[];
 }
 
 export interface CLIConfig {
@@ -158,6 +172,68 @@ export interface DeploymentOption {
   requirements: string[];
   supported: boolean;
   configuration?: Record<string, any>;
+}
+
+// Batch Processing Types
+export interface BatchProcessingOptions {
+  directories: string[];
+  recursive: boolean;
+  parallel: boolean;
+  maxConcurrency?: number;
+  continueOnError: boolean;
+  projectDetectionPattern?: string;
+  excludePatterns?: string[];
+}
+
+export interface ProjectInfo {
+  path: string;
+  name: string;
+  readmePath: string;
+  hasPackageJson: boolean;
+  hasGitRepo: boolean;
+  estimatedComplexity: 'low' | 'medium' | 'high';
+}
+
+export interface BatchProjectResult {
+  project: ProjectInfo;
+  success: boolean;
+  result?: CLIResult;
+  error?: CLIError;
+  executionTime: number;
+  skipped?: boolean;
+  skipReason?: string;
+}
+
+export interface BatchProcessingResult {
+  success: boolean;
+  totalProjects: number;
+  processedProjects: number;
+  successfulProjects: number;
+  failedProjects: number;
+  skippedProjects: number;
+  projectResults: BatchProjectResult[];
+  totalExecutionTime: number;
+  summary: BatchExecutionSummary;
+  errors: CLIError[];
+  warnings: string[];
+}
+
+export interface BatchExecutionSummary {
+  totalProjectsFound: number;
+  totalProjectsProcessed: number;
+  totalFilesGenerated: number;
+  totalWorkflowsCreated: number;
+  frameworksDetected: Record<string, number>;
+  averageExecutionTime: number;
+  parallelExecutions: number;
+  errorsByCategory: Record<string, number>;
+}
+
+export interface ProjectDetectionResult {
+  projects: ProjectInfo[];
+  totalDirectoriesScanned: number;
+  excludedDirectories: number;
+  detectionTime: number;
 }
 
 // Export types from shared - temporarily defined locally

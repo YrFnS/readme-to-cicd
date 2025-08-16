@@ -10,17 +10,31 @@ inclusion: always
 
 **Incremental Implementation**: Build features in small, testable increments. Validate each increment before proceeding to maintain system stability.
 
-## Component Implementation Order
+## Component Implementation Status & Order
 
-Follow dependency hierarchy for optimal development flow:
-
+### ✅ Completed (with integration issues)
 1. **README Parser** (`src/parser/`) - Foundation component
+   - Core parsing complete with 5 content analyzers
+   - **CRITICAL ISSUE**: Integration pipeline not connected
+   - **CRITICAL ISSUE**: Command-language association broken
+
+### 🚧 Partially Complete
 2. **Framework Detection** (`src/detection/`) - Depends on parser output
+   - Basic structure implemented
+   - Needs integration with parser results
+
 3. **YAML Generator** (`src/generator/`) - Depends on detection results
+   - Template system implemented
+   - Workflow specialization in progress
+
 4. **CLI Tool** (`src/cli/`) - Orchestrates core components
-5. **VSCode Extension** (`src/extension/`) - UI layer over CLI
-6. **Agent Hooks** (`src/hooks/`) - Automation layer
-7. **Integration & Deployment** (`src/deployment/`) - System orchestration
+   - Structure implemented
+   - **BLOCKING**: Missing dependencies (cosmiconfig, commander, inquirer, ora)
+
+### 📋 Planned
+5. **VSCode Extension** - IDE integration (future)
+6. **Agent Hooks** - Intelligent automation (future)
+7. **Deployment System** - Production orchestration (future)
 
 ## Feature Development Workflow
 
@@ -104,20 +118,37 @@ Follow dependency hierarchy for optimal development flow:
 - Include correlation IDs for request tracking
 # Implementation Workflow
 
-## Development Process
-1. Start with Task Progress Tracker hook
-2. Implement following the sequential order (README Parser → Framework Detection → etc.)
-3. Use Test Automation hook on file saves
-4. Validate with Implementation Validator before marking complete
-5. Update documentation with Documentation Sync hook
+## Current Development Priority
+
+### 🚨 CRITICAL FIXES NEEDED FIRST
+1. **Install Missing Dependencies**: `npm install cosmiconfig commander inquirer ora`
+2. **Fix Integration Pipeline**: Connect IntegrationPipeline to ReadmeParserImpl
+3. **Fix Command-Language Association**: Commands must inherit language context
+4. **Fix Confidence Scoring**: Language detection scores too low
+
+### Development Process
+1. Fix blocking integration issues before continuing with specs
+2. Validate fixes with comprehensive test suite (target: <5% failure rate)
+3. Use validation scripts: `npm run validate:integration`
+4. Maintain >90% test coverage per component
+5. Update documentation as components stabilize
 
 ## Quality Gates
-- All tests must pass
-- Code quality checks must pass
-- Spec alignment must be validated
-- Documentation must be updated
 
-## Component Integration
-- Use Integration Helper for interface validation
-- Ensure TypeScript interfaces match between components
-- Test data flow end-to-end
+### Before Continuing Development
+- All critical integration issues resolved
+- Test failure rate <5% (currently 11.9%)
+- TypeScript compilation successful (currently 29 errors)
+- Core data flow working (README → Parser → Detection → YAML)
+
+### Before Component Completion
+- All acceptance criteria met
+- Test coverage >90%
+- No TypeScript errors or warnings
+- Integration tests passing
+
+## Component Integration Strategy
+- Fix IntegrationPipeline connection to ReadmeParserImpl
+- Ensure proper data flow between analyzers
+- Validate TypeScript interfaces match between components
+- Test end-to-end workflows with real README files

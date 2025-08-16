@@ -37,20 +37,20 @@ README Parser → Framework Detection → YAML Generator
 - **Purpose**: Command-line interface
 - **Features**: Interactive mode, batch processing, configuration
 
-### 5. VSCode Extension
-- **Location**: `src/extension/`
-- **Purpose**: IDE integration
-- **Features**: Real-time preview, workflow validation
+### 5. Shared Utilities
+- **Location**: `src/shared/`
+- **Purpose**: Common utilities and types
+- **Features**: Markdown parsing, shared interfaces
 
-### 6. Agent Hooks
-- **Location**: `src/hooks/`
-- **Purpose**: Intelligent automation
-- **Features**: GitHub webhooks, performance monitoring
+### 6. Validation System
+- **Location**: `src/validation/`
+- **Purpose**: Interface and integration validation
+- **Features**: Component compatibility checking, diagnostics
 
-### 7. Integration & Deployment
-- **Location**: `src/deployment/`
-- **Purpose**: System orchestration
-- **Features**: Multi-cloud deployment, monitoring
+### 7. Future Extensions
+- **VSCode Extension**: IDE integration (planned)
+- **Agent Hooks**: Intelligent automation (planned)
+- **Deployment**: Production orchestration (planned)
 
 ## Directory Organization
 
@@ -60,21 +60,25 @@ README Parser → Framework Detection → YAML Generator
 │   │   ├── readme-parser/   # Parser requirements, design, tasks
 │   │   ├── framework-detection/
 │   │   ├── yaml-generator/
-│   │   ├── cli-tool/
-│   │   ├── vscode-extension/
-│   │   ├── agent-hooks/
-│   │   └── integration-deployment/
+│   │   └── cli-tool/
 │   ├── hooks/               # Automation hooks
-│   │   ├── code-quality-checker.md
-│   │   ├── documentation-sync.md
-│   │   ├── task-progress-tracker.md
-│   │   └── integration-helper.md
 │   └── steering/            # Project guidance
 ├── src/                     # Source code
+│   ├── parser/              # README parsing and analysis
+│   ├── detection/           # Framework detection system
+│   ├── generator/           # YAML workflow generation
+│   ├── cli/                 # Command-line interface
+│   ├── shared/              # Common utilities
+│   └── validation/          # System validation
 ├── tests/                   # Test suites
+│   ├── unit/                # Component unit tests
+│   ├── integration/         # Cross-component tests
+│   ├── performance/         # Performance benchmarks
+│   └── fixtures/            # Test data and samples
 ├── docs/                    # Documentation
-├── templates/               # YAML templates
-└── examples/                # Usage examples
+├── templates/               # YAML workflow templates
+├── examples/                # Usage examples
+└── scripts/                 # Build and validation scripts
 ```
 
 ## Spec Structure Pattern

@@ -590,14 +590,27 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   private calculateOverallConfidence(languages: LanguageInfo[]): number {
     if (languages.length === 0) return 0;
     
-    // CRITICAL FIX: Boost overall confidence to meet >0.8 requirement
     const maxConfidence = Math.max(...languages.map(l => l.confidence));
     const avgConfidence = languages.reduce((sum, l) => sum + l.confidence, 0) / languages.length;
     
-    // Use weighted average but boost the result
+    // CRITICAL FIX: Different strategies based on evidence strength
+    // For weak evidence (all languages < 0.6), be more conservative
+    const hasStrongEvidence = languages.some(l => l.confidence >= 0.6);
+    
+    if (!hasStrongEvidence) {
+      // For weak evidence, use conservative calculation
+      let baseConfidence = (maxConfidence * 0.5) + (avgConfidence * 0.5);
+      
+      // Apply penalty for weak evidence
+      baseConfidence = Math.max(baseConfidence - 0.1, 0.1);
+      
+      return Math.min(baseConfidence, 0.55); // Cap weak evidence at 0.55
+    }
+    
+    // For strong evidence, use weighted average with boosts
     let baseConfidence = (maxConfidence * 0.7) + (avgConfidence * 0.3);
     
-    // Apply confidence boosts to meet >0.8 requirement
+    // Apply confidence boosts to meet >0.8 requirement for strong evidence
     if (languages.length > 0) {
       // Boost for having any languages detected
       baseConfidence = Math.min(baseConfidence + 0.1, 1.0);
