@@ -1,9 +1,9 @@
 const path = require('path');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
+const webpack = require('webpack');
 
 /**@type {import('webpack').Configuration}*/
-const extensionConfig = {
-  target: 'node', // VS Code extensions run in a Node.js-context
+const config = {
+  target: 'node', // vscode extensions run in a Node.js-context
   mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
@@ -37,48 +37,41 @@ const extensionConfig = {
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+    })
+  ]
 };
 
-/**@type {import('webpack').Configuration}*/
+// Configuration for webview UI
 const webviewConfig = {
-  target: ['web', 'es2020'],
+  target: 'web',
   mode: 'none',
   entry: {
-    configuration: './webview-ui/configuration/index.tsx',
-    preview: './webview-ui/preview/index.tsx'
+    'configuration-webview': './webview-ui/configuration/index.ts',
+    'preview-webview': './webview-ui/preview/index.ts',
+    'template-management': './webview-ui/template-management/index.ts',
+    'performance-monitoring': './webview-ui/performance-monitoring/index.ts'
   },
   output: {
-    path: path.resolve(__dirname, 'out', 'webview'),
-    filename: '[name].js'
+    path: path.resolve(__dirname, 'out', 'webview-ui'),
+    filename: '[name].js',
+    libraryTarget: 'umd'
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json']
+    extensions: ['.ts', '.js', '.tsx', '.jsx']
   },
   module: {
     rules: [
       {
         test: /\.tsx?$/,
-        exclude: [/node_modules/, /test/, /\.test\./],
+        exclude: /node_modules/,
         use: [
           {
             loader: 'ts-loader',
             options: {
-              compilerOptions: {
-                jsx: 'react-jsx'
-              },
-              transpileOnly: true
-            }
-          }
-        ]
-      },
-      {
-        test: /\.jsx?$/,
-        exclude: /node_modules/,
-        use: [
-          {
-            loader: 'babel-loader',
-            options: {
-              presets: ['@babel/preset-react']
+              configFile: path.resolve(__dirname, 'webview-ui/tsconfig.json')
             }
           }
         ]
@@ -89,30 +82,7 @@ const webviewConfig = {
       }
     ]
   },
-  plugins: [
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          from: 'webview-ui/**/*.html',
-          to: '[name][ext]',
-          context: '.',
-          noErrorOnMissing: true
-        },
-        {
-          from: 'webview-ui/**/*.css',
-          to: '[name][ext]',
-          context: '.',
-          noErrorOnMissing: true
-        },
-        {
-          from: 'media/**/*',
-          to: '../media/[name][ext]',
-          context: '.'
-        }
-      ]
-    })
-  ],
   devtool: 'nosources-source-map'
 };
 
-module.exports = [extensionConfig, webviewConfig];
+module.exports = [config, webviewConfig];

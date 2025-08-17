@@ -265,3 +265,32 @@ export interface TransformationResult<T> {
   errors: string[];
   warnings: string[];
 }
+
+// YAML Validation Types
+export interface WorkflowValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+}
+
+export interface ValidationError {
+  message: string;
+  severity: ValidationSeverity;
+  line: number;
+  column: number;
+  code: string;
+  data?: any;
+}
+
+export enum ValidationSeverity {
+  Error = 'error',
+  Warning = 'warning',
+  Info = 'info'
+}
+
+export interface QuickFixSuggestion {
+  title: string;
+  description: string;
+  edit: vscode.WorkspaceEdit;
+  kind: vscode.CodeActionKind;
+}

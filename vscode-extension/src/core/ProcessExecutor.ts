@@ -101,7 +101,7 @@ export class ProcessExecutor {
    * Execute CLI command specifically for README to CI/CD
    */
   async executeCLICommand(
-    command: 'generate' | 'validate' | 'init',
+    command: 'generate' | 'validate' | 'init' | 'detect',
     args: string[],
     workingDirectory?: string,
     progressCallback?: (progress: CLIProgressReport) => void,

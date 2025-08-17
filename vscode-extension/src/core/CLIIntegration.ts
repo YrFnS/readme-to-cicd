@@ -273,6 +273,114 @@ export class CLIIntegration {
   }
 
   /**
+   * Execute framework detection only
+   */
+  async executeFrameworkDetection(
+    request: CLIGenerationRequest,
+    cancellationToken?: vscode.CancellationToken
+  ): Promise<CLIGenerationResult> {
+    this.logger.info('Starting framework detection', {
+      readmePath: request.readmePath
+    });
+
+    try {
+      // Create default configuration for detection
+      const defaultConfig: WorkflowConfiguration = {
+        workflowTypes: ['ci'],
+        frameworks: [],
+        deploymentTargets: [],
+        securityLevel: 'standard',
+        optimizationLevel: 'standard',
+        includeComments: true,
+        customSteps: []
+      };
+
+      // Transform configuration to CLI arguments with detection-only mode
+      const argsResult = this.dataTransformer.transformConfigurationToCLIArgs(
+        request.configuration || defaultConfig,
+        request.readmePath,
+        request.outputDirectory || '.github/workflows',
+        true // Dry run for detection only
+      );
+
+      if (!argsResult.success || !argsResult.data) {
+        throw new Error(`Configuration transformation failed: ${argsResult.errors.join(', ')}`);
+      }
+
+      // Create simple progress callback
+      const progressCallback = this.progressReporter.createProgressCallback();
+
+      // Execute CLI command for detection
+      const executionResult = await this.processExecutor.executeCLICommand(
+        'detect',
+        ['--readme', request.readmePath, '--dry-run'],
+        path.dirname(request.readmePath),
+        progressCallback,
+        cancellationToken
+      );
+
+      // Parse detection results
+      const detectedFrameworks = this.parseDetectedFrameworks(executionResult.stdout);
+
+      this.logger.info('Framework detection completed', {
+        frameworkCount: detectedFrameworks.length
+      });
+
+      return {
+        success: executionResult.success,
+        generatedFiles: [],
+        errors: executionResult.success ? [] : [{
+          code: 'DETECTION_FAILED',
+          message: executionResult.stderr,
+          category: 'processing',
+          severity: 'error',
+          suggestions: ['Check README file format', 'Verify project structure']
+        }],
+        warnings: [],
+        summary: {
+          totalTime: executionResult.executionTime,
+          filesGenerated: 0,
+          workflowsCreated: 0,
+          frameworksDetected: detectedFrameworks.map(f => f.name),
+          optimizationsApplied: 0,
+          executionTime: executionResult.executionTime,
+          filesProcessed: 1,
+          workflowsGenerated: 0
+        },
+        detectedFrameworks
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Framework detection failed', { error: errorMessage });
+
+      return {
+        success: false,
+        generatedFiles: [],
+        errors: [{
+          code: 'DETECTION_ERROR',
+          message: errorMessage,
+          category: 'processing',
+          severity: 'error',
+          suggestions: ['Check README file exists', 'Verify file permissions']
+        }],
+        warnings: [],
+        summary: {
+          totalTime: 0,
+          filesGenerated: 0,
+          workflowsCreated: 0,
+          frameworksDetected: [],
+          optimizationsApplied: 0,
+          executionTime: 0,
+          filesProcessed: 0,
+          workflowsGenerated: 0
+        },
+        detectedFrameworks: []
+      };
+    }
+  }
+
+  /**
    * Validate existing workflows
    */
   async validateWorkflows(
@@ -400,6 +508,63 @@ export class CLIIntegration {
         command: 'init'
       };
     }
+  }
+
+  /**
+   * Parse detected frameworks from CLI output
+   */
+  private parseDetectedFrameworks(stdout: string): DetectedFramework[] {
+    const frameworks: DetectedFramework[] = [];
+    
+    try {
+      // Try to parse JSON output first
+      const lines = stdout.split('\n');
+      for (const line of lines) {
+        if (line.trim().startsWith('{') && line.includes('framework')) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.name) {
+              frameworks.push({
+                name: parsed.name,
+                version: parsed.version,
+                confidence: parsed.confidence || 0.8,
+                type: parsed.type || 'unknown',
+                ecosystem: parsed.ecosystem || 'unknown',
+                evidence: parsed.evidence || []
+              });
+            }
+          } catch {
+            // Not JSON, continue
+          }
+        }
+      }
+
+      // Fallback to regex parsing
+      if (frameworks.length === 0) {
+        const frameworkMatches = stdout.match(/Detected framework: (.+)/g);
+        if (frameworkMatches) {
+          for (const match of frameworkMatches) {
+            const frameworkName = match.replace('Detected framework: ', '').trim();
+            frameworks.push({
+              name: frameworkName,
+              confidence: 0.8,
+              type: 'unknown',
+              ecosystem: 'unknown',
+              evidence: [{
+                type: 'pattern',
+                source: 'README',
+                value: frameworkName,
+                confidence: 0.8
+              }]
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse detected frameworks', { error });
+    }
+
+    return frameworks;
   }
 
   /**

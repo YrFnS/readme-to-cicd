@@ -22,7 +22,11 @@
   ],
   "activationEvents": [
     "onLanguage:markdown",
-    "workspaceContains:**/README.md"
+    "onLanguage:yaml",
+    "onLanguage:yml",
+    "workspaceContains:**/README.md",
+    "workspaceContains:**/.github/workflows/*.yml",
+    "workspaceContains:**/.github/workflows/*.yaml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -56,6 +60,74 @@
         "title": "Refresh Framework Detection",
         "category": "README to CI/CD",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "readme-to-cicd.workflowExplorer.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "readme-to-cicd.workflowExplorer.generateWorkflow",
+        "title": "Generate Workflow",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "readme-to-cicd.workflowExplorer.openFile",
+        "title": "Open File",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "readme-to-cicd.workflowExplorer.validateWorkflow",
+        "title": "Validate Workflow",
+        "icon": "$(check)"
+      },
+      {
+        "command": "readme-to-cicd.validateCurrentWorkflow",
+        "title": "Validate Current Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(check)"
+      },
+      {
+        "command": "readme-to-cicd.showSchemaHelp",
+        "title": "Show Schema Help",
+        "category": "README to CI/CD",
+        "icon": "$(question)"
+      },
+      {
+        "command": "readme-to-cicd.formatWorkflow",
+        "title": "Format Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(symbol-property)"
+      },
+      {
+        "command": "readme-to-cicd.insertWorkflowSnippet",
+        "title": "Insert Workflow Snippet",
+        "category": "README to CI/CD",
+        "icon": "$(add)"
+      },
+      {
+        "command": "readme-to-cicd.stageWorkflowFiles",
+        "title": "Stage Workflow Files",
+        "category": "README to CI/CD",
+        "icon": "$(add)"
+      },
+      {
+        "command": "readme-to-cicd.commitWorkflowChanges",
+        "title": "Commit Workflow Changes",
+        "category": "README to CI/CD",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "readme-to-cicd.createWorkflowBranch",
+        "title": "Create Workflow Branch",
+        "category": "README to CI/CD",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "readme-to-cicd.resolveMergeConflicts",
+        "title": "Resolve Merge Conflicts",
+        "category": "README to CI/CD",
+        "icon": "$(git-merge)"
       }
     ],
     "menus": {
@@ -98,6 +170,95 @@
         {
           "command": "readme-to-cicd.refreshDetection",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.refresh",
+          "when": "false"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.generateWorkflow",
+          "when": "false"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.openFile",
+          "when": "false"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.validateWorkflow",
+          "when": "false"
+        },
+        {
+          "command": "readme-to-cicd.validateCurrentWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.showSchemaHelp",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.formatWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.insertWorkflowSnippet",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.stageWorkflowFiles",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.commitWorkflowChanges",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.createWorkflowBranch",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.resolveMergeConflicts",
+          "when": "workspaceFolderCount > 0"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "readme-to-cicd.workflowExplorer.refresh",
+          "when": "view == readme-to-cicd.workflowExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "readme-to-cicd.workflowExplorer.generateWorkflow",
+          "when": "view == readme-to-cicd.workflowExplorer && viewItem == readme-file",
+          "group": "workflow@1"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.openFile",
+          "when": "view == readme-to-cicd.workflowExplorer && (viewItem == workflow-file || viewItem == readme-file)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "readme-to-cicd.workflowExplorer.validateWorkflow",
+          "when": "view == readme-to-cicd.workflowExplorer && viewItem == workflow-file",
+          "group": "workflow@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "readme-to-cicd.validateCurrentWorkflow",
+          "when": "resourceExtname == .yml || resourceExtname == .yaml",
+          "group": "readme-to-cicd@1"
+        },
+        {
+          "command": "readme-to-cicd.formatWorkflow",
+          "when": "resourceExtname == .yml || resourceExtname == .yaml",
+          "group": "readme-to-cicd@2"
+        },
+        {
+          "command": "readme-to-cicd.insertWorkflowSnippet",
+          "when": "resourceExtname == .yml || resourceExtname == .yaml",
+          "group": "readme-to-cicd@3"
         }
       ]
     },
@@ -211,10 +372,13 @@
   "dependencies": {
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
     "handlebars": "^4.7.8",
     "js-yaml": "^4.1.0",
     "marked": "^9.1.2",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "yaml": "^2.3.4"
   }
 }
