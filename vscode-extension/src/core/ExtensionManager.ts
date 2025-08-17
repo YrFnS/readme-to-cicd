@@ -3,11 +3,18 @@
  * 
  * Manages extension lifecycle, updates, telemetry, and deployment.
  * Handles version management and quality assurance.
+ * Integrates comprehensive error handling and user feedback systems.
  */
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ExtensionConfiguration } from './types';
+import { ErrorHandler } from './ErrorHandler';
+import { NotificationService } from './NotificationService';
+import { LoggingService } from './LoggingService';
+import { ProgressManager } from './ProgressManager';
+import { VersionManager } from './VersionManager';
+import { TelemetryService } from './TelemetryService';
 
 export interface ExtensionInfo {
   id: string;
@@ -61,6 +68,16 @@ export class ExtensionManager {
   private qualityMetrics: QualityMetrics;
   private sessionStartTime: number;
 
+  // Error handling and user feedback services
+  private errorHandler: ErrorHandler;
+  private notificationService: NotificationService;
+  private loggingService: LoggingService;
+  private progressManager: ProgressManager;
+  
+  // Version management and telemetry services
+  private versionManager: VersionManager;
+  private telemetryService: TelemetryService;
+
   constructor(
     private context: vscode.ExtensionContext,
     private configuration: ExtensionConfiguration
@@ -69,6 +86,13 @@ export class ExtensionManager {
     this.sessionStartTime = Date.now();
     this.usageMetrics = this.loadUsageMetrics();
     this.qualityMetrics = this.loadQualityMetrics();
+    
+    // Initialize error handling services
+    this.initializeErrorHandlingServices();
+    
+    // Initialize version management and telemetry
+    this.versionManager = VersionManager.getInstance(this.context, this.loggingService, this.notificationService);
+    this.telemetryService = TelemetryService.getInstance(this.context, this.loggingService);
     
     this.initializeTelemetry();
     this.setupUpdateChecking();
@@ -79,29 +103,71 @@ export class ExtensionManager {
    * Initialize extension and perform startup tasks
    */
   async initialize(): Promise<void> {
+    const correlationId = this.loggingService.startOperation('extension-initialization', 'ExtensionManager');
+    
     try {
-      // Check for updates
-      await this.checkForUpdates();
+      await this.progressManager.withProgress(
+        {
+          title: 'Initializing README-to-CICD Extension',
+          location: vscode.ProgressLocation.Window,
+          showInStatusBar: true
+        },
+        async (progress) => {
+          progress.report({ message: 'Initializing version management...', currentStep: 1, totalSteps: 6 });
+          await this.versionManager.initialize();
 
-      // Initialize telemetry if enabled
-      if (this.telemetryEnabled) {
-        await this.sendTelemetryEvent('extension.activated', {
-          version: this.extensionInfo.version,
-          platform: process.platform,
-          nodeVersion: process.version,
-          vscodeVersion: vscode.version
-        });
-      }
+          progress.report({ message: 'Initializing telemetry...', currentStep: 2, totalSteps: 6 });
+          await this.telemetryService.initialize();
 
-      // Perform health check
-      await this.performHealthCheck();
+          progress.report({ message: 'Checking for updates...', currentStep: 3, totalSteps: 6 });
+          await this.checkForUpdates();
 
-      // Clean up old data
-      await this.cleanupOldData();
+          progress.report({ message: 'Performing health check...', currentStep: 3, totalSteps: 5 });
+          const healthCheck = await this.performHealthCheck();
+          
+          if (!healthCheck.healthy) {
+            await this.notificationService.showWarning(
+              `Extension health check found ${healthCheck.failedChecks} issue(s)`,
+              [
+                {
+                  title: 'View Details',
+                  callback: async () => {
+                    await this.showHealthCheckResults(healthCheck);
+                  }
+                }
+              ]
+            );
+          }
+
+          progress.report({ message: 'Cleaning up old data...', currentStep: 4, totalSteps: 5 });
+          await this.cleanupOldData();
+
+          progress.report({ message: 'Initialization complete', currentStep: 5, totalSteps: 5 });
+        }
+      );
+
+      this.loggingService.endOperation(correlationId, 'extension-initialization', 'ExtensionManager', true, Date.now() - this.sessionStartTime);
+      
+      await this.notificationService.showSuccess(
+        'README-to-CICD extension initialized successfully',
+        [],
+        { timeout: 3000, showInStatusBar: true }
+      );
 
     } catch (error) {
-      console.error('Extension initialization failed:', error);
-      await this.reportError('initialization', error);
+      this.loggingService.endOperation(correlationId, 'extension-initialization', 'ExtensionManager', false, Date.now() - this.sessionStartTime, undefined, error instanceof Error ? error : new Error(String(error)));
+      
+      await this.errorHandler.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          component: 'ExtensionManager',
+          operation: 'initialization',
+          userAction: 'extension-startup'
+        },
+        true
+      );
+      
+      throw error;
     }
   }
 
@@ -238,6 +304,17 @@ export class ExtensionManager {
     this.saveUsageMetrics();
     this.saveQualityMetrics();
 
+    // Use integrated error handling
+    await this.errorHandler.handleError(
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        component: 'ExtensionManager',
+        operation: context,
+        userAction: 'error-reporting'
+      },
+      false // Don't show to user here, let caller decide
+    );
+
     if (this.telemetryEnabled) {
       await this.sendTelemetryEvent('error.occurred', {
         context,
@@ -351,6 +428,12 @@ export class ExtensionManager {
       const sessionDuration = Date.now() - this.sessionStartTime;
       this.usageMetrics.sessionDuration += sessionDuration;
       
+      this.loggingService.info('Extension deactivating', {
+        component: 'ExtensionManager',
+        operation: 'deactivation',
+        data: { sessionDuration }
+      });
+
       // Save final metrics
       this.saveUsageMetrics();
       this.saveQualityMetrics();
@@ -362,8 +445,15 @@ export class ExtensionManager {
         });
       }
 
+      // Dispose of error handling services
+      this.errorHandler.dispose();
+      this.notificationService.dispose();
+      this.loggingService.dispose();
+      this.progressManager.dispose();
+
     } catch (error) {
       console.error('Extension deactivation failed:', error);
+      // Don't use error handler here as it might be disposed
     }
   }
 
@@ -622,6 +712,199 @@ export class ExtensionManager {
     
     const recentEvents = events.filter(event => event.timestamp > thirtyDaysAgo);
     await this.context.globalState.update('telemetryEvents', recentEvents);
+
+    // Clean up old error reports, logs, and notifications
+    this.errorHandler.clearOldErrors(7);
+    this.loggingService.clearLogs(7);
+    await this.notificationService.clearNotificationHistory(7);
+  }
+
+  /**
+   * Initialize error handling services
+   */
+  private initializeErrorHandlingServices(): void {
+    this.loggingService = new LoggingService(this.context, this.configuration);
+    this.notificationService = new NotificationService(this.context, this.configuration);
+    this.errorHandler = new ErrorHandler(this.context, this.configuration);
+    this.progressManager = new ProgressManager(this.context, this.configuration);
+
+    this.loggingService.info('Error handling services initialized', {
+      component: 'ExtensionManager',
+      operation: 'service-initialization'
+    });
+  }
+
+  /**
+   * Get error handling services for other components
+   */
+  getErrorHandler(): ErrorHandler {
+    return this.errorHandler;
+  }
+
+  getNotificationService(): NotificationService {
+    return this.notificationService;
+  }
+
+  getLoggingService(): LoggingService {
+    return this.loggingService;
+  }
+
+  getProgressManager(): ProgressManager {
+    return this.progressManager;
+  }
+
+  /**
+   * Show health check results to user
+   */
+  private async showHealthCheckResults(healthCheck: HealthCheckResult): Promise<void> {
+    const details = healthCheck.checks.map(check => 
+      `${check.passed ? '✅' : '❌'} ${check.name}: ${check.message}`
+    ).join('\n');
+
+    const recommendations = healthCheck.recommendations.length > 0
+      ? '\n\nRecommendations:\n' + healthCheck.recommendations.map(r => `• ${r}`).join('\n')
+      : '';
+
+    const fullMessage = `Health Check Results:\n\n${details}${recommendations}`;
+
+    await vscode.window.showInformationMessage(
+      healthCheck.healthy ? 'Extension is healthy' : 'Extension has issues',
+      'View Details'
+    );
+
+    // Show detailed results in a new document
+    const doc = await vscode.workspace.openTextDocument({
+      content: fullMessage,
+      language: 'plaintext'
+    });
+    await vscode.window.showTextDocument(doc);
+  }
+
+  /**
+   * Create comprehensive debug package
+   */
+  async createDebugPackage(): Promise<string> {
+    const diagnostics = this.getDiagnostics();
+    const errorReports = await this.errorHandler.exportErrorReports();
+    const logs = await this.loggingService.exportLogs();
+    const notifications = await this.notificationService.exportNotificationHistory();
+    const debugPackage = await this.loggingService.createDebugPackage();
+
+    const comprehensiveDebugData = {
+      timestamp: new Date().toISOString(),
+      extensionDiagnostics: diagnostics,
+      errorReports: JSON.parse(errorReports),
+      logs: JSON.parse(logs),
+      notifications: JSON.parse(notifications),
+      debugPackage: JSON.parse(debugPackage),
+      systemInfo: {
+        platform: process.platform,
+        arch: process.arch,
+        nodeVersion: process.version,
+        vscodeVersion: vscode.version,
+        memoryUsage: process.memoryUsage()
+      }
+    };
+
+    return JSON.stringify(comprehensiveDebugData, null, 2);
+  }
+
+  /**
+   * Handle critical errors that require user attention
+   */
+  async handleCriticalError(error: Error, context: string): Promise<void> {
+    await this.errorHandler.handleError(error, {
+      component: 'ExtensionManager',
+      operation: context,
+      userAction: 'critical-error'
+    }, true);
+
+    // Show additional recovery options for critical errors
+    const choice = await vscode.window.showErrorMessage(
+      'A critical error occurred in README-to-CICD extension',
+      'Restart Extension',
+      'Create Debug Package',
+      'Report Issue'
+    );
+
+    switch (choice) {
+      case 'Restart Extension':
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+        break;
+      case 'Create Debug Package':
+        await this.exportDebugPackage();
+        break;
+      case 'Report Issue':
+        await this.openIssueReporter(error, context);
+        break;
+    }
+  }
+
+  /**
+   * Export debug package to file
+   */
+  private async exportDebugPackage(): Promise<void> {
+    try {
+      const debugData = await this.createDebugPackage();
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(`readme-to-cicd-debug-${Date.now()}.json`),
+        filters: { 'JSON Files': ['json'] }
+      });
+
+      if (uri) {
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(debugData));
+        await this.notificationService.showSuccess(
+          `Debug package exported to ${uri.fsPath}`,
+          [
+            {
+              title: 'Open File',
+              command: 'vscode.open',
+              args: [uri]
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      await this.notificationService.showError(
+        'Failed to export debug package',
+        [
+          {
+            title: 'Retry',
+            callback: async () => await this.exportDebugPackage()
+          }
+        ]
+      );
+    }
+  }
+
+  /**
+   * Open issue reporter with error details
+   */
+  private async openIssueReporter(error: Error, context: string): Promise<void> {
+    const issueUrl = this.extensionInfo.bugs || `${this.extensionInfo.repository}/issues`;
+    
+    if (issueUrl) {
+      const issueTitle = encodeURIComponent(`Critical Error: ${error.message}`);
+      const issueBody = encodeURIComponent(`
+**Error Context:** ${context}
+**Error Message:** ${error.message}
+**Stack Trace:**
+\`\`\`
+${error.stack || 'No stack trace available'}
+\`\`\`
+
+**Extension Version:** ${this.extensionInfo.version}
+**VS Code Version:** ${vscode.version}
+**Platform:** ${process.platform} ${process.arch}
+**Node Version:** ${process.version}
+
+**Additional Information:**
+Please describe what you were doing when this error occurred.
+      `);
+
+      const fullUrl = `${issueUrl}/new?title=${issueTitle}&body=${issueBody}`;
+      await vscode.env.openExternal(vscode.Uri.parse(fullUrl));
+    }
   }
 }
 

@@ -1,0 +1,287 @@
+name: Extension Testing Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Lint and type check
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  # Unit tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:prod
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: test-results/
+
+  # Integration tests across platforms and VS Code versions
+  integration-tests:
+    name: Integration Tests
+    needs: [lint, unit-tests]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        vscode-version: ['1.74.0', '1.80.0', 'latest']
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:prod
+
+      - name: Run VS Code Extension Tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: npm run test:integration
+        env:
+          VSCODE_VERSION: ${{ matrix.vscode-version }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.os }}-${{ matrix.vscode-version }}
+          path: test-results/
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: matrix.os == 'ubuntu-latest' && matrix.vscode-version == 'latest'
+        with:
+          file: coverage/lcov.info
+          flags: integration
+
+  # Performance tests
+  performance-tests:
+    name: Performance Tests
+    needs: [unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:prod
+
+      - name: Run performance tests
+        run: npm run test:performance
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: test-results/performance/
+
+  # Package and validate extension
+  package:
+    name: Package Extension
+    needs: [lint, unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Validate package
+        run: |
+          # Check if VSIX file was created
+          if [ ! -f *.vsix ]; then
+            echo "VSIX file not found"
+            exit 1
+          fi
+          
+          # Check package size (should be reasonable)
+          SIZE=$(stat -c%s *.vsix)
+          if [ $SIZE -gt 50000000 ]; then  # 50MB limit
+            echo "Package too large: ${SIZE} bytes"
+            exit 1
+          fi
+          
+          echo "Package validation passed: ${SIZE} bytes"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-package
+          path: '*.vsix'
+
+  # Security scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: typescript
+
+      - name: Build for analysis
+        run: npm run build:prod
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # Generate test report
+  test-report:
+    name: Generate Test Report
+    needs: [integration-tests, performance-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          path: all-test-results/
+
+      - name: Generate combined report
+        run: |
+          mkdir -p final-report
+          
+          # Combine all test results
+          echo "# Extension Test Report" > final-report/README.md
+          echo "" >> final-report/README.md
+          echo "Generated on: $(date)" >> final-report/README.md
+          echo "" >> final-report/README.md
+          
+          # Add summary of all test runs
+          echo "## Test Summary" >> final-report/README.md
+          find all-test-results -name "*.json" -exec echo "Processing {}" \; >> final-report/README.md
+          
+          # Create index of all artifacts
+          echo "## Test Artifacts" >> final-report/README.md
+          find all-test-results -type f | sort >> final-report/README.md
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-test-report
+          path: final-report/
+
+  # Deployment readiness check
+  deployment-check:
+    name: Deployment Readiness
+    needs: [integration-tests, package, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Check deployment readiness
+        run: |
+          echo "Checking deployment readiness..."
+          
+          # All required jobs must pass
+          echo "✅ Linting passed"
+          echo "✅ Unit tests passed"
+          echo "✅ Integration tests passed"
+          echo "✅ Package created"
+          echo "✅ Security scan passed"
+          
+          echo "🚀 Extension is ready for deployment!"
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Ready for deployment ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY

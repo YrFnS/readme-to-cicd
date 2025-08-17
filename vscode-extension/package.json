@@ -1,25 +1,70 @@
 {
   "name": "readme-to-cicd",
   "displayName": "README to CI/CD",
-  "description": "Generate GitHub Actions workflows from README files",
+  "description": "Automatically generate optimized GitHub Actions CI/CD workflows from README files with intelligent framework detection",
   "version": "0.1.0",
   "publisher": "readme-to-cicd",
-  "icon": "media/icon.svg",
+  "author": {
+    "name": "README to CI/CD Team",
+    "email": "support@readme-to-cicd.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/readme-to-cicd/vscode-extension",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/readme-to-cicd/vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/readme-to-cicd/vscode-extension/issues"
+  },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.74.0",
+    "node": ">=18.0.0"
   },
   "categories": [
     "Other",
     "Snippets",
-    "Formatters"
+    "Formatters",
+    "Extension Packs"
   ],
   "keywords": [
     "github-actions",
     "ci-cd",
     "workflow",
     "automation",
-    "readme"
+    "readme",
+    "devops",
+    "continuous-integration",
+    "continuous-deployment",
+    "yaml",
+    "pipeline",
+    "build",
+    "test",
+    "deploy",
+    "framework-detection",
+    "productivity"
   ],
+  "badges": [
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/v/readme-to-cicd.readme-to-cicd",
+      "href": "https://marketplace.visualstudio.com/items?itemName=readme-to-cicd.readme-to-cicd",
+      "description": "Version"
+    },
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/i/readme-to-cicd.readme-to-cicd",
+      "href": "https://marketplace.visualstudio.com/items?itemName=readme-to-cicd.readme-to-cicd",
+      "description": "Installs"
+    }
+  ],
+  "qna": "https://github.com/readme-to-cicd/vscode-extension/discussions",
+  "sponsor": {
+    "url": "https://github.com/sponsors/readme-to-cicd"
+  },
   "activationEvents": [
     "onLanguage:markdown",
     "onLanguage:yaml",
@@ -128,6 +173,48 @@
         "title": "Resolve Merge Conflicts",
         "category": "README to CI/CD",
         "icon": "$(git-merge)"
+      },
+      {
+        "command": "readme-to-cicd.generateMultiWorkflow",
+        "title": "Generate Multi-Workflow",
+        "category": "README to CI/CD",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "readme-to-cicd.manageTemplates",
+        "title": "Manage Templates",
+        "category": "README to CI/CD",
+        "icon": "$(library)"
+      },
+      {
+        "command": "readme-to-cicd.createCustomTemplate",
+        "title": "Create Custom Template",
+        "category": "README to CI/CD",
+        "icon": "$(add)"
+      },
+      {
+        "command": "readme-to-cicd.updateWorkflows",
+        "title": "Update Workflows",
+        "category": "README to CI/CD",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "readme-to-cicd.coordinateWorkflows",
+        "title": "Coordinate Workflows",
+        "category": "README to CI/CD",
+        "icon": "$(organization)"
+      },
+      {
+        "command": "readme-to-cicd.importOrganizationTemplates",
+        "title": "Import Organization Templates",
+        "category": "README to CI/CD",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "readme-to-cicd.exportTemplates",
+        "title": "Export Templates",
+        "category": "README to CI/CD",
+        "icon": "$(cloud-upload)"
       }
     ],
     "menus": {
@@ -141,6 +228,21 @@
           "command": "readme-to-cicd.previewWorkflow",
           "when": "resourceFilename == README.md",
           "group": "readme-to-cicd@2"
+        },
+        {
+          "command": "readme-to-cicd.generateMultiWorkflow",
+          "when": "resourceFilename == README.md",
+          "group": "readme-to-cicd@3"
+        },
+        {
+          "command": "readme-to-cicd.createCustomTemplate",
+          "when": "resourceExtname == .yml || resourceExtname == .yaml",
+          "group": "readme-to-cicd@1"
+        },
+        {
+          "command": "readme-to-cicd.updateWorkflows",
+          "when": "resourcePath =~ /\\.github\\/workflows/",
+          "group": "readme-to-cicd@1"
         }
       ],
       "editor/context": [
@@ -217,6 +319,34 @@
         },
         {
           "command": "readme-to-cicd.resolveMergeConflicts",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.generateMultiWorkflow",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.manageTemplates",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.createCustomTemplate",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.updateWorkflows",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.coordinateWorkflows",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.importOrganizationTemplates",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "readme-to-cicd.exportTemplates",
           "when": "workspaceFolderCount > 0"
         }
       ],
@@ -328,21 +458,72 @@
             "ci"
           ],
           "description": "Default workflow types to generate"
+        },
+        "readme-to-cicd.telemetry.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable anonymous telemetry to help improve the extension"
+        },
+        "readme-to-cicd.telemetry.level": {
+          "type": "string",
+          "enum": [
+            "off",
+            "error",
+            "all"
+          ],
+          "default": "all",
+          "description": "Level of telemetry data to collect"
+        },
+        "readme-to-cicd.telemetry.anonymizeData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Anonymize sensitive data in telemetry"
+        },
+        "readme-to-cicd.telemetry.collectUsageData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collect usage statistics and feature adoption data"
+        },
+        "readme-to-cicd.telemetry.collectErrorData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collect error reports to help fix issues"
+        },
+        "readme-to-cicd.telemetry.collectPerformanceData": {
+          "type": "boolean",
+          "default": true,
+          "description": "Collect performance metrics to optimize the extension"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run build:prod",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
     "test": "node ./out/test/runTest.js",
-    "package": "vsce package",
-    "webpack": "webpack --mode development",
-    "webpack-dev": "webpack --mode development --watch",
-    "webpack-prod": "webpack --mode production"
+    "test:unit": "npm run compile && mocha out/test/unit/**/*.test.js",
+    "test:integration": "npm run compile && mocha out/test/integration/**/*.test.js",
+    "test:coverage": "nyc npm run test",
+    "build": "webpack --mode development",
+    "build:prod": "NODE_ENV=production webpack --mode production",
+    "build:watch": "webpack --mode development --watch",
+    "build:analyze": "webpack-bundle-analyzer out/extension.js",
+    "package": "npm run build:prod && vsce package",
+    "package:pre-release": "npm run build:prod && vsce package --pre-release",
+    "publish": "npm run package && vsce publish",
+    "publish:pre-release": "npm run package:pre-release && vsce publish --pre-release",
+    "clean": "rimraf out *.vsix",
+    "validate": "npm run lint && npm run test && npm run build:prod",
+    "ci": "npm ci && npm run validate",
+    "deploy": "node scripts/deploy.js",
+    "deploy:dry-run": "npm run validate && npm run package",
+    "version:patch": "npm version patch && npm run deploy",
+    "version:minor": "npm version minor && npm run deploy",
+    "version:major": "npm version major && npm run deploy"
   },
   "devDependencies": {
     "@babel/core": "^7.28.3",
@@ -362,11 +543,14 @@
     "eslint": "^8.47.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
+    "rimraf": "^5.0.5",
     "sinon": "^17.0.1",
     "style-loader": "^4.0.0",
     "ts-loader": "^9.4.4",
     "typescript": "^5.1.6",
     "webpack": "^5.88.0",
+    "webpack-bundle-analyzer": "^4.9.1",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {

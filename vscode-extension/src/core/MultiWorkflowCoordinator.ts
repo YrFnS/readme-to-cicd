@@ -11,14 +11,17 @@ import {
   WorkflowType, 
   WorkflowConfiguration, 
   ExtensionConfiguration,
-  CLIGenerationResult 
+  CLIGenerationResult,
+  FrameworkSelection,
+  DeploymentTarget
 } from './types';
 import { 
   TemplateManager, 
   MultiWorkflowConfiguration, 
   WorkflowCoordination,
   MultiWorkflowResult,
-  WorkflowGenerationResult 
+  WorkflowGenerationResult,
+  TemplateCustomization
 } from './TemplateManager';
 import { CLIIntegration } from './CLIIntegration';
 import { FileSystemManager } from './FileSystemManager';
@@ -290,6 +293,116 @@ export class MultiWorkflowCoordinator {
     }
 
     return results;
+  }
+
+  /**
+   * Generate multiple workflow types simultaneously with coordination
+   */
+  async generateCoordinatedWorkflows(
+    workflowTypes: WorkflowType[],
+    readmePath: string,
+    outputDirectory: string,
+    configuration?: Partial<MultiWorkflowConfiguration>,
+    progressCallback?: (progress: number, message: string) => void
+  ): Promise<MultiWorkflowResult> {
+    try {
+      progressCallback?.(10, 'Planning multi-workflow generation...');
+      
+      // Create generation plan
+      const plan = await this.planMultiWorkflowGeneration(
+        workflowTypes,
+        readmePath,
+        outputDirectory,
+        configuration
+      );
+
+      progressCallback?.(30, 'Executing workflow generation...');
+      
+      // Execute the plan
+      const result = await this.executeMultiWorkflowGeneration(
+        plan,
+        readmePath,
+        (progress, message) => {
+          const adjustedProgress = 30 + (progress * 0.6); // Scale to 30-90%
+          progressCallback?.(adjustedProgress, message);
+        }
+      );
+
+      progressCallback?.(100, 'Multi-workflow generation complete');
+      
+      return result;
+
+    } catch (error) {
+      return {
+        success: false,
+        workflows: [],
+        errors: [error.message],
+        coordination: {
+          executionOrder: [],
+          dependencies: [],
+          sharedResources: []
+        }
+      };
+    }
+  }
+
+  /**
+   * Manage template customizations for workflows
+   */
+  async manageTemplateCustomizations(
+    workflowPath: string,
+    customizations: Record<string, any>,
+    preserveSections: string[] = []
+  ): Promise<TemplateCustomizationResult> {
+    try {
+      // Load existing workflow
+      const existingContent = await this.fileSystemManager.readWorkflowFile(workflowPath);
+      
+      // Extract current customizations
+      const currentCustomizations = await this.extractCustomizations(existingContent);
+      
+      // Merge with new customizations
+      const mergedCustomizations = {
+        ...currentCustomizations,
+        ...customizations
+      };
+
+      // Apply customizations while preserving specified sections
+      const updatedContent = await this.applyCustomizationsToWorkflow(
+        existingContent,
+        mergedCustomizations,
+        preserveSections
+      );
+
+      // Save updated workflow
+      await this.fileSystemManager.writeWorkflowFile(workflowPath, updatedContent);
+
+      // Save customization metadata
+      const templateId = await this.extractTemplateId(existingContent);
+      if (templateId) {
+        await this.saveCustomizationMetadata(templateId, {
+          templateId,
+          customizations: mergedCustomizations,
+          preserveOnUpdate: preserveSections,
+          lastModified: new Date()
+        });
+      }
+
+      return {
+        success: true,
+        customizations: mergedCustomizations,
+        preservedSections: preserveSections,
+        templateId
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        customizations: {},
+        preservedSections: []
+      };
+    }
   }
 
   /**
@@ -657,12 +770,276 @@ export class MultiWorkflowCoordinator {
     workflowPath: string,
     strategy: WorkflowUpdateStrategy
   ): Promise<SingleWorkflowUpdateResult> {
-    // Implementation for updating a single workflow
+    try {
+      // Read existing workflow
+      const existingContent = await this.fileSystemManager.readWorkflowFile(workflowPath);
+      
+      // Create backup if requested
+      let backupPath: string | undefined;
+      if (strategy.backupExisting) {
+        backupPath = `${workflowPath}.backup.${Date.now()}`;
+        await this.fileSystemManager.writeWorkflowFile(backupPath, existingContent);
+      }
+
+      // Extract template ID and customizations
+      const templateId = await this.extractTemplateId(existingContent);
+      if (!templateId) {
+        return {
+          path: workflowPath,
+          updated: false,
+          reason: 'No template ID found in workflow',
+          backupPath
+        };
+      }
+
+      // Get current template
+      const template = this.templateManager.getTemplate(templateId);
+      if (!template) {
+        return {
+          path: workflowPath,
+          updated: false,
+          reason: `Template ${templateId} not found`,
+          backupPath
+        };
+      }
+
+      // Extract existing customizations if preserving them
+      let customizations: Record<string, any> = {};
+      if (strategy.preserveCustomizations) {
+        customizations = await this.extractCustomizations(existingContent);
+      }
+
+      // Generate new workflow content
+      const workflowConfig = await this.inferWorkflowConfiguration(existingContent);
+      const newContent = await this.templateManager.generateWorkflowFromTemplate(
+        templateId,
+        workflowConfig,
+        path.dirname(workflowPath),
+        path.dirname(workflowPath),
+        {}
+      );
+
+      // Apply merge strategy
+      let finalContent: string;
+      switch (strategy.mergeStrategy) {
+        case 'replace':
+          finalContent = newContent.content;
+          break;
+        case 'merge':
+          finalContent = await this.mergeWorkflowContent(
+            existingContent,
+            newContent.content,
+            customizations,
+            strategy.customSections
+          );
+          break;
+        case 'prompt':
+          // This would show a diff view to the user
+          const userChoice = await this.promptUserForMergeStrategy(
+            workflowPath,
+            existingContent,
+            newContent.content
+          );
+          finalContent = userChoice === 'keep-existing' ? existingContent : newContent.content;
+          break;
+        default:
+          finalContent = newContent.content;
+      }
+
+      // Write updated workflow
+      await this.fileSystemManager.writeWorkflowFile(workflowPath, finalContent);
+
+      return {
+        path: workflowPath,
+        updated: true,
+        backupPath
+      };
+
+    } catch (error) {
+      return {
+        path: workflowPath,
+        updated: false,
+        reason: error.message
+      };
+    }
+  }
+
+  private async extractTemplateId(workflowContent: string): Promise<string | undefined> {
+    // Look for template ID in workflow comments
+    const templateIdMatch = workflowContent.match(/# Template ID: (.+)/);
+    return templateIdMatch ? templateIdMatch[1] : undefined;
+  }
+
+  private async extractCustomizations(workflowContent: string): Promise<Record<string, any>> {
+    // Extract custom sections from workflow
+    const customizations: Record<string, any> = {};
+    
+    // Look for custom environment variables
+    const envMatch = workflowContent.match(/env:\s*\n((?:\s+.+\n)*)/);
+    if (envMatch) {
+      customizations.env = envMatch[1];
+    }
+
+    // Look for custom steps
+    const customStepsMatch = workflowContent.match(/# Custom steps start\n([\s\S]*?)# Custom steps end/);
+    if (customStepsMatch) {
+      customizations.customSteps = customStepsMatch[1];
+    }
+
+    return customizations;
+  }
+
+  private async applyCustomizationsToWorkflow(
+    workflowContent: string,
+    customizations: Record<string, any>,
+    preserveSections: string[]
+  ): Promise<string> {
+    let result = workflowContent;
+
+    for (const [section, value] of Object.entries(customizations)) {
+      if (preserveSections.includes(section)) {
+        // Apply customization while preserving the section
+        switch (section) {
+          case 'env':
+            result = result.replace(
+              /env:\s*\n((?:\s+.+\n)*)/,
+              `env:\n${value}`
+            );
+            break;
+          case 'customSteps':
+            result = result.replace(
+              /# Custom steps start\n([\s\S]*?)# Custom steps end/,
+              `# Custom steps start\n${value}# Custom steps end`
+            );
+            break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  private async saveCustomizationMetadata(
+    templateId: string,
+    customization: TemplateCustomization
+  ): Promise<void> {
+    // Save to template manager's customization system
+    await this.templateManager.saveCustomization(customization);
+  }
+
+  private async inferWorkflowConfiguration(workflowContent: string): Promise<WorkflowConfiguration> {
+    // Infer configuration from existing workflow content
+    const frameworks: FrameworkSelection[] = [];
+    const deploymentTargets: DeploymentTarget[] = [];
+
+    // Extract frameworks from workflow steps
+    const nodeMatch = workflowContent.match(/node-version|setup-node/);
+    if (nodeMatch) {
+      frameworks.push({
+        name: 'nodejs',
+        enabled: true,
+        confidence: 0.9
+      });
+    }
+
+    const pythonMatch = workflowContent.match(/python-version|setup-python/);
+    if (pythonMatch) {
+      frameworks.push({
+        name: 'python',
+        enabled: true,
+        confidence: 0.9
+      });
+    }
+
     return {
-      path: workflowPath,
-      updated: false,
-      reason: 'Not implemented'
+      workflowTypes: ['ci'], // Default to CI
+      frameworks,
+      deploymentTargets,
+      securityLevel: 'standard',
+      optimizationLevel: 'standard',
+      includeComments: true,
+      customSteps: []
     };
+  }
+
+  private async mergeWorkflowContent(
+    existingContent: string,
+    newContent: string,
+    customizations: Record<string, any>,
+    customSections: string[]
+  ): Promise<string> {
+    // Start with new content as base
+    let result = newContent;
+
+    // Apply preserved customizations
+    for (const section of customSections) {
+      if (customizations[section]) {
+        result = await this.applyCustomizationsToWorkflow(
+          result,
+          { [section]: customizations[section] },
+          [section]
+        );
+      }
+    }
+
+    return result;
+  }
+
+  private async promptUserForMergeStrategy(
+    workflowPath: string,
+    existingContent: string,
+    newContent: string
+  ): Promise<'keep-existing' | 'use-new'> {
+    const choice = await vscode.window.showWarningMessage(
+      `Workflow ${path.basename(workflowPath)} has been modified. How would you like to proceed?`,
+      'Keep Existing',
+      'Use New Template',
+      'Show Diff'
+    );
+
+    switch (choice) {
+      case 'Keep Existing':
+        return 'keep-existing';
+      case 'Use New Template':
+        return 'use-new';
+      case 'Show Diff':
+        // Show diff and ask again
+        await this.showWorkflowDiff(workflowPath, existingContent, newContent);
+        return this.promptUserForMergeStrategy(workflowPath, existingContent, newContent);
+      default:
+        return 'keep-existing';
+    }
+  }
+
+  private async showWorkflowDiff(
+    workflowPath: string,
+    existingContent: string,
+    newContent: string
+  ): Promise<void> {
+    // Create temporary files for diff view
+    const existingUri = vscode.Uri.file(`${workflowPath}.existing`);
+    const newUri = vscode.Uri.file(`${workflowPath}.new`);
+
+    await vscode.workspace.fs.writeFile(existingUri, Buffer.from(existingContent));
+    await vscode.workspace.fs.writeFile(newUri, Buffer.from(newContent));
+
+    // Open diff view
+    await vscode.commands.executeCommand(
+      'vscode.diff',
+      existingUri,
+      newUri,
+      `${path.basename(workflowPath)}: Existing ↔ New Template`
+    );
+
+    // Clean up temporary files after a delay
+    setTimeout(async () => {
+      try {
+        await vscode.workspace.fs.delete(existingUri);
+        await vscode.workspace.fs.delete(newUri);
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    }, 30000); // 30 seconds
   }
 
   private async loadExistingWorkflows(workflowPaths: string[]): Promise<any[]> {
@@ -866,4 +1243,12 @@ interface CoordinationAnalysis {
   optimizationOpportunities: any[];
   dependencyIssues: any[];
   recommendations: string[];
+}
+
+interface TemplateCustomizationResult {
+  success: boolean;
+  customizations: Record<string, any>;
+  preservedSections: string[];
+  templateId?: string;
+  error?: string;
 }

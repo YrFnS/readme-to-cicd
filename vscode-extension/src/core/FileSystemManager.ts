@@ -96,6 +96,54 @@ export class FileSystemManager {
   }
 
   /**
+   * Read workflow file content
+   */
+  async readWorkflowFile(filePath: string): Promise<string> {
+    try {
+      return await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+      throw new FileSystemError(
+        `Failed to read workflow file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'file-system',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
+   * Write workflow file content
+   */
+  async writeWorkflowFile(filePath: string, content: string): Promise<void> {
+    try {
+      // Ensure directory exists
+      const directory = path.dirname(filePath);
+      await this.ensureDirectoryExists(directory);
+      
+      await fs.writeFile(filePath, content, 'utf8');
+    } catch (error) {
+      throw new FileSystemError(
+        `Failed to write workflow file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'file-system',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  /**
+   * List workflow files in directory
+   */
+  async listWorkflowFiles(directory: string): Promise<string[]> {
+    try {
+      const workflowsDir = path.join(directory, '.github', 'workflows');
+      const files = await fs.readdir(workflowsDir);
+      return files.filter(file => file.endsWith('.yml') || file.endsWith('.yaml'));
+    } catch (error) {
+      // Directory might not exist, return empty array
+      return [];
+    }
+  }
+
+  /**
    * Detects conflicts when creating or updating workflow files
    */
   async detectFileConflict(filePath: string, newContent: string): Promise<FileConflict | null> {

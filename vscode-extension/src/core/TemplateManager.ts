@@ -456,6 +456,244 @@ export class TemplateManager {
     await fs.writeFile(templatePath, JSON.stringify(template, null, 2));
   }
 
+  /**
+   * Save template customization metadata
+   */
+  async saveCustomization(customization: TemplateCustomization): Promise<void> {
+    this.customizations.set(customization.templateId, customization);
+    
+    const customizationsPath = path.join(this.customTemplatesPath, 'customizations.json');
+    const allCustomizations = Array.from(this.customizations.values());
+    await fs.writeFile(customizationsPath, JSON.stringify(allCustomizations, null, 2));
+  }
+
+  /**
+   * Get template customization
+   */
+  getCustomization(templateId: string): TemplateCustomization | undefined {
+    return this.customizations.get(templateId);
+  }
+
+  /**
+   * Generate workflow from template with enhanced variable substitution
+   */
+  async generateWorkflowFromTemplate(
+    templateId: string,
+    workflowConfig: WorkflowConfiguration,
+    readmePath: string,
+    outputDirectory: string,
+    sharedVariables: Record<string, any>
+  ): Promise<WorkflowGenerationResult> {
+    const template = this.templates.get(templateId);
+    if (!template) {
+      throw new Error(`Template ${templateId} not found`);
+    }
+
+    // Increment usage counter
+    template.metadata.usage++;
+
+    // Generate workflow content by substituting variables
+    const variables = {
+      ...sharedVariables,
+      ...this.extractWorkflowVariables(workflowConfig),
+      readmePath,
+      outputDirectory,
+      templateId, // Add template ID for tracking
+      generatedAt: new Date().toISOString()
+    };
+
+    let content = this.substituteVariables(template.content, variables);
+    
+    // Add template metadata as comments
+    content = this.addTemplateMetadata(content, template, variables);
+    
+    const filename = this.generateWorkflowFilename(template, workflowConfig);
+
+    return {
+      templateId,
+      filename,
+      content,
+      type: template.type,
+      frameworks: template.frameworks,
+      customized: false,
+      warnings: [],
+      sharedSecrets: [],
+      sharedVariables: {},
+      dependencies: []
+    };
+  }
+
+  /**
+   * Import templates from organization repository
+   */
+  async importOrganizationTemplates(repositoryUrl: string): Promise<ImportResult> {
+    const result: ImportResult = {
+      success: false,
+      imported: [],
+      errors: [],
+      skipped: []
+    };
+
+    try {
+      // This would integrate with Git to clone/pull organization templates
+      // For now, we'll simulate the process
+      
+      const templates = await this.fetchTemplatesFromRepository(repositoryUrl);
+      
+      for (const template of templates) {
+        try {
+          // Validate template
+          const validation = this.validateTemplate(template);
+          if (!validation.isValid) {
+            result.errors.push({
+              templateId: template.id,
+              error: validation.errors.join(', ')
+            });
+            continue;
+          }
+
+          // Check if template already exists
+          if (this.templates.has(template.id)) {
+            result.skipped.push({
+              templateId: template.id,
+              reason: 'Template already exists'
+            });
+            continue;
+          }
+
+          // Import template
+          template.category = 'organization';
+          this.templates.set(template.id, template);
+          await this.saveOrganizationTemplate(template);
+          
+          result.imported.push(template.id);
+
+        } catch (error) {
+          result.errors.push({
+            templateId: template.id,
+            error: error.message
+          });
+        }
+      }
+
+      result.success = result.errors.length === 0;
+      return result;
+
+    } catch (error) {
+      result.errors.push({
+        templateId: 'repository',
+        error: `Failed to fetch templates: ${error.message}`
+      });
+      return result;
+    }
+  }
+
+  /**
+   * Export custom templates for sharing
+   */
+  async exportTemplates(templateIds: string[], exportPath: string): Promise<ExportResult> {
+    const result: ExportResult = {
+      success: false,
+      exported: [],
+      errors: []
+    };
+
+    try {
+      const exportData = {
+        version: '1.0.0',
+        exportedAt: new Date().toISOString(),
+        templates: [] as WorkflowTemplate[]
+      };
+
+      for (const templateId of templateIds) {
+        const template = this.templates.get(templateId);
+        if (!template) {
+          result.errors.push({
+            templateId,
+            error: 'Template not found'
+          });
+          continue;
+        }
+
+        if (template.category === 'built-in') {
+          result.errors.push({
+            templateId,
+            error: 'Cannot export built-in templates'
+          });
+          continue;
+        }
+
+        exportData.templates.push(template);
+        result.exported.push(templateId);
+      }
+
+      await fs.writeFile(exportPath, JSON.stringify(exportData, null, 2));
+      result.success = true;
+
+    } catch (error) {
+      result.errors.push({
+        templateId: 'export',
+        error: error.message
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Validate template structure and content
+   */
+  validateTemplate(template: WorkflowTemplate): TemplateValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Required fields validation
+    if (!template.id) errors.push('Template ID is required');
+    if (!template.name) errors.push('Template name is required');
+    if (!template.content) errors.push('Template content is required');
+    if (!template.type) errors.push('Template type is required');
+
+    // Content validation
+    if (template.content) {
+      // Check for valid YAML structure
+      try {
+        const yaml = require('js-yaml');
+        yaml.load(template.content);
+      } catch (error) {
+        errors.push(`Invalid YAML structure: ${error.message}`);
+      }
+
+      // Check for required GitHub Actions structure
+      if (!template.content.includes('name:')) {
+        warnings.push('Template should include a workflow name');
+      }
+      if (!template.content.includes('on:')) {
+        errors.push('Template must include trigger events (on:)');
+      }
+      if (!template.content.includes('jobs:')) {
+        errors.push('Template must include jobs section');
+      }
+    }
+
+    // Variable validation
+    if (template.variables) {
+      for (const variable of template.variables) {
+        if (!variable.name) {
+          errors.push('Template variable must have a name');
+        }
+        if (variable.required && !variable.defaultValue) {
+          warnings.push(`Required variable '${variable.name}' has no default value`);
+        }
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
   private generateTemplateId(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
   }
@@ -603,45 +841,7 @@ export class TemplateManager {
     return selectedTemplates;
   }
 
-  private async generateWorkflowFromTemplate(
-    templateId: string,
-    workflowConfig: WorkflowConfiguration,
-    readmePath: string,
-    outputDirectory: string,
-    sharedVariables: Record<string, any>
-  ): Promise<WorkflowGenerationResult> {
-    const template = this.templates.get(templateId);
-    if (!template) {
-      throw new Error(`Template ${templateId} not found`);
-    }
 
-    // Increment usage counter
-    template.metadata.usage++;
-
-    // Generate workflow content by substituting variables
-    const variables = {
-      ...sharedVariables,
-      ...this.extractWorkflowVariables(workflowConfig),
-      readmePath,
-      outputDirectory
-    };
-
-    const content = this.substituteVariables(template.content, variables);
-    const filename = this.generateWorkflowFilename(template, workflowConfig);
-
-    return {
-      templateId,
-      filename,
-      content,
-      type: template.type,
-      frameworks: template.frameworks,
-      customized: false,
-      warnings: [],
-      sharedSecrets: [],
-      sharedVariables: {},
-      dependencies: []
-    };
-  }
 
   private extractWorkflowVariables(config: WorkflowConfiguration): Record<string, any> {
     return {
@@ -692,6 +892,35 @@ export class TemplateManager {
 
     return result;
   }
+
+  private addTemplateMetadata(
+    content: string,
+    template: WorkflowTemplate,
+    variables: Record<string, any>
+  ): string {
+    const metadata = `# Generated from template: ${template.name} (${template.id})
+# Template version: ${template.version}
+# Generated at: ${variables.generatedAt}
+# Template ID: ${template.id}
+
+`;
+    return metadata + content;
+  }
+
+  private async fetchTemplatesFromRepository(repositoryUrl: string): Promise<WorkflowTemplate[]> {
+    // This would integrate with Git to fetch templates from a repository
+    // For now, return empty array as placeholder
+    return [];
+  }
+
+  private async saveOrganizationTemplate(template: WorkflowTemplate): Promise<void> {
+    if (!this.organizationTemplatesPath) {
+      throw new Error('Organization templates path not configured');
+    }
+    
+    const templatePath = path.join(this.organizationTemplatesPath, `${template.id}.json`);
+    await fs.writeFile(templatePath, JSON.stringify(template, null, 2));
+  }
 }
 
 // Additional interfaces for the template system
@@ -724,4 +953,23 @@ export interface MultiWorkflowResult {
     dependencies: WorkflowDependency[];
     sharedResources: string[];
   };
+}
+
+export interface ImportResult {
+  success: boolean;
+  imported: string[];
+  errors: { templateId: string; error: string }[];
+  skipped: { templateId: string; reason: string }[];
+}
+
+export interface ExportResult {
+  success: boolean;
+  exported: string[];
+  errors: { templateId: string; error: string }[];
+}
+
+export interface TemplateValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 }

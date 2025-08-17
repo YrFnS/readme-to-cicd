@@ -16,8 +16,6 @@ import {
   CLIGenerationRequest,
   CLIGenerationResult,
   WorkflowConfiguration,
-  ExtensionConfiguration,
-  CLIProgressReport,
   DetectedFramework,
   WorkflowPreview,
   PreviewData
@@ -40,18 +38,25 @@ export class CLIIntegration {
     this.logger = vscode.window.createOutputChannel('README to CI/CD - CLI Integration', { log: true });
 
     // Initialize components
-    const processOptions: ProcessExecutorOptions = {
-      defaultTimeout: this.options.timeout,
-      enableLogging: this.options.enableLogging,
-      workingDirectory: this.options.workingDirectory
-    };
+    const processOptions: ProcessExecutorOptions = {};
+    if (this.options.timeout !== undefined) {
+      processOptions.defaultTimeout = this.options.timeout;
+    }
+    if (this.options.enableLogging !== undefined) {
+      processOptions.enableLogging = this.options.enableLogging;
+    }
+    if (this.options.workingDirectory !== undefined) {
+      processOptions.workingDirectory = this.options.workingDirectory;
+    }
 
     const progressOptions: ProgressReporterOptions = {
       showInStatusBar: true,
       showNotifications: true,
-      enableDetailedLogging: this.options.enableLogging,
       progressLocation: vscode.ProgressLocation.Notification
     };
+    if (this.options.enableLogging !== undefined) {
+      progressOptions.enableDetailedLogging = this.options.enableLogging;
+    }
 
     this.processExecutor = new ProcessExecutor(processOptions);
     this.dataTransformer = new DataTransformer();
@@ -296,8 +301,12 @@ export class CLIIntegration {
       };
 
       // Transform configuration to CLI arguments with detection-only mode
+      const workflowConfig = request.configuration && 'workflowTypes' in request.configuration 
+        ? request.configuration as unknown as WorkflowConfiguration 
+        : defaultConfig;
+      
       const argsResult = this.dataTransformer.transformConfigurationToCLIArgs(
-        request.configuration || defaultConfig,
+        workflowConfig,
         request.readmePath,
         request.outputDirectory || '.github/workflows',
         true // Dry run for detection only
@@ -641,6 +650,41 @@ export class CLIIntegration {
       return {
         available: false,
         error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Parse README file using CLI
+   */
+  async parseReadme(readmePath: string): Promise<CLIExecutionResult> {
+    this.logger.info(`Parsing README file: ${readmePath}`);
+    
+    try {
+      const result = await this.processExecutor.executeCommand({
+        command: this.options.cliPath || 'readme-to-cicd',
+        args: ['parse', readmePath, '--format', 'json'],
+        timeout: this.options.timeout,
+        cwd: this.options.workingDirectory
+      });
+
+      return {
+        success: result.success,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        executionTime: result.executionTime,
+        command: `parse ${readmePath}`
+      };
+    } catch (error) {
+      this.logger.error(`Failed to parse README: ${error}`);
+      return {
+        success: false,
+        stdout: '',
+        stderr: error instanceof Error ? error.message : 'Unknown error',
+        exitCode: 1,
+        executionTime: 0,
+        command: `parse ${readmePath}`
       };
     }
   }

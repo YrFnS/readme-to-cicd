@@ -1,0 +1,79 @@
+{
+  "testRunner": {
+    "ui": "bdd",
+    "color": true,
+    "timeout": 10000,
+    "reporter": "spec",
+    "grep": null,
+    "bail": false,
+    "recursive": true
+  },
+  "coverage": {
+    "enabled": true,
+    "reporter": ["text", "html", "lcov", "json"],
+    "reportDir": "coverage",
+    "include": ["out/src/**/*.js"],
+    "exclude": [
+      "out/test/**",
+      "out/src/test/**",
+      "**/*.test.js",
+      "**/*.spec.js"
+    ],
+    "threshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  },
+  "environments": {
+    "unit": {
+      "testPattern": "out/test/unit/**/*.test.js",
+      "timeout": 5000,
+      "parallel": true
+    },
+    "integration": {
+      "testPattern": "out/test/integration/**/*.test.js",
+      "timeout": 15000,
+      "parallel": false,
+      "setup": "test/setup/integration-setup.js"
+    },
+    "e2e": {
+      "testPattern": "out/test/e2e/**/*.test.js",
+      "timeout": 30000,
+      "parallel": false,
+      "setup": "test/setup/e2e-setup.js"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "enabled": true,
+      "vscodeVersions": ["1.74.0", "1.80.0", "latest"]
+    },
+    "macos": {
+      "enabled": true,
+      "vscodeVersions": ["1.74.0", "1.80.0", "latest"]
+    },
+    "linux": {
+      "enabled": true,
+      "vscodeVersions": ["1.74.0", "1.80.0", "latest"]
+    }
+  },
+  "reporting": {
+    "formats": ["json", "xml", "html"],
+    "outputDir": "test-results",
+    "includeStackTrace": true,
+    "includeCoverage": true
+  },
+  "quality": {
+    "minCoverage": 80,
+    "maxFailures": 0,
+    "performanceThresholds": {
+      "commandExecution": 1000,
+      "workflowGeneration": 5000,
+      "frameworkDetection": 2000
+    }
+  }
+}

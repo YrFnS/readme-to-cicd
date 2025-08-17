@@ -235,15 +235,16 @@ export class PerformanceAnalyzer {
     if (!workflow.jobs) return opportunities;
 
     for (const [jobName, job] of Object.entries(workflow.jobs as any)) {
-      if (!job.steps) continue;
+      const jobObj = job as any;
+      if (!jobObj.steps) continue;
 
-      for (const step of job.steps) {
+      for (const step of jobObj.steps) {
         // Analyze dependency caching opportunities
         if (this.isDependencyInstallStep(step)) {
           const framework = this.detectFrameworkFromStep(step);
           const cacheStrategy = this.frameworkCacheStrategies.get(framework);
           
-          if (cacheStrategy && !this.hasCaching(job.steps, step)) {
+          if (cacheStrategy && !this.hasCaching(jobObj.steps, step)) {
             opportunities.push({
               stepName: step.name || 'Dependency Installation',
               jobName,
@@ -367,14 +368,15 @@ export class PerformanceAnalyzer {
     if (!workflow.jobs) return bottlenecks;
 
     for (const [jobName, job] of Object.entries(workflow.jobs as any)) {
-      if (!job.steps) continue;
+      const jobObj = job as any;
+      if (!jobObj.steps) continue;
 
       // Identify slow steps
-      const slowSteps = this.identifySlowSteps(job.steps, jobName);
+      const slowSteps = this.identifySlowSteps(jobObj.steps, jobName);
       bottlenecks.push(...slowSteps);
 
       // Identify dependency bottlenecks
-      const dependencyBottlenecks = this.identifyDependencyBottlenecks(job, jobName);
+      const dependencyBottlenecks = this.identifyDependencyBottlenecks(jobObj, jobName);
       bottlenecks.push(...dependencyBottlenecks);
     }
 
@@ -713,16 +715,17 @@ ${strategy.paths.map(p => `      ${p}`).join('\n')}
     const opportunities: MatrixOpportunity[] = [];
 
     for (const [jobName, job] of Object.entries(jobs as any)) {
-      if (!job.steps) continue;
+      const jobObj = job as any;
+      if (!jobObj.steps) continue;
 
       // Look for opportunities to use matrix builds
-      const testingSteps = job.steps.filter((step: any) => 
+      const testingSteps = jobObj.steps.filter((step: any) => 
         step.run && /test|spec/.test(step.run)
       );
 
       if (testingSteps.length > 0) {
         // Suggest matrix for multiple Node.js versions, Python versions, etc.
-        const framework = this.detectFrameworkFromJob(job);
+        const framework = this.detectFrameworkFromJob(jobObj);
         const matrixConfig = this.generateMatrixConfig(framework);
         
         if (matrixConfig) {
@@ -869,27 +872,29 @@ ${Object.entries(matrixConfig).map(([key, values]) =>
     switch (complexity) {
       case 'simple': return 'ubuntu-latest';
       case 'moderate': return 'ubuntu-latest';
-      case 'complex': return 'ubuntu-latest'; // Could suggest larger runners if available
+      case 'complex': return 'ubuntu-latest'; // Could suggest larger runners
       default: return 'ubuntu-latest';
     }
   }
 
   private calculatePerformanceImpact(current: RunnerProfile, optimal: RunnerProfile): number {
-    // Calculate relative performance improvement
-    const cpuImprovement = (optimal.cpu - current.cpu) / current.cpu;
-    const memoryImprovement = (optimal.memory - current.memory) / current.memory;
-    
-    return (cpuImprovement + memoryImprovement) / 2;
+    // Calculate performance impact as a ratio
+    const cpuImpact = optimal.cpu / current.cpu;
+    const memoryImpact = optimal.memory / current.memory;
+    return (cpuImpact + memoryImpact) / 2 - 1; // -1 to 1 scale
   }
 
   private estimateStepDuration(step: any): number {
-    // Simplified duration estimation based on step type
     const command = step.run || step.uses || '';
     
-    if (/npm\s+install|yarn\s+install/.test(command)) return 180; // 3 minutes
-    if (/npm\s+run\s+build|yarn\s+build/.test(command)) return 240; // 4 minutes
-    if (/npm\s+test|yarn\s+test/.test(command)) return 300; // 5 minutes
-    if (/docker\s+build/.test(command)) return 600; // 10 minutes
+    // Estimate duration based on step patterns
+    if (/npm\s+install|yarn\s+install/.test(command)) return 120; // 2 minutes
+    if (/pip\s+install/.test(command)) return 90; // 1.5 minutes
+    if (/mvn\s+install|gradle\s+build/.test(command)) return 300; // 5 minutes
+    if (/npm\s+run\s+build|yarn\s+build/.test(command)) return 180; // 3 minutes
+    if (/npm\s+test|yarn\s+test/.test(command)) return 240; // 4 minutes
+    if (/docker\s+build/.test(command)) return 360; // 6 minutes
+    if (/deploy|publish/.test(command)) return 120; // 2 minutes
     
     return 60; // 1 minute default
   }
@@ -898,51 +903,163 @@ ${Object.entries(matrixConfig).map(([key, values]) =>
     const suggestions: string[] = [];
     const command = step.run || step.uses || '';
     
-    if (/install/.test(command)) {
-      suggestions.push('Add dependency caching');
-      suggestions.push('Use npm ci instead of npm install');
+    if (/npm\s+install|yarn\s+install/.test(command)) {
+      suggestions.push('Add dependency caching to speed up installation');
+      suggestions.push('Consider using npm ci for faster installs');
     }
     
-    if (/build/.test(command)) {
-      suggestions.push('Add build artifact caching');
-      suggestions.push('Enable incremental builds');
+    if (/docker\s+build/.test(command)) {
+      suggestions.push('Enable Docker layer caching');
+      suggestions.push('Use multi-stage builds to reduce image size');
+      suggestions.push('Consider using a base image with pre-installed dependencies');
     }
     
     if (/test/.test(command)) {
       suggestions.push('Run tests in parallel');
       suggestions.push('Use test result caching');
+      suggestions.push('Consider splitting tests across multiple jobs');
+    }
+    
+    if (suggestions.length === 0) {
+      suggestions.push('Consider optimizing this step or running it in parallel');
     }
     
     return suggestions;
   }
 
+  private generateParallelizationExample(parallelizableJobs: JobDependency[]): string {
+    const jobNames = parallelizableJobs.map(j => j.job);
+    return `# Remove dependencies to allow parallel execution
+${jobNames.map(job => `${job}:
+  runs-on: ubuntu-latest
+  # Remove 'needs' to run in parallel`).join('\n\n')}`;
+  }
+
+  private generateCacheStep(opportunity: CachingOpportunity): any {
+    return {
+      name: `Cache ${opportunity.cacheType}`,
+      uses: 'actions/cache@v3',
+      with: {
+        path: opportunity.cachePaths.join('\n'),
+        key: opportunity.cacheKey,
+        'restore-keys': opportunity.cacheKey.split('-')[0] + '-'
+      }
+    };
+  }
+
   private findCrossWorkflowOptimizations(analyses: PerformanceAnalysis[]): CrossWorkflowOptimization[] {
-    // Find optimizations that apply across multiple workflows
-    return [];
+    const optimizations: CrossWorkflowOptimization[] = [];
+    
+    // Find shared caching opportunities
+    const sharedCaches = new Map<string, string[]>();
+    for (const analysis of analyses) {
+      for (const opportunity of analysis.cachingOpportunities) {
+        const key = `${opportunity.framework}-${opportunity.cacheType}`;
+        if (!sharedCaches.has(key)) {
+          sharedCaches.set(key, []);
+        }
+        sharedCaches.get(key)!.push(analysis.workflowPath);
+      }
+    }
+    
+    for (const [cacheType, workflows] of sharedCaches) {
+      if (workflows.length > 1) {
+        optimizations.push({
+          type: 'shared-caching',
+          description: `Share ${cacheType} cache across ${workflows.length} workflows`,
+          affectedWorkflows: workflows,
+          estimatedSaving: workflows.length * 60 // 1 minute per workflow
+        });
+      }
+    }
+    
+    return optimizations;
   }
 
   private findSharedCachingOpportunities(analyses: PerformanceAnalysis[]): SharedCachingOpportunity[] {
-    // Find caching opportunities that can be shared across workflows
-    return [];
+    const opportunities: SharedCachingOpportunity[] = [];
+    const cacheGroups = new Map<string, string[]>();
+    
+    for (const analysis of analyses) {
+      for (const opportunity of analysis.cachingOpportunities) {
+        const key = opportunity.cacheKey.split('-')[0]; // Get cache prefix
+        if (!cacheGroups.has(key)) {
+          cacheGroups.set(key, []);
+        }
+        cacheGroups.get(key)!.push(analysis.workflowPath);
+      }
+    }
+    
+    for (const [cacheType, workflows] of cacheGroups) {
+      if (workflows.length > 1) {
+        opportunities.push({
+          cacheType,
+          workflows,
+          sharedKey: `${cacheType}-shared-\${{ hashFiles('**/*.json', '**/*.lock') }}`,
+          estimatedSaving: workflows.length * 45 // 45 seconds per workflow
+        });
+      }
+    }
+    
+    return opportunities;
   }
 
   private analyzeResourceConsolidation(analyses: PerformanceAnalysis[]): ResourceConsolidation {
-    // Analyze opportunities to consolidate resources across workflows
+    const runnerUsage = new Map<string, number>();
+    const allJobs: string[] = [];
+    
+    for (const analysis of analyses) {
+      // This is a simplified analysis - in practice you'd parse the actual workflows
+      runnerUsage.set('ubuntu-latest', (runnerUsage.get('ubuntu-latest') || 0) + 1);
+      allJobs.push(`${analysis.workflowPath}-job`);
+    }
+    
     return {
-      sharedRunners: [],
-      consolidatedJobs: [],
-      estimatedSaving: 0
+      sharedRunners: Array.from(runnerUsage.keys()),
+      consolidatedJobs: allJobs.slice(0, 3), // Suggest consolidating first 3 jobs
+      estimatedSaving: Math.min(analyses.length * 30, 180) // Max 3 minutes saving
     };
   }
 
   private generateOverallRecommendations(analyses: PerformanceAnalysis[]): PerformanceRecommendation[] {
-    // Generate recommendations that apply to the entire workflow suite
-    return [];
+    const allRecommendations = analyses.flatMap(a => a.recommendations);
+    
+    // Group similar recommendations
+    const grouped = new Map<string, PerformanceRecommendation[]>();
+    for (const rec of allRecommendations) {
+      if (!grouped.has(rec.category)) {
+        grouped.set(rec.category, []);
+      }
+      grouped.get(rec.category)!.push(rec);
+    }
+    
+    // Create consolidated recommendations
+    const consolidated: PerformanceRecommendation[] = [];
+    for (const [category, recs] of grouped) {
+      if (recs.length > 1) {
+        consolidated.push({
+          id: `consolidated-${category}`,
+          title: `Optimize ${category} across all workflows`,
+          description: `Apply ${category} optimizations to ${recs.length} workflows`,
+          category: category as any,
+          priority: 'high',
+          estimatedTimeSaving: recs.reduce((sum, r) => sum + r.estimatedTimeSaving, 0),
+          implementation: {
+            type: 'yaml-modification',
+            changes: [],
+            example: `Apply ${category} optimizations to all workflows`,
+            documentation: 'https://docs.github.com/en/actions'
+          },
+          applicableSteps: []
+        });
+      }
+    }
+    
+    return consolidated;
   }
 
   private applyRecommendation(workflow: any, recommendation: PerformanceRecommendation): any {
-    // Apply a specific recommendation to the workflow
-    const modifiedWorkflow = JSON.parse(JSON.stringify(workflow));
+    const modifiedWorkflow = JSON.parse(JSON.stringify(workflow)); // Deep clone
     
     for (const change of recommendation.implementation.changes) {
       this.applyYamlChange(modifiedWorkflow, change);
@@ -952,11 +1069,10 @@ ${Object.entries(matrixConfig).map(([key, values]) =>
   }
 
   private applyYamlChange(workflow: any, change: YamlChange): void {
-    // Apply a specific YAML change to the workflow object
     const pathParts = change.path.split('.');
     let current = workflow;
     
-    // Navigate to the parent object
+    // Navigate to the parent of the target
     for (let i = 0; i < pathParts.length - 1; i++) {
       const part = pathParts[i];
       if (part === '*') {
@@ -968,6 +1084,14 @@ ${Object.entries(matrixConfig).map(([key, values]) =>
           });
         }
         return;
+      }
+      
+      if (!current[part]) {
+        if (change.operation === 'add') {
+          current[part] = {};
+        } else {
+          return; // Path doesn't exist
+        }
       }
       current = current[part];
     }
@@ -991,17 +1115,7 @@ ${Object.entries(matrixConfig).map(([key, values]) =>
     }
   }
 
-  private generateCacheStep(opportunity: CachingOpportunity): any {
-    return {
-      name: `Cache ${opportunity.cacheType}`,
-      uses: 'actions/cache@v3',
-      with: {
-        path: opportunity.cachePaths.join('\n'),
-        key: opportunity.cacheKey,
-        'restore-keys': opportunity.cacheKey.split('-')[0] + '-'
-      }
-    };
-  }
+
 
   private generateParallelizationChanges(suggestion: ParallelizationSuggestion): YamlChange[] {
     const changes: YamlChange[] = [];
