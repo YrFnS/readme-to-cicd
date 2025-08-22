@@ -3,8 +3,24 @@
  * These interfaces define the contracts between all components
  */
 
-// Re-export parser types for backward compatibility
-export * from '../../parser/types';
+// Export Result type from shared types
+export * from './result';
+
+// Re-export parser types for backward compatibility (excluding Result to avoid conflict)
+export { 
+  ProjectInfo, 
+  ParseResult, 
+  ParseError,
+  LanguageInfo,
+  CommandInfo,
+  DependencyInfo,
+  MarkdownAST,
+  AnalysisResult
+} from '../../parser/types';
+
+// Import Result type for use in interfaces
+import { Result } from './result';
+import { ProjectInfo } from '../../parser/types';
 
 // Framework Detection Types
 export interface FrameworkDetector {
@@ -565,10 +581,3 @@ export type ScanType =
 export * from './language-context';
 export * from './context-manager';
 
-// Import parser types for compatibility
-import { 
-  ProjectInfo, 
-  ParseResult, 
-  ParseError, 
-  Result 
-} from '../../parser/types';

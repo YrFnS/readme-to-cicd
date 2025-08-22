@@ -40,6 +40,7 @@
     "validate:interfaces": "node scripts/validate-interfaces.js",
     "validate:integration": "node scripts/integration-validation.js",
     "validate:integration:fast": "node scripts/integration-validation.js --fast",
+    "validate:compilation": "node scripts/validate-compilation.js",
     "validate:build": "npm run type-check && npm run validate:integration:fast",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",

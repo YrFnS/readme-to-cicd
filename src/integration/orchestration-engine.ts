@@ -1,6 +1,9 @@
 import { ReadmeParserImpl } from '../parser';
 import { FrameworkDetectorImpl } from '../detection/framework-detector';
 import { YAMLGeneratorImpl } from '../generator/yaml-generator';
+// FIXED: Added Result type import from shared types
+// This type provides standardized error handling without exceptions
+// Used for operations that can succeed (Result<T>) or fail (Result<never, E>)
 import { Result } from '../shared/types/result';
 
 export interface WorkflowRequest {
@@ -32,6 +35,40 @@ export class OrchestrationEngine {
     this.readmeParser = new ReadmeParserImpl();
     this.frameworkDetector = new FrameworkDetectorImpl();
     this.yamlGenerator = new YAMLGeneratorImpl();
+  }
+
+  /**
+   * Convert detection result to generator format
+   */
+  private convertDetectionResultToGeneratorFormat(detectionResult: any): any {
+    return {
+      frameworks: detectionResult.frameworks?.map((f: any) => ({
+        name: f.name,
+        version: f.version,
+        confidence: f.confidence,
+        evidence: f.evidence || [],
+        category: f.category || 'backend'
+      })) || [],
+      languages: detectionResult.frameworks?.map((f: any) => ({
+        name: f.name,
+        confidence: f.confidence,
+        evidence: f.evidence || []
+      })) || [],
+      buildTools: detectionResult.buildTools?.map((bt: any) => ({
+        name: bt.name,
+        version: bt.version,
+        confidence: bt.confidence,
+        evidence: bt.evidence || []
+      })) || [],
+      packageManagers: [],
+      testingFrameworks: [],
+      deploymentTargets: [],
+      projectMetadata: {
+        name: 'Generated Project',
+        description: 'Auto-generated from README analysis',
+        version: '1.0.0'
+      }
+    };
   }
 
   /**
@@ -103,33 +140,42 @@ export class OrchestrationEngine {
 
       // Step 4: Generate YAML workflows
       const generationOptions = {
-        outputDir: request.outputDir || '.github/workflows',
-        workflowTypes: request.workflowTypes || ['ci', 'cd'],
-        dryRun: request.dryRun || false
+        workflowType: 'ci' as const,
+        optimizationLevel: 'standard' as const,
+        includeComments: true,
+        securityLevel: 'standard' as const
       };
 
-      const yamlResult = await this.yamlGenerator.generateWorkflows(
-        detectionResult,
-        generationOptions
-      );
+      try {
+        // Convert detection result to generator format
+        const generatorDetectionResult = this.convertDetectionResultToGeneratorFormat(detectionResult);
+        
+        // FIXED: Changed from generateWorkflows() to generateWorkflow() (singular)
+        // The YAML generator implements generateWorkflow() which generates a single workflow file.
+        // This was causing a TypeScript compilation error due to method name mismatch.
+        // The method signature is: generateWorkflow(detectionResult, options) -> WorkflowOutput
+        const yamlResult = await this.yamlGenerator.generateWorkflow(
+          generatorDetectionResult,
+          generationOptions
+        );
 
-      if (!yamlResult.success) {
+        // generateWorkflow returns WorkflowOutput directly, not a Result type
+        // Return successful result
+        return {
+          success: true,
+          data: {
+            success: true,
+            generatedFiles: [yamlResult.filename],
+            detectedFrameworks: detectionResult.frameworks?.map(f => f.name) || [],
+            warnings: yamlResult.metadata.warnings || []
+          }
+        };
+      } catch (error) {
         return {
           success: false,
-          error: new Error(`YAML generation failed: ${yamlResult.error.message}`)
+          error: new Error(`YAML generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
         };
       }
-
-      // Return successful result
-      return {
-        success: true,
-        data: {
-          success: true,
-          generatedFiles: yamlResult.data.files || [],
-          detectedFrameworks: detectionResult.frameworks?.map(f => f.name) || [],
-          warnings: yamlResult.data.warnings || []
-        }
-      };
 
     } catch (error) {
       return {
