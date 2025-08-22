@@ -1,0 +1,256 @@
+{
+  "policies": [
+    {
+      "id": "policy-001",
+      "name": "Production Deployment Approval",
+      "description": "Requires manual approval for production deployments",
+      "type": "automation_decision",
+      "triggers": [
+        {
+          "event": "deployment_request",
+          "environment": "production",
+          "branch": "main"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "environment_check",
+          "environment": "production"
+        },
+        {
+          "type": "security_scan",
+          "required": true,
+          "severity_threshold": "high"
+        },
+        {
+          "type": "test_coverage",
+          "minimum_coverage": 80.0
+        }
+      ],
+      "approvers": [
+        {
+          "role": "lead_developer",
+          "min_approvals": 1
+        },
+        {
+          "role": "security_team",
+          "min_approvals": 1
+        },
+        {
+          "role": "product_owner",
+          "min_approvals": 1
+        }
+      ],
+      "timeout": {
+        "duration": 72,
+        "unit": "hours",
+        "action": "reject"
+      },
+      "auto_approve_conditions": [
+        {
+          "type": "emergency_tag",
+          "value": true
+        },
+        {
+          "type": "rollback_deployment",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "policy-002",
+      "name": "Staging Auto-Deploy",
+      "description": "Automatic deployment to staging environment",
+      "type": "automation_decision",
+      "triggers": [
+        {
+          "event": "pull_request_merged",
+          "target_branch": "staging"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "test_pass",
+          "required": true
+        },
+        {
+          "type": "build_success",
+          "required": true
+        }
+      ],
+      "approvers": [],
+      "timeout": {
+        "duration": 2,
+        "unit": "hours",
+        "action": "approve"
+      },
+      "auto_approve_conditions": [
+        {
+          "type": "all_conditions_met",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "policy-003",
+      "name": "Security Critical Changes",
+      "description": "Requires security team approval for security-related changes",
+      "type": "automation_decision",
+      "triggers": [
+        {
+          "event": "code_change",
+          "files_pattern": ["**/security/**", "**/auth/**", "**/encryption/**"]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "security_review_required",
+          "value": true
+        },
+        {
+          "type": "vulnerability_scan",
+          "required": true
+        }
+      ],
+      "approvers": [
+        {
+          "role": "security_team",
+          "min_approvals": 2
+        },
+        {
+          "role": "security_lead",
+          "min_approvals": 1
+        }
+      ],
+      "timeout": {
+        "duration": 48,
+        "unit": "hours",
+        "action": "escalate"
+      },
+      "auto_approve_conditions": []
+    },
+    {
+      "id": "policy-004",
+      "name": "Database Schema Changes",
+      "description": "Requires DBA approval for database migrations",
+      "type": "automation_decision",
+      "triggers": [
+        {
+          "event": "migration_file_added",
+          "pattern": "**/migrations/**"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "migration_test_pass",
+          "required": true
+        },
+        {
+          "type": "backup_verified",
+          "required": true
+        }
+      ],
+      "approvers": [
+        {
+          "role": "database_administrator",
+          "min_approvals": 1
+        },
+        {
+          "role": "data_engineer",
+          "min_approvals": 1
+        }
+      ],
+      "timeout": {
+        "duration": 24,
+        "unit": "hours",
+        "action": "reject"
+      },
+      "auto_approve_conditions": []
+    },
+    {
+      "id": "policy-005",
+      "name": "Infrastructure Changes",
+      "description": "Requires DevOps approval for infrastructure modifications",
+      "type": "automation_decision",
+      "triggers": [
+        {
+          "event": "infrastructure_change",
+          "services": ["terraform", "kubernetes", "docker", "cloudformation"]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "infrastructure_test_pass",
+          "required": true
+        },
+        {
+          "type": "cost_impact_assessment",
+          "max_increase": 10.0
+        }
+      ],
+      "approvers": [
+        {
+          "role": "devops_engineer",
+          "min_approvals": 1
+        },
+        {
+          "role": "platform_team",
+          "min_approvals": 1
+        }
+      ],
+      "timeout": {
+        "duration": 36,
+        "unit": "hours",
+        "action": "escalate"
+      },
+      "auto_approve_conditions": [
+        {
+          "type": "low_impact_change",
+          "value": true
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "name": "lead_developer",
+      "description": "Senior developers with approval authority",
+      "members": ["dev-lead-1", "dev-lead-2", "tech-lead-1"]
+    },
+    {
+      "name": "security_team",
+      "description": "Security team members",
+      "members": ["security-1", "security-2", "security-3"]
+    },
+    {
+      "name": "security_lead",
+      "description": "Security team leads",
+      "members": ["security-lead-1", "security-lead-2"]
+    },
+    {
+      "name": "product_owner",
+      "description": "Product owners",
+      "members": ["po-1", "po-2"]
+    },
+    {
+      "name": "database_administrator",
+      "description": "Database administrators",
+      "members": ["dba-1", "dba-2"]
+    },
+    {
+      "name": "data_engineer",
+      "description": "Data engineers",
+      "members": ["de-1", "de-2", "de-3"]
+    },
+    {
+      "name": "devops_engineer",
+      "description": "DevOps engineers",
+      "members": ["devops-1", "devops-2"]
+    },
+    {
+      "name": "platform_team",
+      "description": "Platform team members",
+      "members": ["platform-1", "platform-2", "platform-3"]
+    }
+  ]
+}

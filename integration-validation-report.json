@@ -1,0 +1,76 @@
+{
+  "summary": {
+    "totalSteps": 6,
+    "successful": 5,
+    "failed": 1,
+    "executionTime": 20116,
+    "timestamp": "2025-08-22T18:48:53.698Z"
+  },
+  "results": [
+    {
+      "step": "typescript-compilation",
+      "success": true,
+      "message": "TypeScript compilation successful",
+      "details": null,
+      "timestamp": "2025-08-22T18:48:51.800Z"
+    },
+    {
+      "step": "component-interfaces",
+      "success": true,
+      "message": "Component interfaces validation successful",
+      "details": {
+        "dependenciesValidated": 9
+      },
+      "timestamp": "2025-08-22T18:48:51.849Z"
+    },
+    {
+      "step": "integration-tests",
+      "success": false,
+      "message": "Core integration tests execution failed",
+      "details": {
+        "error": "\n> readme-to-cicd@1.0.0 test\n> vitest run tests/integration/component-initialization.test.ts --run\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.4 \u001b[39m\u001b[90mC:/Users/Itokoro/readme-to-cicd\u001b[39m\n\n \u001b[31m❯\u001b[39m tests/integration/component-initialization.test.ts \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m | \u001b[22m\u001b[31m1 failed\u001b[39m\u001b[2m)\u001b[22m\u001b[32m 61\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponentFactory\u001b[2m > \u001b[22mshould create singleton instance\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponentFactory\u001b[2m > \u001b[22mshould initialize with default configuration\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponentFactory\u001b[2m > \u001b[22mshould initialize with custom configuration\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponentFactory\u001b[2m > \u001b[22mshould create dependencies only once\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponentFactory\u001b[2m > \u001b[22mshould recreate dependencies after reset\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mEnhanced README Parser Creation\u001b[2m > \u001b[22mshould create enhanced README parser with default configuration\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mEnhanced README Parser Creation\u001b[2m > \u001b[22mshould create enhanced README parser with custom configuration\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n\u001b[31m   \u001b[31m×\u001b[31m Component Initialization Integration Tests\u001b[2m > \u001b[22mEnhanced README Parser Creation\u001b[2m > \u001b[22mshould register custom analyzers when provided\u001b[39m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n\u001b[31m     → expected [ 'EnhancedLanguageDetector', …(4) ] to include 'MockAnalyzer'\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mContext-Aware Command Extractor Creation\u001b[2m > \u001b[22mshould create context-aware command extractor without contexts\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mContext-Aware Command Extractor Creation\u001b[2m > \u001b[22mshould create context-aware command extractor with language contexts\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mContext-Aware Command Extractor Creation\u001b[2m > \u001b[22mshould setup inheritance rules when context inheritance is enabled\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mEnhanced Language Detector Creation\u001b[2m > \u001b[22mshould create enhanced language detector with default configuration\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mEnhanced Language Detector Creation\u001b[2m > \u001b[22mshould create enhanced language detector with custom configuration\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Dependencies Integration\u001b[2m > \u001b[22mshould create all required dependencies\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Dependencies Integration\u001b[2m > \u001b[22mshould wire dependencies correctly\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Dependencies Integration\u001b[2m > \u001b[22mshould handle dependency injection errors gracefully\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mIntegration Pipeline Initialization\u001b[2m > \u001b[22mshould create integration pipeline with default configuration\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mIntegration Pipeline Initialization\u001b[2m > \u001b[22mshould create integration pipeline with custom configuration\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mIntegration Pipeline Initialization\u001b[2m > \u001b[22mshould initialize pipeline components correctly\u001b[32m 20\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Interface Validation\u001b[2m > \u001b[22mshould validate language detector interface\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Interface Validation\u001b[2m > \u001b[22mshould validate command extractor interface\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mComponent Interface Validation\u001b[2m > \u001b[22mshould validate README parser interface\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mError Handling in Component Initialization\u001b[2m > \u001b[22mshould handle component creation errors gracefully\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mError Handling in Component Initialization\u001b[2m > \u001b[22mshould handle missing dependencies gracefully\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mError Handling in Component Initialization\u001b[2m > \u001b[22mshould handle analyzer registration errors\u001b[32m 0\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mPerformance and Memory Management\u001b[2m > \u001b[22mshould not create memory leaks with multiple initializations\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[32m✓\u001b[39m Component Initialization Integration Tests\u001b[2m > \u001b[22mPerformance and Memory Management\u001b[2m > \u001b[22mshould handle concurrent component creation\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m\u001b[2m | \u001b[22m\u001b[1m\u001b[32m26 passed\u001b[39m\u001b[22m\u001b[90m (27)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:48:52\n\u001b[2m   Duration \u001b[22m 1.02s\u001b[2m (transform 320ms, setup 111ms, collect 300ms, tests 61ms, environment 0ms, prepare 225ms)\u001b[22m\n\n"
+      },
+      "timestamp": "2025-08-22T18:48:53.666Z"
+    },
+    {
+      "step": "end-to-end-pipeline",
+      "success": true,
+      "message": "End-to-end pipeline validation successful",
+      "details": {
+        "executionTime": 23,
+        "stagesCompleted": 8
+      },
+      "timestamp": "2025-08-22T18:48:53.690Z"
+    },
+    {
+      "step": "performance-validation",
+      "success": true,
+      "message": "Performance validation successful",
+      "details": {
+        "executionTime": 5,
+        "threshold": 10000,
+        "note": "Quick performance check for build validation"
+      },
+      "timestamp": "2025-08-22T18:48:53.695Z"
+    },
+    {
+      "step": "memory-validation",
+      "success": true,
+      "message": "Memory validation completed (lightweight check)",
+      "details": {
+        "initialMemory": 8,
+        "finalMemory": 8,
+        "increase": 0,
+        "threshold": 50,
+        "note": "Lightweight validation - single execution only"
+      },
+      "timestamp": "2025-08-22T18:48:53.698Z"
+    }
+  ],
+  "system": {
+    "nodeVersion": "v22.18.0",
+    "platform": "win32",
+    "arch": "x64",
+    "cwd": "C:\\Users\\Itokoro\\readme-to-cicd"
+  }
+}
