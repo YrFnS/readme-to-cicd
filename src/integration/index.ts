@@ -1,136 +1,77 @@
 /**
- * Integration & Deployment Service Entry Point
- * Main orchestration service for the readme-to-cicd system
+ * Integration & Deployment Layer
+ * 
+ * This module provides comprehensive integration capabilities for the README-to-CICD system,
+ * including API management, webhook support, and deployment orchestration.
  */
 
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import { createServer } from 'http';
-import { register as promRegister } from 'prom-client';
+// Core Integration Pipeline
+export { ComponentOrchestrator } from '../cli/lib/component-orchestrator';
+export { IntegrationPipeline, createIntegrationPipeline } from './integration-pipeline';
 
-// Import core components
-import { OrchestrationEngine } from './orchestration/orchestration-engine';
-import { ComponentManager } from './components/component-manager';
-// import { DeploymentManager } from './deployment/deployment-manager.js';
-// import { ConfigurationManager } from './configuration/configuration-manager.js';
-// import { MonitoringSystem } from './monitoring/monitoring-system.js';
+// API Gateway and Management
+export { APIGateway } from './api-gateway/api-gateway';
+export { Router } from './api-gateway/router';
+export { RequestTransformer } from './api-gateway/request-transformer';
+export { ResponseTransformer } from './api-gateway/response-transformer';
+export { RateLimiter } from './api-gateway/rate-limiter';
+export { AuthenticationManager } from './api-gateway/authentication-manager';
+export { AuthorizationManager } from './api-gateway/authorization-manager';
+export { RouteHandler, FunctionRouteHandler } from './api-gateway/route-handler';
 
-const app = express();
-const PORT = process.env.PORT || 8080;
-const METRICS_PORT = process.env.METRICS_PORT || 9091;
+// API Management
+export { APIManager } from './api-management/api-manager';
+export { OpenAPIGenerator } from './api-management/openapi-generator';
+export { VersionManager } from './api-management/version-manager';
+export { APIAnalytics } from './api-management/api-analytics';
+export { DocumentationGenerator } from './api-management/documentation-generator';
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Webhook System
+export { WebhookManager } from './webhooks/webhook-manager';
+export { WebhookDelivery } from './webhooks/webhook-delivery';
+export { RetryManager } from './webhooks/retry-manager';
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'integration-deployment',
-    version: process.env.npm_package_version || '1.0.0'
-  });
-});
+// Type Exports
+export type { ExecutionContext, OrchestrationOptions } from '../cli/lib/component-orchestrator';
+export type { CLIOptions, CLIResult, CLIError, ExecutionSummary } from '../cli/lib/types';
+export type { ParseResult } from '../parser';
+export type { DetectionResult } from '../detection';
+export type { WorkflowOutput } from '../generator';
 
-// Readiness check endpoint
-app.get('/ready', (req, res) => {
-  // TODO: Add actual readiness checks for dependencies
-  res.status(200).json({
-    status: 'ready',
-    timestamp: new Date().toISOString(),
-    dependencies: {
-      redis: 'connected',
-      postgres: 'connected',
-      vault: 'connected'
-    }
-  });
-});
+// API Gateway Types
+export type {
+  APIGatewayConfig,
+  Route,
+  RouteConfig,
+  RequestContext,
+  ResponseContext,
+  TransformationRule,
+  MiddlewareFunction,
+  User,
+  APIResponse,
+  APIError
+} from './api-gateway/types';
 
-// API routes (to be implemented)
-app.use('/api/v1/orchestration', (req, res) => {
-  res.status(501).json({ message: 'Orchestration API not yet implemented' });
-});
+// API Management Types
+export type {
+  APIManagerConfig,
+  OpenAPISpec,
+  APIVersion,
+  VersionConfig,
+  AnalyticsConfig,
+  DocumentationConfig,
+  APIMetrics,
+  EndpointMetrics
+} from './api-management/types';
 
-app.use('/api/v1/components', (req, res) => {
-  res.status(501).json({ message: 'Component Management API not yet implemented' });
-});
+// Webhook Types
+export type {
+  WebhookConfig,
+  Webhook,
+  WebhookEvent,
+  WebhookDeliveryResult,
+  RetryConfig,
+  EventFilter,
+  WebhookMetrics
+} from './webhooks/types';
 
-app.use('/api/v1/deployments', (req, res) => {
-  res.status(501).json({ message: 'Deployment API not yet implemented' });
-});
-
-app.use('/api/v1/configuration', (req, res) => {
-  res.status(501).json({ message: 'Configuration API not yet implemented' });
-});
-
-// Error handling middleware
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: `Route ${req.originalUrl} not found`
-  });
-});
-
-// Metrics server for Prometheus
-const metricsApp = express();
-metricsApp.get('/metrics', async (req, res) => {
-  try {
-    res.set('Content-Type', promRegister.contentType);
-    res.end(await promRegister.metrics());
-  } catch (error) {
-    res.status(500).end(error);
-  }
-});
-
-// Start servers
-const server = createServer(app);
-const metricsServer = createServer(metricsApp);
-
-server.listen(PORT, () => {
-  console.log(`Integration & Deployment Service listening on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-metricsServer.listen(METRICS_PORT, () => {
-  console.log(`Metrics server listening on port ${METRICS_PORT}`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('HTTP server closed');
-    metricsServer.close(() => {
-      console.log('Metrics server closed');
-      process.exit(0);
-    });
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('HTTP server closed');
-    metricsServer.close(() => {
-      console.log('Metrics server closed');
-      process.exit(0);
-    });
-  });
-});
-
-export { app, server, metricsServer };
