@@ -1,77 +1,218 @@
 /**
- * Integration & Deployment Layer
+ * Enterprise Integration System
  * 
- * This module provides comprehensive integration capabilities for the README-to-CICD system,
- * including API management, webhook support, and deployment orchestration.
+ * Comprehensive integration hub for enterprise systems including:
+ * - Identity providers (LDAP, Active Directory, SSO)
+ * - Workflow systems (Jira, ServiceNow, Custom)
+ * - Notification platforms (Slack, Teams, Email, Webhooks)
+ * - CI/CD platforms (Jenkins, GitLab CI, GitHub Actions)
+ * - Monitoring systems (Datadog, New Relic, Prometheus)
  */
 
-// Core Integration Pipeline
-export { ComponentOrchestrator } from '../cli/lib/component-orchestrator';
-export { IntegrationPipeline, createIntegrationPipeline } from './integration-pipeline';
+// Core integration hub
+export { IntegrationHub } from './hub/integration-hub.js';
 
-// API Gateway and Management
-export { APIGateway } from './api-gateway/api-gateway';
-export { Router } from './api-gateway/router';
-export { RequestTransformer } from './api-gateway/request-transformer';
-export { ResponseTransformer } from './api-gateway/response-transformer';
-export { RateLimiter } from './api-gateway/rate-limiter';
-export { AuthenticationManager } from './api-gateway/authentication-manager';
-export { AuthorizationManager } from './api-gateway/authorization-manager';
-export { RouteHandler, FunctionRouteHandler } from './api-gateway/route-handler';
+// Type definitions
+export * from './types.js';
 
-// API Management
-export { APIManager } from './api-management/api-manager';
-export { OpenAPIGenerator } from './api-management/openapi-generator';
-export { VersionManager } from './api-management/version-manager';
-export { APIAnalytics } from './api-management/api-analytics';
-export { DocumentationGenerator } from './api-management/documentation-generator';
+// Integration managers
+export { IdentityIntegrationManager } from './identity/identity-integration-manager.js';
+export { WorkflowIntegrationManager } from './workflow/workflow-integration-manager.js';
+export { NotificationIntegrationManager } from './notifications/notification-integration-manager.js';
+export { CICDIntegrationManager } from './cicd/cicd-integration-manager.js';
+export { MonitoringIntegrationManager } from './monitoring/monitoring-integration-manager.js';
 
-// Webhook System
-export { WebhookManager } from './webhooks/webhook-manager';
-export { WebhookDelivery } from './webhooks/webhook-delivery';
-export { RetryManager } from './webhooks/retry-manager';
+// Identity providers
+export { LDAPProvider } from './identity/ldap-provider.js';
+export { ActiveDirectoryProvider } from './identity/active-directory-provider.js';
+export { SSOProvider } from './identity/sso-provider.js';
 
-// Type Exports
-export type { ExecutionContext, OrchestrationOptions } from '../cli/lib/component-orchestrator';
-export type { CLIOptions, CLIResult, CLIError, ExecutionSummary } from '../cli/lib/types';
-export type { ParseResult } from '../parser';
-export type { DetectionResult } from '../detection';
-export type { WorkflowOutput } from '../generator';
+// Workflow providers
+export { JiraProvider } from './workflow/jira-provider.js';
+export { ServiceNowProvider } from './workflow/servicenow-provider.js';
+export { CustomWorkflowProvider } from './workflow/custom-workflow-provider.js';
 
-// API Gateway Types
-export type {
-  APIGatewayConfig,
-  Route,
-  RouteConfig,
-  RequestContext,
-  ResponseContext,
-  TransformationRule,
-  MiddlewareFunction,
-  User,
-  APIResponse,
-  APIError
-} from './api-gateway/types';
+// Notification providers
+export { SlackProvider } from './notifications/slack-provider.js';
+export { TeamsProvider } from './notifications/teams-provider.js';
+export { EmailProvider } from './notifications/email-provider.js';
+export { WebhookProvider } from './notifications/webhook-provider.js';
 
-// API Management Types
-export type {
-  APIManagerConfig,
-  OpenAPISpec,
-  APIVersion,
-  VersionConfig,
-  AnalyticsConfig,
-  DocumentationConfig,
-  APIMetrics,
-  EndpointMetrics
-} from './api-management/types';
+// CI/CD providers
+export { JenkinsProvider } from './cicd/jenkins-provider.js';
+export { GitLabCIProvider } from './cicd/gitlab-ci-provider.js';
+export { GitHubActionsProvider } from './cicd/github-actions-provider.js';
 
-// Webhook Types
-export type {
-  WebhookConfig,
-  Webhook,
-  WebhookEvent,
-  WebhookDeliveryResult,
-  RetryConfig,
-  EventFilter,
-  WebhookMetrics
-} from './webhooks/types';
+// Monitoring providers
+export { DatadogProvider } from './monitoring/datadog-provider.js';
+export { NewRelicProvider } from './monitoring/newrelic-provider.js';
+export { PrometheusProvider } from './monitoring/prometheus-provider.js';
 
+/**
+ * Create and configure a new IntegrationHub instance
+ * 
+ * @example
+ * ```typescript
+ * import { createIntegrationHub, IntegrationConfig } from './integration';
+ * 
+ * const hub = createIntegrationHub();
+ * 
+ * const ldapConfig: IntegrationConfig = {
+ *   id: 'corporate-ldap',
+ *   name: 'Corporate LDAP',
+ *   type: 'identity',
+ *   enabled: true,
+ *   configuration: {
+ *     type: 'ldap',
+ *     endpoint: 'ldap://ldap.corp.com:389',
+ *     configuration: {
+ *       baseDN: 'dc=corp,dc=com',
+ *       searchFilter: '(uid={username})'
+ *     }
+ *   },
+ *   credentials: {
+ *     type: 'basic-auth',
+ *     data: {
+ *       username: 'service-account',
+ *       password: 'service-password'
+ *     }
+ *   }
+ * };
+ * 
+ * await hub.registerIntegration(ldapConfig);
+ * const syncResult = await hub.syncIntegration('corporate-ldap');
+ * ```
+ */
+export function createIntegrationHub(): IntegrationHub {
+  return new IntegrationHub();
+}
+
+/**
+ * Utility function to validate integration configuration
+ * 
+ * @param config - Integration configuration to validate
+ * @returns Promise that resolves if valid, rejects if invalid
+ */
+export async function validateIntegrationConfig(config: any): Promise<void> {
+  if (!config.id || !config.name || !config.type) {
+    throw new Error('Integration config must have id, name, and type');
+  }
+
+  const validTypes = ['identity', 'workflow', 'notification', 'cicd', 'monitoring'];
+  if (!validTypes.includes(config.type)) {
+    throw new Error(`Invalid integration type: ${config.type}`);
+  }
+
+  if (!config.configuration) {
+    throw new Error('Integration config must have configuration object');
+  }
+}
+
+/**
+ * Utility function to create integration configuration templates
+ */
+export const IntegrationTemplates = {
+  /**
+   * Create LDAP identity integration template
+   */
+  ldap: (id: string, name: string, endpoint: string, baseDN: string) => ({
+    id,
+    name,
+    type: 'identity' as const,
+    enabled: true,
+    configuration: {
+      type: 'ldap',
+      endpoint,
+      configuration: {
+        baseDN,
+        searchFilter: '(uid={username})',
+        attributes: ['uid', 'cn', 'mail', 'memberOf']
+      }
+    }
+  }),
+
+  /**
+   * Create Slack notification integration template
+   */
+  slack: (id: string, name: string, webhookUrl: string, channel: string) => ({
+    id,
+    name,
+    type: 'notification' as const,
+    enabled: true,
+    configuration: {
+      type: 'slack',
+      configuration: {
+        webhookUrl,
+        channel
+      }
+    }
+  }),
+
+  /**
+   * Create Jira workflow integration template
+   */
+  jira: (id: string, name: string, baseUrl: string, projectKey: string) => ({
+    id,
+    name,
+    type: 'workflow' as const,
+    enabled: true,
+    configuration: {
+      type: 'jira',
+      baseUrl,
+      configuration: {
+        projectKey,
+        apiVersion: '3'
+      }
+    }
+  }),
+
+  /**
+   * Create Jenkins CI/CD integration template
+   */
+  jenkins: (id: string, name: string, baseUrl: string) => ({
+    id,
+    name,
+    type: 'cicd' as const,
+    enabled: true,
+    configuration: {
+      type: 'jenkins',
+      baseUrl,
+      configuration: {
+        defaultBranch: 'main'
+      }
+    }
+  }),
+
+  /**
+   * Create Datadog monitoring integration template
+   */
+  datadog: (id: string, name: string, apiKey: string, region: string) => ({
+    id,
+    name,
+    type: 'monitoring' as const,
+    enabled: true,
+    configuration: {
+      type: 'datadog',
+      configuration: {
+        apiKey,
+        region
+      }
+    }
+  })
+};
+
+/**
+ * Integration system constants
+ */
+export const IntegrationConstants = {
+  DEFAULT_SYNC_INTERVAL: 300000, // 5 minutes
+  DEFAULT_HEALTH_CHECK_INTERVAL: 60000, // 1 minute
+  DEFAULT_RETRY_ATTEMPTS: 3,
+  DEFAULT_TIMEOUT: 30000, // 30 seconds
+  
+  SUPPORTED_IDENTITY_TYPES: ['ldap', 'active-directory', 'sso', 'oauth', 'saml'],
+  SUPPORTED_WORKFLOW_TYPES: ['jira', 'servicenow', 'custom'],
+  SUPPORTED_NOTIFICATION_TYPES: ['slack', 'teams', 'email', 'webhook'],
+  SUPPORTED_CICD_TYPES: ['jenkins', 'gitlab-ci', 'github-actions', 'azure-devops'],
+  SUPPORTED_MONITORING_TYPES: ['datadog', 'newrelic', 'prometheus', 'custom']
+};
