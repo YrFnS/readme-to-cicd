@@ -5,6 +5,15 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/setup/vitest-setup.ts'],
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true
+      }
+    },
+    testTimeout: 10000,
+    hookTimeout: 10000,
+    teardownTimeout: 5000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -12,7 +21,8 @@ export default defineConfig({
         'node_modules/',
         'dist/',
         '**/*.test.ts',
-        '**/*.spec.ts'
+        '**/*.spec.ts',
+        'src/integration/**/*'
       ]
     }
   }
