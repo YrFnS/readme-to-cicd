@@ -2,12 +2,19 @@
  * Enterprise Integration System
  * 
  * Comprehensive integration hub for enterprise systems including:
+ * - Orchestration Engine (centralized coordination and workflow management)
+ * - Configuration Management (system-wide configuration and propagation)
+ * - Monitoring & Observability (unified dashboards and alerting)
+ * - Health Management (automated recovery and maintenance)
  * - Identity providers (LDAP, Active Directory, SSO)
  * - Workflow systems (Jira, ServiceNow, Custom)
  * - Notification platforms (Slack, Teams, Email, Webhooks)
  * - CI/CD platforms (Jenkins, GitLab CI, GitHub Actions)
  * - Monitoring systems (Datadog, New Relic, Prometheus)
  */
+
+// Core orchestration system
+export * from './orchestration';
 
 // Core integration hub
 export { IntegrationHub } from './hub/integration-hub.js';
