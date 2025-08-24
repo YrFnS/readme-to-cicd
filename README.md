@@ -283,6 +283,15 @@ npm run test:coverage
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
+### Project Structure
+
+The project follows a clean, organized structure:
+- `src/` - Source code organized by component
+- `tests/` - Comprehensive test suites
+- `docs/` - Documentation and planning materials
+- `temp/` - Temporary files, debug scripts, and development reports
+- `.kiro/` - Kiro configuration, specs, and steering rules
+
 ### Code Standards
 
 - TypeScript with strict mode enabled
@@ -324,13 +333,6 @@ npm run test:coverage
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- 📖 [Documentation](docs/)
-- 🐛 [Issue Tracker](https://github.com/your-org/readme-to-cicd/issues)
-- 💬 [Discussions](https://github.com/your-org/readme-to-cicd/discussions)
-- 📧 [Email Support](mailto:support@readme-to-cicd.com)
 
 ---
 
