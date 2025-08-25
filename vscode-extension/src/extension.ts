@@ -1,82 +1,107 @@
 import * as vscode from 'vscode';
-import { ExtensionManager } from './core/ExtensionManager';
-import { ExtensionConfiguration } from './core/types';
+import { GenerateWorkflowCommand } from './commands/generateWorkflow';
+import { ValidateWorkflowCommand } from './commands/validateWorkflow';
+import { PreviewWorkflowCommand } from './commands/previewWorkflow';
+import { InitConfigCommand } from './commands/initConfig';
+import { WorkflowProvider } from './providers/workflowProvider';
+import { StatusBarProvider } from './providers/statusBarProvider';
+import { SidebarProvider } from './providers/sidebarProvider';
+import { ConfigService } from './services/configService';
+import { Logger } from './utils/logger';
 
-let extensionManager: ExtensionManager | undefined;
+let statusBarProvider: StatusBarProvider;
+let sidebarProvider: SidebarProvider;
 
-/**
- * Main extension activation function
- * Called when the extension is activated
- */
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  try {
-    console.log('README to CI/CD extension is activating...');
+export function activate(context: vscode.ExtensionContext) {
+    Logger.info('README to CICD extension is now active!');
 
-    // Load configuration
-    const configuration: ExtensionConfiguration = {
-      debugMode: vscode.workspace.getConfiguration('readme-to-cicd').get('debugMode', false),
-      notificationLevel: vscode.workspace.getConfiguration('readme-to-cicd').get('notificationLevel', 'all'),
-      enableFeedbackRequests: vscode.workspace.getConfiguration('readme-to-cicd').get('enableFeedbackRequests', true),
-      logLevel: vscode.workspace.getConfiguration('readme-to-cicd').get('logLevel', 'info'),
-      enableFileLogging: vscode.workspace.getConfiguration('readme-to-cicd').get('enableFileLogging', false)
-    };
-
-    // Initialize extension manager with error handling
-    extensionManager = new ExtensionManager(context, configuration);
+    // Initialize services
+    const configService = new ConfigService();
     
-    // Initialize the extension with comprehensive error handling
-    await extensionManager.initialize();
-    
-    console.log('README to CI/CD extension is now active!');
-  } catch (error) {
-    console.error('Failed to activate README to CI/CD extension:', error);
-    
-    // Show user-friendly error message
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    const choice = await vscode.window.showErrorMessage(
-      `Failed to activate README to CI/CD extension: ${errorMessage}`,
-      'Retry',
-      'Report Issue'
+    // Initialize providers
+    const workflowProvider = new WorkflowProvider();
+    statusBarProvider = new StatusBarProvider();
+    sidebarProvider = new SidebarProvider();
+
+    // Initialize commands
+    const generateCommand = new GenerateWorkflowCommand(workflowProvider);
+    const validateCommand = new ValidateWorkflowCommand();
+    const previewCommand = new PreviewWorkflowCommand(workflowProvider);
+    const initCommand = new InitConfigCommand();
+
+    // Register command handlers
+    context.subscriptions.push(
+        vscode.commands.registerCommand('readme-to-cicd.generate', 
+            () => generateCommand.execute()),
+        vscode.commands.registerCommand('readme-to-cicd.validate', 
+            () => validateCommand.execute()),
+        vscode.commands.registerCommand('readme-to-cicd.preview', 
+            () => previewCommand.execute()),
+        vscode.commands.registerCommand('readme-to-cicd.init', 
+            () => initCommand.execute()),
+        vscode.commands.registerCommand('readme-to-cicd.refresh', 
+            () => sidebarProvider.refresh())
     );
 
-    if (choice === 'Retry') {
-      // Retry activation
-      setTimeout(() => activate(context), 1000);
-    } else if (choice === 'Report Issue' && extensionManager) {
-      await extensionManager.handleCriticalError(
-        error instanceof Error ? error : new Error(errorMessage),
-        'extension-activation'
-      );
+    // Register providers
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('readme-to-cicd-sidebar', sidebarProvider),
+        statusBarProvider
+    );
+
+    // Watch for README changes
+    const watcher = vscode.workspace.createFileSystemWatcher('**/README.{md,txt}');
+    watcher.onDidChange(() => {
+        statusBarProvider.refresh();
+        sidebarProvider.refresh();
+    });
+    watcher.onDidCreate(() => {
+        statusBarProvider.refresh();
+        sidebarProvider.refresh();
+        updateWorkspaceContext();
+    });
+    watcher.onDidDelete(() => {
+        statusBarProvider.refresh();
+        sidebarProvider.refresh();
+        updateWorkspaceContext();
+    });
+    context.subscriptions.push(watcher);
+
+    // Set initial context
+    updateWorkspaceContext();
+
+    // Show welcome message on first activation
+    const hasShownWelcome = context.globalState.get('hasShownWelcome', false);
+    if (!hasShownWelcome) {
+        showWelcomeMessage();
+        context.globalState.update('hasShownWelcome', true);
     }
-    
-    throw error;
-  }
+
+    Logger.info('README to CICD extension activated successfully');
 }
 
-/**
- * Extension deactivation function
- * Called when the extension is deactivated
- */
-export async function deactivate(): Promise<void> {
-  try {
-    console.log('README to CI/CD extension is deactivating...');
-    
-    if (extensionManager) {
-      await extensionManager.deactivate();
-      extensionManager = undefined;
-    }
-    
-    console.log('README to CI/CD extension is now deactivated');
-  } catch (error) {
-    console.error('Error during extension deactivation:', error);
-    // Don't use extension manager here as it might be disposed
-  }
+export function deactivate() {
+    Logger.info('README to CICD extension is now deactivated');
 }
 
-/**
- * Get the extension manager instance (for testing or other components)
- */
-export function getExtensionManager(): ExtensionManager | undefined {
-  return extensionManager;
+async function updateWorkspaceContext() {
+    const readmeFiles = await vscode.workspace.findFiles('**/README.{md,txt}');
+    await vscode.commands.executeCommand('setContext', 'workspaceHasReadme', readmeFiles.length > 0);
 }
 
+function showWelcomeMessage() {
+    vscode.window.showInformationMessage(
+        'Welcome to README to CICD! Generate CI/CD workflows from your README files.',
+        'Get Started',
+        'View Documentation'
+    ).then(selection => {
+        switch (selection) {
+            case 'Get Started':
+                vscode.commands.executeCommand('readme-to-cicd.generate');
+                break;
+            case 'View Documentation':
+                vscode.env.openExternal(vscode.Uri.parse('https://readme-to-cicd.com/docs'));
+                break;
+        }
+    });
+}

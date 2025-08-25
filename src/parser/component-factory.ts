@@ -99,9 +99,17 @@ export class ComponentFactory {
   }
 
   /**
+   * Get current configuration (for debugging)
+   */
+  public getConfig(): ComponentConfig {
+    return this.config;
+  }
+
+  /**
    * Create and configure all component dependencies
    */
   public createDependencies(): ComponentDependencies {
+    console.log('createDependencies: config has customAnalyzers:', !!this.config.customAnalyzers);
     if (this.dependencies) {
       return this.dependencies;
     }
@@ -149,6 +157,7 @@ export class ComponentFactory {
    * Create a fully configured README parser with enhanced dependencies
    */
   public createReadmeParser(): ReadmeParserImpl {
+    console.log('createReadmeParser: config has customAnalyzers:', !!this.config.customAnalyzers);
     const dependencies = this.createDependencies();
     
     // Create parser with enhanced configuration
@@ -169,9 +178,13 @@ export class ComponentFactory {
 
     // Register custom analyzers if provided
     if (this.config.customAnalyzers) {
+      console.log('Registering custom analyzers:', this.config.customAnalyzers.length);
       this.config.customAnalyzers.forEach(analyzer => {
+        console.log('Registering analyzer:', analyzer.name);
         parser.registerAnalyzer(analyzer);
       });
+    } else {
+      console.log('No custom analyzers to register');
     }
 
     return parser;

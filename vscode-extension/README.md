@@ -1,212 +1,131 @@
-# README to CI/CD
+# README to CICD - VSCode Extension
 
-[![Version](https://img.shields.io/visual-studio-marketplace/v/readme-to-cicd.readme-to-cicd)](https://marketplace.visualstudio.com/items?itemName=readme-to-cicd.readme-to-cicd)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/readme-to-cicd.readme-to-cicd)](https://marketplace.visualstudio.com/items?itemName=readme-to-cicd.readme-to-cicd)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/readme-to-cicd.readme-to-cicd)](https://marketplace.visualstudio.com/items?itemName=readme-to-cicd.readme-to-cicd)
+Generate CI/CD workflows from README files automatically with this powerful VSCode extension.
 
-Automatically generate optimized GitHub Actions CI/CD workflows from your README files. Transform project documentation into intelligent automation with zero YAML debugging required.
+## Features
 
-## ✨ Features
+- **🚀 One-Click Generation**: Generate CI/CD workflows directly from README files
+- **🔍 Smart Detection**: Automatically detects frameworks and languages
+- **⚡ Live Preview**: Preview workflows before generation
+- **🎯 Multiple Workflow Types**: Support for CI, CD, and Release workflows
+- **⚙️ Customizable**: Configurable optimization levels and output options
+- **📊 Status Bar Integration**: See detected frameworks at a glance
 
-### 🚀 Intelligent Workflow Generation
-- **Smart Framework Detection**: Automatically identifies technologies from your README
-- **Production-Ready Workflows**: Generates optimized CI/CD pipelines with best practices
-- **Multi-Workflow Support**: Create CI, CD, release, and maintenance workflows simultaneously
+## Quick Start
 
-### 🎨 Visual Configuration
-- **Interactive Setup**: Visual interface for configuring workflow options
-- **Real-Time Preview**: See generated YAML before creating files
-- **Template Management**: Custom and organization templates support
+1. Open a project with a README.md file
+2. Right-click on README.md → "Generate CI/CD Workflow"
+3. Choose your workflow options
+4. Your workflows are generated in `.github/workflows/`
 
-### 🔧 Developer Experience
-- **Command Palette Integration**: Quick access to all features
-- **Context Menu Actions**: Right-click README files for instant generation
-- **IntelliSense Support**: Enhanced editing with validation and auto-completion
+## Commands
 
-### 📊 Advanced Features
-- **Performance Optimization**: Automatic caching strategies and build optimization
-- **Git Integration**: Smart staging, commit messages, and branch management
-- **Validation & Testing**: Real-time YAML validation and workflow testing
-- **Error Recovery**: Intelligent error handling with actionable suggestions
+- `README to CICD: Generate Workflow` - Generate workflows from README
+- `README to CICD: Preview Workflow` - Preview before generation
+- `README to CICD: Validate Workflow` - Validate existing workflows
+- `README to CICD: Initialize Configuration` - Set up project configuration
 
-## 🚀 Quick Start
+## Configuration
 
-1. **Install the Extension**
-   - Open VS Code
-   - Go to Extensions (Ctrl+Shift+X)
-   - Search for "README to CI/CD"
-   - Click Install
-
-2. **Generate Your First Workflow**
-   - Open a project with a README.md file
-   - Right-click on README.md → "Generate CI/CD Workflow"
-   - Configure your options in the visual interface
-   - Preview and approve the generated workflow
-
-3. **Customize and Deploy**
-   - Edit the generated workflow if needed
-   - Commit and push to trigger your CI/CD pipeline
-
-## 📖 Usage
-
-### Command Palette Commands
-
-- `README to CI/CD: Generate CI/CD Workflow` - Generate workflows from README
-- `README to CI/CD: Preview Workflow` - Preview without creating files
-- `README to CI/CD: Validate Workflow` - Validate existing workflows
-- `README to CI/CD: Open Configuration` - Open settings panel
-- `README to CI/CD: Manage Templates` - Manage workflow templates
-
-### Context Menu Actions
-
-Right-click on README.md files:
-- **Generate CI/CD Workflow** - Quick workflow generation
-- **Preview Workflow** - See what would be generated
-- **Generate Multi-Workflow** - Create multiple workflow types
-
-### Workflow Explorer
-
-The Workflow Explorer in the sidebar shows:
-- Detected frameworks and technologies
-- Generated workflow files
-- Validation status and issues
-- Quick actions for each workflow
-
-## ⚙️ Configuration
-
-Configure the extension through VS Code settings:
+Configure the extension through VSCode settings:
 
 ```json
 {
-  "readme-to-cicd.defaultOutputDirectory": ".github/workflows",
-  "readme-to-cicd.enableAutoGeneration": false,
-  "readme-to-cicd.showPreviewByDefault": true,
-  "readme-to-cicd.enableInlineValidation": true,
-  "readme-to-cicd.notificationLevel": "all",
-  "readme-to-cicd.preferredWorkflowTypes": ["ci", "cd"]
+  "readme-to-cicd.autoDetect": true,
+  "readme-to-cicd.defaultOptimization": "standard",
+  "readme-to-cicd.workflowTypes": ["ci", "cd"],
+  "readme-to-cicd.outputDirectory": ".github/workflows",
+  "readme-to-cicd.showStatusBar": true
 }
 ```
 
-### Settings Reference
+## Supported Frameworks
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| `defaultOutputDirectory` | Directory for generated workflows | `.github/workflows` |
-| `enableAutoGeneration` | Auto-generate on README changes | `false` |
-| `showPreviewByDefault` | Show preview before generation | `true` |
-| `enableInlineValidation` | Real-time YAML validation | `true` |
-| `notificationLevel` | Notification verbosity | `all` |
-| `preferredWorkflowTypes` | Default workflow types | `["ci"]` |
+- Node.js / JavaScript / TypeScript
+- Python (Django, Flask, FastAPI)
+- Rust (Cargo projects)
+- Go (Go modules)
+- Java (Maven, Gradle)
+- And many more...
 
-## 🎯 Supported Technologies
+## Requirements
 
-The extension automatically detects and configures workflows for:
+- VSCode 1.74.0 or higher
+- A project with README.md file
 
-### Languages & Runtimes
-- **Node.js** - npm, yarn, pnpm support
-- **Python** - pip, poetry, conda environments
-- **Java** - Maven, Gradle build systems
-- **Go** - Module and vendor support
-- **Rust** - Cargo build system
-- **PHP** - Composer dependency management
-- **Ruby** - Bundler and gem support
-- **C#/.NET** - MSBuild and dotnet CLI
+## Installation
 
-### Frameworks & Tools
-- **React** - Create React App, Next.js, Vite
-- **Vue.js** - Vue CLI, Nuxt.js, Vite
-- **Angular** - Angular CLI
-- **Docker** - Multi-stage builds, registry push
-- **Kubernetes** - Deployment manifests
-- **Terraform** - Infrastructure as Code
+1. Open VSCode
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "README to CICD"
+4. Click Install
 
-### Testing Frameworks
-- Jest, Mocha, Pytest, JUnit, Go Test, Cargo Test
-- Code coverage reporting
-- Integration and E2E testing
+## Usage
 
-## 🔧 Advanced Usage
+### Generate Workflow
 
-### Custom Templates
+1. **From Command Palette**: 
+   - Press `Ctrl+Shift+P`
+   - Type "README to CICD: Generate"
+   - Follow the prompts
 
-Create organization-specific templates:
+2. **From Context Menu**:
+   - Right-click on README.md
+   - Select "Generate CI/CD Workflow"
 
-1. Use `README to CI/CD: Manage Templates`
-2. Create custom template from existing workflow
-3. Share templates across your organization
-4. Import/export template collections
+3. **From Sidebar**:
+   - Open Explorer panel
+   - Find "README to CICD" section
+   - Click "Generate New Workflow"
 
-### Multi-Workflow Coordination
+### Preview Workflow
 
-Generate coordinated workflows:
-- **CI Pipeline** - Build, test, and validate
-- **CD Pipeline** - Deploy to staging/production
-- **Release Pipeline** - Automated releases and changelogs
-- **Maintenance** - Dependency updates and security scans
+Before generating, you can preview the workflow:
+- Command Palette → "README to CICD: Preview Workflow"
+- View the generated YAML in a preview panel
 
-### Performance Optimization
+### Validate Workflows
 
-The extension automatically optimizes workflows:
-- **Smart Caching** - Framework-specific cache strategies
-- **Parallel Jobs** - Optimal job ordering and dependencies
-- **Matrix Builds** - Efficient multi-version testing
-- **Resource Management** - Memory and CPU optimization
+Check existing workflows for issues:
+- Command Palette → "README to CICD: Validate Workflow"
+- Get feedback on workflow structure and best practices
 
-## 🐛 Troubleshooting
+## Extension Settings
 
-### Common Issues
+This extension contributes the following settings:
 
-**Extension not activating?**
-- Ensure you have a README.md file in your workspace
-- Check VS Code version compatibility (1.74.0+)
+- `readme-to-cicd.autoDetect`: Enable automatic framework detection
+- `readme-to-cicd.defaultOptimization`: Default optimization level (basic/standard/aggressive)
+- `readme-to-cicd.workflowTypes`: Default workflow types to generate
+- `readme-to-cicd.outputDirectory`: Directory for generated workflows
+- `readme-to-cicd.showStatusBar`: Show framework detection in status bar
+- `readme-to-cicd.enablePreview`: Enable workflow preview feature
+- `readme-to-cicd.autoCommit`: Automatically commit generated workflows
+- `readme-to-cicd.commitMessage`: Commit message for auto-committed workflows
 
-**Framework not detected?**
-- Verify your README includes technology mentions
-- Use `Refresh Framework Detection` command
-- Check the Workflow Explorer for detection results
+## Known Issues
 
-**Generated workflow failing?**
-- Use `Validate Workflow` command
-- Check the Problems panel for issues
-- Review GitHub Actions logs for runtime errors
+- Large README files may take longer to process
+- Some complex project structures may require manual configuration
 
-### Getting Help
+## Release Notes
 
-- 📖 [Documentation](https://github.com/readme-to-cicd/vscode-extension/wiki)
-- 🐛 [Report Issues](https://github.com/readme-to-cicd/vscode-extension/issues)
-- 💬 [Discussions](https://github.com/readme-to-cicd/vscode-extension/discussions)
+### 1.0.0
 
-## 🤝 Contributing
+Initial release of README to CICD extension:
+- Basic workflow generation from README files
+- Framework detection for popular languages
+- VSCode integration with commands and sidebar
+- Configurable workflow options
 
-We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details.
+## Contributing
 
-### Development Setup
+Found a bug or want to contribute? Visit our [GitHub repository](https://github.com/your-org/readme-to-cicd).
 
-```bash
-# Clone the repository
-git clone https://github.com/readme-to-cicd/vscode-extension.git
-cd vscode-extension
+## License
 
-# Install dependencies
-npm install
-
-# Start development
-npm run build:watch
-
-# Run tests
-npm run test
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- VS Code Extension API team for excellent documentation
-- GitHub Actions team for the powerful CI/CD platform
-- Open source community for inspiration and feedback
+This extension is licensed under the MIT License.
 
 ---
 
-**Enjoy automated CI/CD! 🚀**
+**Enjoy automating your CI/CD workflows!** 🚀
