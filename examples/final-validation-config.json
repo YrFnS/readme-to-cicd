@@ -1,0 +1,998 @@
+{
+  "systemValidation": {
+    "environment": "production",
+    "testSuites": [
+      {
+        "name": "End-to-End Validation",
+        "type": "end-to-end",
+        "enabled": true,
+        "timeout": 300000,
+        "retries": 2,
+        "tests": []
+      },
+      {
+        "name": "Performance Validation",
+        "type": "performance",
+        "enabled": true,
+        "timeout": 600000,
+        "retries": 1,
+        "tests": []
+      },
+      {
+        "name": "Security Validation",
+        "type": "security",
+        "enabled": true,
+        "timeout": 450000,
+        "retries": 1,
+        "tests": []
+      },
+      {
+        "name": "User Acceptance Testing",
+        "type": "user-acceptance",
+        "enabled": true,
+        "timeout": 1200000,
+        "retries": 0,
+        "tests": []
+      },
+      {
+        "name": "Operational Validation",
+        "type": "operational",
+        "enabled": true,
+        "timeout": 900000,
+        "retries": 1,
+        "tests": []
+      }
+    ],
+    "performance": {
+      "loadTesting": {
+        "maxUsers": 1000,
+        "rampUpTime": 300,
+        "testDuration": 1800,
+        "scenarios": [
+          {
+            "name": "Normal Load",
+            "userCount": 500,
+            "duration": 900,
+            "endpoints": ["/api/health", "/api/status"],
+            "dataSet": "production-sample"
+          },
+          {
+            "name": "Peak Load",
+            "userCount": 1000,
+            "duration": 600,
+            "endpoints": ["/api/deploy", "/api/validate"],
+            "dataSet": "stress-test-data"
+          }
+        ]
+      },
+      "stressTesting": {
+        "maxLoad": 2000,
+        "incrementStep": 100,
+        "breakingPointThreshold": 95,
+        "recoveryValidation": true
+      },
+      "scalabilityTesting": {
+        "horizontalScaling": {
+          "minInstances": 2,
+          "maxInstances": 20,
+          "scalingTriggers": [
+            {
+              "metric": "cpu",
+              "threshold": 80,
+              "duration": 300,
+              "action": "scale-up"
+            },
+            {
+              "metric": "memory",
+              "threshold": 85,
+              "duration": 300,
+              "action": "scale-up"
+            }
+          ]
+        },
+        "verticalScaling": {
+          "minResources": {
+            "cpu": "500m",
+            "memory": "1Gi",
+            "disk": "10Gi"
+          },
+          "maxResources": {
+            "cpu": "4000m",
+            "memory": "16Gi",
+            "disk": "100Gi"
+          },
+          "scalingMetrics": ["cpu", "memory", "disk"]
+        },
+        "elasticity": {
+          "scaleUpThreshold": 80,
+          "scaleDownThreshold": 20,
+          "cooldownPeriod": 300
+        }
+      },
+      "enduranceTesting": {
+        "duration": 7200,
+        "load": 500,
+        "memoryLeakDetection": true,
+        "performanceDegradationThreshold": 5
+      }
+    },
+    "security": {
+      "penetrationTesting": {
+        "scope": [
+          "web-application",
+          "api-endpoints",
+          "infrastructure",
+          "network-security"
+        ],
+        "tools": [
+          "nmap",
+          "burp-suite",
+          "owasp-zap",
+          "nikto"
+        ],
+        "testTypes": [
+          {
+            "name": "SQL Injection Testing",
+            "category": "web-application",
+            "severity": "critical",
+            "automated": true
+          },
+          {
+            "name": "Cross-Site Scripting (XSS)",
+            "category": "web-application", 
+            "severity": "high",
+            "automated": true
+          },
+          {
+            "name": "Authentication Bypass",
+            "category": "web-application",
+            "severity": "critical",
+            "automated": false
+          }
+        ],
+        "reportFormat": "json"
+      },
+      "vulnerabilityScanning": {
+        "scanTypes": [
+          "static-analysis",
+          "dynamic-analysis",
+          "dependency-scanning",
+          "container-scanning"
+        ],
+        "tools": [
+          "snyk",
+          "sonarqube",
+          "trivy",
+          "clair"
+        ],
+        "schedule": "daily",
+        "reportingThreshold": "high"
+      },
+      "complianceValidation": {
+        "frameworks": [
+          {
+            "name": "SOC2",
+            "version": "2017",
+            "requirements": [
+              "CC1.1",
+              "CC2.1",
+              "CC3.1",
+              "CC4.1",
+              "CC5.1"
+            ]
+          },
+          {
+            "name": "ISO27001",
+            "version": "2013",
+            "requirements": [
+              "A.9.1.1",
+              "A.9.2.1",
+              "A.10.1.1"
+            ]
+          }
+        ],
+        "auditRequirements": [
+          {
+            "id": "ACCESS_CONTROL",
+            "description": "User access controls implemented",
+            "category": "security",
+            "mandatory": true,
+            "validationMethod": "automated"
+          }
+        ],
+        "reportingStandards": ["soc2", "iso27001"]
+      },
+      "authenticationTesting": {
+        "methods": ["oauth2", "jwt", "api-key", "saml"],
+        "strengthTesting": true,
+        "sessionManagement": true,
+        "accessControl": true
+      }
+    },
+    "operational": {
+      "disasterRecovery": {
+        "scenarios": [
+          {
+            "name": "Database Failure",
+            "description": "Primary database becomes unavailable",
+            "category": "technical",
+            "severity": "critical",
+            "probability": "medium",
+            "simulationMethod": "automated"
+          },
+          {
+            "name": "Data Center Outage",
+            "description": "Complete data center failure",
+            "category": "natural",
+            "severity": "catastrophic",
+            "probability": "low",
+            "simulationMethod": "tabletop"
+          }
+        ],
+        "recoveryTimeObjective": 240,
+        "recoveryPointObjective": 60,
+        "testFrequency": "quarterly"
+      },
+      "businessContinuity": {
+        "criticalProcesses": [
+          "ci-cd-pipeline",
+          "deployment-orchestration",
+          "monitoring-alerting",
+          "user-authentication"
+        ],
+        "minimumServiceLevel": 99,
+        "failoverProcedures": [
+          {
+            "name": "Database Failover",
+            "trigger": "database-unavailable",
+            "steps": [
+              "Detect primary database failure",
+              "Promote secondary database",
+              "Update connection strings",
+              "Verify application connectivity"
+            ],
+            "rollbackProcedure": [
+              "Restore primary database",
+              "Sync data from secondary",
+              "Switch back to primary"
+            ],
+            "testingSchedule": "monthly"
+          }
+        ],
+        "communicationPlan": {
+          "stakeholders": [
+            {
+              "role": "incident-commander",
+              "contact": "incident-commander@company.com",
+              "responsibilities": ["coordinate response", "communicate status"]
+            }
+          ],
+          "channels": ["email", "slack", "pagerduty"],
+          "escalationMatrix": [
+            {
+              "level": 1,
+              "timeThreshold": 15,
+              "contacts": ["on-call-engineer@company.com"],
+              "actions": ["initial-response"]
+            }
+          ]
+        }
+      },
+      "monitoring": {
+        "metricsValidation": true,
+        "alertingValidation": true,
+        "dashboardValidation": true,
+        "logAggregationValidation": true
+      },
+      "maintenance": {
+        "zeroDowntimeDeployment": true,
+        "rollbackProcedures": true,
+        "dataBackupValidation": true,
+        "systemHealthChecks": true
+      }
+    },
+    "reporting": {
+      "formats": ["json", "html", "pdf"],
+      "destinations": ["file", "email", "slack"],
+      "stakeholders": [
+        "development-team",
+        "operations-team",
+        "security-team",
+        "business-stakeholders"
+      ],
+      "schedule": "on-demand"
+    }
+  },
+  "endToEndValidation": {
+    "testDataPath": "./test-data",
+    "outputPath": "./validation-output/e2e",
+    "timeout": 300000,
+    "retries": 2,
+    "cleanupAfterTest": true
+  },
+  "userAcceptanceTesting": {
+    "stakeholders": [
+      {
+        "id": "product-owner",
+        "name": "Product Owner",
+        "role": "product-manager",
+        "email": "product-owner@company.com",
+        "responsibilities": ["feature-validation", "business-requirements"],
+        "testScenarios": ["user-workflows", "business-processes"],
+        "approvalWeight": 0.3
+      },
+      {
+        "id": "technical-lead",
+        "name": "Technical Lead",
+        "role": "developer",
+        "email": "tech-lead@company.com",
+        "responsibilities": ["technical-validation", "integration-testing"],
+        "testScenarios": ["technical-workflows", "integration-tests"],
+        "approvalWeight": 0.25
+      }
+    ],
+    "testScenarios": [
+      {
+        "id": "deployment-workflow",
+        "name": "Complete Deployment Workflow",
+        "description": "End-to-end deployment from README to production",
+        "userStory": "As a developer, I want to deploy my application automatically from README configuration",
+        "acceptanceCriteria": [
+          {
+            "id": "ac-1",
+            "description": "README is parsed successfully",
+            "condition": "parsing-success",
+            "measurable": true,
+            "validationMethod": "automated"
+          }
+        ],
+        "testSteps": [
+          {
+            "stepNumber": 1,
+            "action": "Upload README file",
+            "expectedResult": "File uploaded successfully"
+          }
+        ],
+        "expectedOutcome": "Application deployed successfully",
+        "priority": "critical",
+        "stakeholders": ["product-owner", "technical-lead"],
+        "automatable": true
+      }
+    ],
+    "feedbackCollection": {
+      "methods": [
+        {
+          "type": "survey",
+          "name": "User Satisfaction Survey",
+          "description": "Collect user satisfaction ratings",
+          "targetStakeholders": ["product-owner"],
+          "questions": [
+            {
+              "id": "satisfaction",
+              "question": "How satisfied are you with the system?",
+              "type": "scale",
+              "required": true,
+              "scale": {
+                "min": 1,
+                "max": 5,
+                "labels": ["Very Unsatisfied", "Unsatisfied", "Neutral", "Satisfied", "Very Satisfied"]
+              }
+            }
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "type": "email",
+          "name": "Email Survey",
+          "configuration": {
+            "template": "uat-survey-template"
+          }
+        }
+      ],
+      "collection": {
+        "duration": 7,
+        "reminders": [
+          {
+            "day": 3,
+            "message": "Please complete the user acceptance survey",
+            "channels": ["email"]
+          }
+        ],
+        "incentives": [],
+        "anonymity": false
+      },
+      "analysis": {
+        "methods": ["statistical-analysis", "sentiment-analysis"],
+        "reporting": ["dashboard", "summary-report"],
+        "thresholds": [
+          {
+            "metric": "satisfaction",
+            "threshold": 4.0,
+            "action": "approve"
+          }
+        ]
+      }
+    },
+    "approvalCriteria": {
+      "overallThreshold": 85,
+      "stakeholderThresholds": [
+        {
+          "stakeholderRole": "product-manager",
+          "threshold": 90,
+          "weight": 0.4
+        }
+      ],
+      "criticalScenarios": ["deployment-workflow"],
+      "blockers": [
+        {
+          "type": "critical-failure",
+          "description": "Critical test scenario failure",
+          "threshold": 1
+        }
+      ]
+    }
+  },
+  "performanceValidation": {
+    "loadTesting": {
+      "scenarios": [
+        {
+          "name": "API Load Test",
+          "description": "Test API endpoints under load",
+          "userCount": 500,
+          "duration": 600,
+          "endpoints": [
+            {
+              "method": "GET",
+              "url": "/api/health",
+              "weight": 0.3
+            },
+            {
+              "method": "POST",
+              "url": "/api/deploy",
+              "weight": 0.7
+            }
+          ],
+          "dataSet": "load-test-data",
+          "thinkTime": 1000
+        }
+      ],
+      "thresholds": [
+        {
+          "metric": "response-time-p95",
+          "threshold": 2000,
+          "operator": "lt",
+          "severity": "high"
+        },
+        {
+          "metric": "error-rate",
+          "threshold": 1,
+          "operator": "lt",
+          "severity": "critical"
+        }
+      ],
+      "duration": 1800,
+      "rampUp": 300,
+      "rampDown": 300
+    },
+    "stressTesting": {
+      "startLoad": 100,
+      "maxLoad": 2000,
+      "incrementStep": 100,
+      "incrementInterval": 60,
+      "breakingPointThreshold": 95,
+      "recoveryValidation": true
+    },
+    "scalabilityTesting": {
+      "horizontalScaling": {
+        "minInstances": 2,
+        "maxInstances": 20,
+        "scalingTriggers": [
+          {
+            "metric": "cpu-utilization",
+            "threshold": 80,
+            "duration": 300,
+            "action": "scale-up"
+          }
+        ],
+        "testDuration": 3600
+      },
+      "verticalScaling": {
+        "resourceLimits": [
+          {
+            "type": "cpu",
+            "min": "500m",
+            "max": "4000m",
+            "step": "500m"
+          },
+          {
+            "type": "memory",
+            "min": "1Gi",
+            "max": "16Gi",
+            "step": "2Gi"
+          }
+        ],
+        "scalingMetrics": ["cpu", "memory"],
+        "testDuration": 1800
+      },
+      "elasticity": {
+        "scaleUpThreshold": 80,
+        "scaleDownThreshold": 20,
+        "cooldownPeriod": 300,
+        "testCycles": 5
+      }
+    },
+    "enduranceTesting": {
+      "duration": 7200,
+      "load": 500,
+      "memoryLeakDetection": true,
+      "performanceDegradationThreshold": 10,
+      "monitoringInterval": 60
+    },
+    "benchmarking": {
+      "baselines": [
+        {
+          "name": "v1.0.0-baseline",
+          "version": "1.0.0",
+          "metrics": {
+            "response-time": 500,
+            "throughput": 1000,
+            "cpu-usage": 60
+          },
+          "environment": "production",
+          "date": "2024-01-01T00:00:00Z"
+        }
+      ],
+      "comparisons": [
+        {
+          "baseline": "v1.0.0-baseline",
+          "current": "current-build",
+          "tolerance": 10,
+          "metrics": ["response-time", "throughput", "cpu-usage"]
+        }
+      ],
+      "metrics": [
+        {
+          "name": "response-time",
+          "unit": "ms",
+          "higherIsBetter": false,
+          "threshold": 1000
+        },
+        {
+          "name": "throughput",
+          "unit": "rps",
+          "higherIsBetter": true,
+          "threshold": 500
+        }
+      ]
+    },
+    "monitoring": {
+      "metrics": [
+        {
+          "name": "response-time",
+          "type": "histogram",
+          "description": "HTTP response time",
+          "labels": ["method", "endpoint"],
+          "unit": "ms"
+        }
+      ],
+      "collectors": [
+        {
+          "name": "prometheus",
+          "type": "prometheus",
+          "endpoint": "http://prometheus:9090",
+          "interval": 15,
+          "metrics": ["response-time", "throughput"]
+        }
+      ],
+      "alerts": [
+        {
+          "name": "high-response-time",
+          "condition": "response_time_p95 > 2000",
+          "threshold": 2000,
+          "duration": 300,
+          "severity": "high",
+          "actions": [
+            {
+              "type": "email",
+              "target": "alerts@company.com",
+              "message": "High response time detected"
+            }
+          ]
+        }
+      ],
+      "dashboards": [
+        {
+          "name": "Performance Overview",
+          "panels": [
+            {
+              "title": "Response Time",
+              "type": "graph",
+              "metrics": ["response-time"],
+              "visualization": {
+                "type": "line-chart"
+              }
+            }
+          ],
+          "timeRange": "1h",
+          "refreshInterval": 30
+        }
+      ]
+    }
+  },
+  "securityValidation": {
+    "penetrationTesting": {
+      "scope": {
+        "targets": [
+          "https://api.company.com",
+          "https://app.company.com"
+        ],
+        "excludedTargets": [
+          "https://admin.company.com"
+        ],
+        "testEnvironment": "staging",
+        "timeWindow": {
+          "start": "2024-01-01T00:00:00Z",
+          "end": "2024-01-01T23:59:59Z"
+        },
+        "constraints": [
+          "no-dos-attacks",
+          "no-data-modification"
+        ]
+      },
+      "methodology": "OWASP-WSTG",
+      "tools": [
+        {
+          "name": "burp-suite",
+          "type": "scanner",
+          "version": "2023.10",
+          "configuration": {
+            "scan-speed": "thorough"
+          },
+          "automated": true
+        }
+      ],
+      "testTypes": [
+        {
+          "name": "SQL Injection",
+          "description": "Test for SQL injection vulnerabilities",
+          "category": "web-application",
+          "severity": "critical",
+          "automated": true,
+          "manualSteps": []
+        }
+      ],
+      "reporting": {
+        "format": ["json", "pdf"],
+        "recipients": ["security-team@company.com"],
+        "confidentiality": "confidential",
+        "retention": 365
+      }
+    },
+    "vulnerabilityScanning": {
+      "scanTypes": [
+        {
+          "name": "Static Code Analysis",
+          "description": "Scan source code for vulnerabilities",
+          "category": "application",
+          "frequency": "daily",
+          "severity": ["critical", "high", "medium"]
+        }
+      ],
+      "tools": [
+        {
+          "name": "snyk",
+          "type": "dependency",
+          "version": "latest",
+          "configuration": {
+            "severity-threshold": "high"
+          },
+          "databases": ["snyk-db", "nvd"]
+        }
+      ],
+      "schedule": {
+        "frequency": "daily",
+        "time": "02:00",
+        "timezone": "UTC",
+        "exclusions": ["maintenance-windows"]
+      },
+      "reporting": {
+        "thresholds": [
+          {
+            "severity": "critical",
+            "count": 0,
+            "action": "alert"
+          }
+        ],
+        "notifications": [
+          {
+            "type": "email",
+            "target": "security-team@company.com",
+            "conditions": ["critical-vulnerability-found"],
+            "template": "security-alert"
+          }
+        ],
+        "dashboards": ["security-overview"],
+        "exports": [
+          {
+            "format": "json",
+            "destination": "s3://security-reports/",
+            "schedule": "daily",
+            "filters": ["severity:high", "severity:critical"]
+          }
+        ]
+      }
+    }
+  },
+  "operationalValidation": {
+    "disasterRecovery": {
+      "scenarios": [
+        {
+          "id": "database-failure",
+          "name": "Primary Database Failure",
+          "description": "Simulate primary database becoming unavailable",
+          "category": "technical",
+          "severity": "critical",
+          "probability": "medium",
+          "impact": {
+            "systems": ["api-server", "web-app"],
+            "services": ["user-authentication", "data-access"],
+            "data": ["user-data", "application-state"],
+            "users": 10000,
+            "revenue": 50000,
+            "reputation": "high"
+          },
+          "simulation": {
+            "method": "automated",
+            "duration": 3600,
+            "participants": ["ops-team", "dev-team"],
+            "tools": ["chaos-monkey"],
+            "safetyMeasures": ["backup-verification", "rollback-plan"]
+          }
+        }
+      ],
+      "procedures": [
+        {
+          "id": "db-recovery-proc",
+          "name": "Database Recovery Procedure",
+          "description": "Steps to recover from database failure",
+          "scenario": "database-failure",
+          "steps": [
+            {
+              "stepNumber": 1,
+              "description": "Detect database failure",
+              "responsible": "monitoring-system",
+              "estimatedTime": 5,
+              "dependencies": [],
+              "verification": {
+                "method": "automated",
+                "criteria": ["alert-triggered", "health-check-failed"],
+                "tools": ["monitoring-dashboard"],
+                "acceptanceCriteria": "Database failure detected within 5 minutes"
+              },
+              "rollback": {
+                "conditions": ["false-positive"],
+                "steps": ["reset-monitoring", "clear-alerts"],
+                "timeLimit": 10,
+                "approvals": ["ops-lead"]
+              }
+            }
+          ],
+          "roles": [
+            {
+              "name": "database-administrator",
+              "responsibilities": ["database-recovery", "data-integrity-verification"],
+              "skills": ["postgresql", "backup-restoration"],
+              "contacts": [
+                {
+                  "type": "email",
+                  "value": "dba@company.com",
+                  "priority": 1,
+                  "availability": "24/7"
+                }
+              ],
+              "backups": ["senior-dba"]
+            }
+          ],
+          "resources": [
+            {
+              "type": "hardware",
+              "name": "backup-database-server",
+              "location": "datacenter-b",
+              "availability": "99.9%",
+              "capacity": "100GB",
+              "cost": 500
+            }
+          ]
+        }
+      ],
+      "testing": {
+        "frequency": "quarterly",
+        "scope": ["critical-scenarios"],
+        "participants": ["ops-team", "dev-team", "security-team"],
+        "documentation": [
+          {
+            "type": "procedure",
+            "name": "DR Test Procedures",
+            "updateFrequency": "monthly",
+            "owner": "ops-manager",
+            "reviewers": ["security-officer", "compliance-officer"]
+          }
+        ],
+        "reporting": {
+          "formats": ["pdf", "html"],
+          "recipients": ["executive-team", "ops-team"],
+          "timeline": "within-48-hours",
+          "metrics": ["rto-actual", "rpo-actual", "success-rate"],
+          "improvements": {
+            "enabled": true,
+            "categories": ["process", "technology", "training"],
+            "prioritization": "risk-based",
+            "implementation": "quarterly-review"
+          }
+        }
+      },
+      "objectives": {
+        "rto": 240,
+        "rpo": 60,
+        "mtd": 480,
+        "wrt": 120
+      }
+    }
+  },
+  "documentation": {
+    "outputDirectory": "./validation-docs",
+    "formats": [
+      {
+        "type": "markdown",
+        "enabled": true,
+        "configuration": {
+          "styling": {
+            "theme": "github",
+            "colors": {
+              "primary": "#0366d6",
+              "secondary": "#586069",
+              "accent": "#28a745",
+              "background": "#ffffff",
+              "text": "#24292e",
+              "success": "#28a745",
+              "warning": "#ffd33d",
+              "error": "#d73a49"
+            }
+          }
+        }
+      },
+      {
+        "type": "pdf",
+        "enabled": true,
+        "configuration": {
+          "layout": {
+            "pageSize": "A4",
+            "margins": {
+              "top": "2cm",
+              "bottom": "2cm",
+              "left": "2cm",
+              "right": "2cm"
+            },
+            "header": {
+              "enabled": true,
+              "content": "Final System Validation Report",
+              "height": "1cm",
+              "alignment": "center"
+            },
+            "footer": {
+              "enabled": true,
+              "content": "Page {page} of {pages}",
+              "height": "1cm",
+              "alignment": "center",
+              "pageNumbers": true
+            },
+            "toc": {
+              "enabled": true,
+              "depth": 3,
+              "pageBreak": true,
+              "links": true
+            }
+          }
+        }
+      }
+    ],
+    "templates": [
+      {
+        "name": "deployment-guide",
+        "type": "deployment-guide",
+        "path": "./templates/deployment-guide.hbs",
+        "variables": [
+          {
+            "name": "systemName",
+            "type": "string",
+            "description": "Name of the system being deployed",
+            "required": true
+          }
+        ],
+        "sections": ["overview", "requirements", "installation", "configuration", "validation"]
+      }
+    ],
+    "sections": [
+      {
+        "id": "executive-summary",
+        "name": "Executive Summary",
+        "description": "High-level overview of validation results",
+        "template": "executive-summary.hbs",
+        "order": 1,
+        "required": true
+      }
+    ],
+    "branding": {
+      "logo": {
+        "path": "./assets/company-logo.png",
+        "width": "200px",
+        "height": "auto",
+        "position": "header"
+      },
+      "companyName": "Company Name",
+      "companyUrl": "https://company.com",
+      "colors": {
+        "primary": "#0366d6",
+        "secondary": "#586069",
+        "accent": "#28a745",
+        "background": "#ffffff",
+        "text": "#24292e",
+        "success": "#28a745",
+        "warning": "#ffd33d",
+        "error": "#d73a49"
+      }
+    },
+    "distribution": {
+      "channels": [
+        {
+          "type": "email",
+          "name": "Email Distribution",
+          "configuration": {
+            "smtp": {
+              "host": "smtp.company.com",
+              "port": 587,
+              "secure": true
+            }
+          },
+          "enabled": true
+        }
+      ],
+      "recipients": [
+        {
+          "name": "Executive Team",
+          "email": "executives@company.com",
+          "role": "executive",
+          "documents": ["executive-summary", "validation-report"],
+          "format": "pdf"
+        }
+      ],
+      "notifications": [
+        {
+          "event": "generation-complete",
+          "channels": ["email"],
+          "recipients": ["ops-team"],
+          "template": "validation-complete"
+        }
+      ]
+    }
+  },
+  "reporting": {
+    "outputDirectory": "./final-validation-reports",
+    "formats": ["json", "html", "pdf"],
+    "stakeholders": [
+      "development-team",
+      "operations-team",
+      "security-team",
+      "business-stakeholders",
+      "executive-team"
+    ],
+    "distribution": true,
+    "archival": {
+      "enabled": true,
+      "retention": 365,
+      "location": "./validation-archive",
+      "compression": true
+    }
+  }
+}

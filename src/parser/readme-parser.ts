@@ -198,7 +198,12 @@ export class ReadmeParserImpl implements ReadmeParser {
         if (!readResult.success) {
           return {
             success: false,
-            errors: [readResult.error]
+            errors: 'error' in readResult ? [readResult.error] : [{
+              code: 'STREAMING_READ_ERROR',
+              message: 'Streaming read failed',
+              component: 'ReadmeParser',
+              severity: 'error' as const
+            }]
           };
         }
 
@@ -211,7 +216,12 @@ export class ReadmeParserImpl implements ReadmeParser {
         if (!readResult.success) {
           return {
             success: false,
-            errors: [readResult.error]
+            errors: 'error' in readResult ? [readResult.error] : [{
+              code: 'FILE_READ_ERROR',
+              message: 'File read failed',
+              component: 'ReadmeParser',
+              severity: 'error' as const
+            }]
           };
         }
 
@@ -343,7 +353,12 @@ export class ReadmeParserImpl implements ReadmeParser {
       if (!parseResult.success) {
         return {
           success: false,
-          errors: [parseResult.error]
+          errors: 'error' in parseResult ? [parseResult.error] : [{
+            code: 'PARSE_ERROR',
+            message: 'Parse failed',
+            component: 'ReadmeParser',
+            severity: 'error' as const
+          }]
         };
       }
 

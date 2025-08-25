@@ -436,7 +436,7 @@ export class IntegrationPipeline {
         };
       } else {
         // Handle both success=false (with errors) and success=true but no data cases
-        const errorMessage = !result.success && result.errors?.[0]?.message 
+        const errorMessage = !result.success && 'errors' in result && result.errors?.[0]?.message 
           ? result.errors[0].message 
           : 'Command extraction failed - no data returned';
         throw new Error(`Command extraction failed: ${errorMessage}`);

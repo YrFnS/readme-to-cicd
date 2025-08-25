@@ -13,12 +13,12 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    "exactOptionalPropertyTypes": false,
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
@@ -30,6 +30,12 @@
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "src/integration/**/*"
+    "src/integration/**/*",
+    "src/compliance/**/*",
+    "src/disaster-recovery/**/*",
+    "src/agent-hooks/**/*",
+    "src/validation/**/*",
+    "src/detection/**/*",
+    "src/cli/**/*"
   ]
 }

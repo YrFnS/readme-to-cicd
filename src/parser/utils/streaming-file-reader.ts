@@ -58,7 +58,15 @@ export class StreamingFileReader {
       // Validate and normalize path
       const validationResult = this.validateInput(filePath, options);
       if (!validationResult.success) {
-        return validationResult;
+        return {
+          success: false,
+          error: 'error' in validationResult ? validationResult.error : {
+            code: 'VALIDATION_ERROR',
+            message: 'Validation failed',
+            component: 'StreamingFileReader',
+            severity: 'error' as const
+          }
+        };
       }
 
       const normalizedPath = this.normalizePath(filePath);
@@ -67,7 +75,15 @@ export class StreamingFileReader {
       // Check file accessibility and get stats
       const fileStats = await this.getFileStats(normalizedPath);
       if (!fileStats.success) {
-        return fileStats;
+        return {
+          success: false,
+          error: 'error' in fileStats ? fileStats.error : {
+            code: 'FILE_STATS_ERROR',
+            message: 'File stats failed',
+            component: 'StreamingFileReader',
+            severity: 'error' as const
+          }
+        };
       }
 
       const { size: fileSize } = fileStats.data;
@@ -102,7 +118,15 @@ export class StreamingFileReader {
       );
 
       if (!streamResult.success) {
-        return streamResult;
+        return {
+          success: false,
+          error: 'error' in streamResult ? streamResult.error : {
+            code: 'STREAM_ERROR',
+            message: 'Stream failed',
+            component: 'StreamingFileReader',
+            severity: 'error' as const
+          }
+        };
       }
 
       const { content, chunksRead, memoryPeak } = streamResult.data;
@@ -111,7 +135,15 @@ export class StreamingFileReader {
       // Validate content
       const contentValidation = this.validateContent(content);
       if (!contentValidation.success) {
-        return contentValidation;
+        return {
+          success: false,
+          error: 'error' in contentValidation ? contentValidation.error : {
+            code: 'CONTENT_VALIDATION_ERROR',
+            message: 'Content validation failed',
+            component: 'StreamingFileReader',
+            severity: 'error' as const
+          }
+        };
       }
 
       const streamingTime = Date.now() - startTime;

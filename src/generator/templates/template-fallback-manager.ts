@@ -120,7 +120,7 @@ export class TemplateFallbackManager {
       async (templateName: string) => {
         const result = await this.loadTemplate(templateName);
         if (!result.success) {
-          throw result.error;
+          throw 'error' in result ? result.error : new Error('Template loading failed');
         }
         return result.data;
       },
@@ -244,7 +244,7 @@ export class TemplateFallbackManager {
       if (this.config.validateTemplates) {
         const validationResult = await this.validateTemplate(template);
         if (!validationResult.success) {
-          throw validationResult.error;
+          throw 'error' in validationResult ? validationResult.error : new Error('Template validation failed');
         }
       }
 
