@@ -1465,6 +1465,146 @@ export class IntegrationPipeline {
     this.config = { ...this.config, ...newConfig };
     this.logger.info('IntegrationPipeline', 'Pipeline configuration updated', { newConfig });
   }
+
+  /**
+   * Register a custom analyzer with the integration pipeline
+   * 
+   * @param analyzer The analyzer to register
+   */
+  async registerAnalyzer(analyzer: any): Promise<void> {
+    try {
+      // Initialize analyzer if it has an initialize method
+      if (typeof analyzer.initialize === 'function') {
+        await analyzer.initialize();
+      }
+      
+      // Add analyzer to the factory's custom analyzers
+      if (!this.config.customAnalyzers) {
+        this.config.customAnalyzers = [];
+      }
+      
+      this.config.customAnalyzers.push(analyzer);
+      
+      // Reinitialize dependencies to include the new analyzer
+      this.factory.initialize(this.config);
+      this.dependencies = this.factory.createDependencies();
+      
+      this.logger.info('IntegrationPipeline', `Custom analyzer registered: ${analyzer.name || 'Unknown'}`);
+    } catch (error) {
+      this.logger.error('IntegrationPipeline', `Failed to register analyzer: ${analyzer.name || 'Unknown'}`, error as Error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all registered analyzers (including default and custom ones)
+   * 
+   * @returns Array of all registered analyzers
+   */
+  getRegisteredAnalyzers(): any[] {
+    const analyzers: any[] = [];
+    
+    // Add default analyzers from dependencies
+    if (this.dependencies.languageDetector) {
+      analyzers.push(this.dependencies.languageDetector);
+    }
+    if (this.dependencies.commandExtractor) {
+      analyzers.push(this.dependencies.commandExtractor);
+    }
+    if (this.dependencies.dependencyExtractor) {
+      analyzers.push(this.dependencies.dependencyExtractor);
+    }
+    if (this.dependencies.testingDetector) {
+      analyzers.push(this.dependencies.testingDetector);
+    }
+    if (this.dependencies.metadataExtractor) {
+      analyzers.push(this.dependencies.metadataExtractor);
+    }
+    
+    // Add custom analyzers
+    if (this.config.customAnalyzers) {
+      analyzers.push(...this.config.customAnalyzers);
+    }
+    
+    return analyzers;
+  }
+
+  /**
+   * Check if an analyzer is registered
+   * 
+   * @param name The name of the analyzer to check
+   * @returns True if the analyzer is registered
+   */
+  hasAnalyzer(name: string): boolean {
+    const analyzers = this.getRegisteredAnalyzers();
+    return analyzers.some(analyzer => analyzer.name === name);
+  }
+
+  /**
+   * Unregister a custom analyzer
+   * 
+   * @param name The name of the analyzer to unregister
+   * @returns True if the analyzer was found and removed
+   */
+  unregisterAnalyzer(name: string): boolean {
+    if (!this.config.customAnalyzers) {
+      return false;
+    }
+    
+    const initialLength = this.config.customAnalyzers.length;
+    this.config.customAnalyzers = this.config.customAnalyzers.filter(
+      analyzer => analyzer.name !== name
+    );
+    
+    const removed = this.config.customAnalyzers.length < initialLength;
+    
+    if (removed) {
+      // Reinitialize dependencies to reflect the change
+      this.factory.initialize(this.config);
+      this.dependencies = this.factory.createDependencies();
+      
+      this.logger.info('IntegrationPipeline', `Custom analyzer unregistered: ${name}`);
+    }
+    
+    return removed;
+  }
+
+  /**
+   * Clear all custom analyzers
+   */
+  clearCustomAnalyzers(): void {
+    const count = this.config.customAnalyzers?.length || 0;
+    this.config.customAnalyzers = [];
+    
+    // Reinitialize dependencies to reflect the change
+    this.factory.initialize(this.config);
+    this.dependencies = this.factory.createDependencies();
+    
+    this.logger.info('IntegrationPipeline', `Cleared ${count} custom analyzers`);
+  }
+
+  /**
+   * Cleanup method for proper resource disposal
+   */
+  cleanup(): void {
+    // Cleanup custom analyzers if they have cleanup methods
+    if (this.config.customAnalyzers) {
+      this.config.customAnalyzers.forEach(analyzer => {
+        if (typeof (analyzer as any).cleanup === 'function') {
+          try {
+            (analyzer as any).cleanup();
+          } catch (error) {
+            this.logger.error('IntegrationPipeline', `Error cleaning up analyzer ${analyzer.name}:`, error as Error);
+          }
+        }
+      });
+    }
+    
+    // Clear custom analyzers
+    this.config.customAnalyzers = [];
+    
+    this.logger.info('IntegrationPipeline', 'Integration pipeline cleanup completed');
+  }
 }
 
 /**

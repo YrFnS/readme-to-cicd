@@ -246,7 +246,7 @@ export class DetectionEngine {
           { maxAttempts: 2 }
         );
 
-        if (!evidenceResult.success) {
+        if (evidenceResult.success === false) {
           this.logger.error('DetectionEngine', 'Failed to collect evidence', evidenceResult.error);
           throw new IntegrationError(
             'Evidence collection failed',
@@ -279,7 +279,7 @@ export class DetectionEngine {
             }
           );
 
-          if (!analyzerResult.success) {
+          if (analyzerResult.success === false) {
             this.logger.warn('DetectionEngine', `${analyzer.name} analysis failed`, {
               analyzer: analyzer.name,
               error: analyzerResult.error.message,

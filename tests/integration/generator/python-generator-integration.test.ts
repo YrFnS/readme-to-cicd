@@ -4,6 +4,45 @@ import { TemplateManager } from '../../../src/generator/templates/template-manag
 import { TemplateLoadConfig } from '../../../src/generator/templates/template-types';
 import { DetectionResult } from '../../../src/generator/interfaces';
 import * as yaml from 'yaml';
+import * as path from 'path';
+
+// Helper function to create a complete DetectionResult
+function createDetectionResult(overrides: Partial<DetectionResult> = {}): DetectionResult {
+  return {
+    languages: [{ 
+      name: 'Python', 
+      version: '3.11', 
+      confidence: 0.9, 
+      primary: true 
+    }],
+    frameworks: [{ 
+      name: 'python', 
+      confidence: 0.8, 
+      evidence: ['Python language detected'], 
+      category: 'backend' 
+    }],
+    packageManagers: [{ 
+      name: 'pip', 
+      lockFile: 'requirements.txt', 
+      confidence: 0.8 
+    }],
+    testingFrameworks: [{ 
+      name: 'pytest', 
+      type: 'unit', 
+      confidence: 0.8 
+    }],
+    buildTools: [
+      { name: 'flake8', confidence: 0.7 }
+    ],
+    deploymentTargets: [],
+    projectMetadata: {
+      name: 'Test Python Project',
+      description: 'A test Python project',
+      version: '1.0.0'
+    },
+    ...overrides
+  };
+}
 
 describe('PythonWorkflowGenerator Integration Tests', () => {
   let generator: PythonWorkflowGenerator;
@@ -11,7 +50,7 @@ describe('PythonWorkflowGenerator Integration Tests', () => {
 
   beforeEach(() => {
     const config: TemplateLoadConfig = {
-      baseTemplatesPath: 'templates/frameworks',
+      baseTemplatesPath: path.resolve(process.cwd(), 'templates/frameworks'),
       cacheEnabled: true,
       reloadOnChange: false
     };
@@ -21,25 +60,23 @@ describe('PythonWorkflowGenerator Integration Tests', () => {
 
   describe('Django workflow integration', () => {
     it('should generate complete Django workflow with real templates', async () => {
-      const detectionResult: DetectionResult = {
-        languages: [{ name: 'Python', version: '3.11', confidence: 0.9 }],
+      const detectionResult = createDetectionResult({
         frameworks: [{ 
           name: 'django', 
           confidence: 0.9, 
           evidence: ['manage.py', 'settings.py'], 
           category: 'backend' 
         }],
-        packageManagers: [{ 
-          name: 'pip', 
-          lockFile: 'requirements.txt', 
-          confidence: 0.8 
-        }],
-        testingFrameworks: [{ name: 'pytest', confidence: 0.8 }],
         buildTools: [
           { name: 'flake8', confidence: 0.7 },
           { name: 'mypy', confidence: 0.6 }
-        ]
-      };
+        ],
+        projectMetadata: {
+          name: 'Django Test Project',
+          description: 'A test Django project',
+          version: '1.0.0'
+        }
+      });
 
       const result = await generator.generateWorkflow(detectionResult);
 

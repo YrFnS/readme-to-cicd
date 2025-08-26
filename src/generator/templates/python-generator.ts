@@ -55,12 +55,21 @@ export class PythonWorkflowGenerator {
     const templateName = this.selectTemplate(pythonInfo);
     
     // Prepare template data
-    const templateData = this.prepareTemplateData(pythonInfo, options);
+    const templateData = this.prepareTemplateData(pythonInfo, detectionResult.projectMetadata, options);
     
     // Compile the template
+    console.log(`[DEBUG] FIXED VERSION - Compiling template: ${templateName}`);
+    console.log(`[DEBUG] Template data keys: ${Object.keys(templateData).join(', ')}`);
+    console.log(`[DEBUG] isDjango: ${templateData.isDjango}`);
+    console.log(`[DEBUG] projectName: ${templateData.projectName}`);
+    
     const compilationResult = await this.templateManager.compileTemplate(templateName, templateData);
     
+    console.log(`[DEBUG] Compilation result - errors: ${compilationResult.errors.length}, warnings: ${compilationResult.warnings.length}`);
+    console.log(`[DEBUG] Compiled template jobs: ${compilationResult.template.jobs?.length || 0}`);
+    
     if (compilationResult.errors.length > 0) {
+      console.log(`[DEBUG] Compilation errors:`, compilationResult.errors);
       throw new Error(`Template compilation failed: ${compilationResult.errors.join(', ')}`);
     }
 
@@ -227,10 +236,17 @@ export class PythonWorkflowGenerator {
   /**
    * Prepare template data for compilation
    */
-  private prepareTemplateData(pythonInfo: PythonFramework, options?: GenerationOptions): any {
+  private prepareTemplateData(pythonInfo: PythonFramework, projectMetadata: any, options?: GenerationOptions): any {
     const pythonVersion = pythonInfo.version || '3.11';
     
+    console.log(`[DEBUG] Preparing template data for framework: ${pythonInfo.name}`);
+    console.log(`[DEBUG] Python info:`, JSON.stringify(pythonInfo, null, 2));
+    
     return {
+      // Project info
+      name: projectMetadata?.name || 'project',
+      projectName: projectMetadata?.name || 'project',
+      
       // Framework info
       framework: pythonInfo.name,
       pythonVersion,

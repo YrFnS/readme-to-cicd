@@ -100,7 +100,7 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
         }
       );
 
-      if (!detectionResult.success) {
+      if (detectionResult.success === false) {
         this.logger.error('FrameworkDetector', 'Framework detection failed', detectionResult.error);
         this.performanceMonitor.endOperation(operationId, 'FrameworkDetector', false, detectionResult.error.message);
         
@@ -188,7 +188,7 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
         }
       );
 
-      if (!pipelineResult.success) {
+      if (pipelineResult.success === false) {
         this.logger.error('FrameworkDetector', 'CI step generation failed', pipelineResult.error);
         this.performanceMonitor.endOperation(operationId, 'FrameworkDetector', false, pipelineResult.error.message);
         

@@ -10,17 +10,19 @@ import { Logger } from '../cli/lib/logger';
 import { ErrorHandler } from '../cli/lib/error-handler';
 import { WebhookManager } from './webhooks/webhook-manager';
 import type { WebhookConfig, WebhookEvent } from './webhooks/types';
+import { Analyzer } from '../parser/analyzers/registry';
 
 /**
  * Integration pipeline that orchestrates the core components
  * 
  * This is a wrapper around ComponentOrchestrator with additional
- * integration features like webhook notifications.
+ * integration features like webhook notifications and analyzer registration.
  */
 export class IntegrationPipeline {
   private orchestrator: ComponentOrchestrator;
   private webhookManager?: WebhookManager;
   private logger: Logger;
+  private analyzers: Analyzer[] = [];
 
   constructor(webhookConfig?: WebhookConfig) {
     this.logger = new Logger('info');
@@ -145,6 +147,96 @@ export class IntegrationPipeline {
    */
   private generateEventId(): string {
     return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Register an analyzer with the integration pipeline
+   * 
+   * @param analyzer The analyzer to register
+   */
+  async registerAnalyzer(analyzer: Analyzer): Promise<void> {
+    try {
+      // Add analyzer to the internal list
+      this.analyzers.push(analyzer);
+      
+      // Initialize analyzer if it has an initialize method
+      if (typeof (analyzer as any).initialize === 'function') {
+        await (analyzer as any).initialize();
+      }
+      
+      this.logger.info(`Analyzer registered: ${analyzer.name}`);
+    } catch (error) {
+      this.logger.error(`Failed to register analyzer ${analyzer.name}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all registered analyzers
+   * 
+   * @returns Array of all registered analyzers
+   */
+  getRegisteredAnalyzers(): Analyzer[] {
+    // Return a copy to prevent external modification
+    return [...this.analyzers];
+  }
+
+  /**
+   * Check if an analyzer is registered
+   * 
+   * @param name The name of the analyzer to check
+   * @returns True if the analyzer is registered
+   */
+  hasAnalyzer(name: string): boolean {
+    return this.analyzers.some(analyzer => analyzer.name === name);
+  }
+
+  /**
+   * Unregister an analyzer
+   * 
+   * @param name The name of the analyzer to unregister
+   * @returns True if the analyzer was found and removed
+   */
+  unregisterAnalyzer(name: string): boolean {
+    const initialLength = this.analyzers.length;
+    this.analyzers = this.analyzers.filter(analyzer => analyzer.name !== name);
+    const removed = this.analyzers.length < initialLength;
+    
+    if (removed) {
+      this.logger.info(`Analyzer unregistered: ${name}`);
+    }
+    
+    return removed;
+  }
+
+  /**
+   * Clear all registered analyzers
+   */
+  clearAnalyzers(): void {
+    const count = this.analyzers.length;
+    this.analyzers = [];
+    this.logger.info(`Cleared ${count} analyzers`);
+  }
+
+  /**
+   * Cleanup method for proper resource disposal
+   */
+  cleanup(): void {
+    // Cleanup analyzers if they have cleanup methods
+    this.analyzers.forEach(analyzer => {
+      if (typeof (analyzer as any).cleanup === 'function') {
+        try {
+          (analyzer as any).cleanup();
+        } catch (error) {
+          this.logger.error(`Error cleaning up analyzer ${analyzer.name}:`, error);
+        }
+      }
+    });
+    
+    // Clear the analyzer list
+    this.analyzers = [];
+    
+    this.logger.info('Integration pipeline cleanup completed');
   }
 }
 

@@ -249,14 +249,25 @@ vi.mock('vscode', () => {
   };
 });
 
-// Mock other common dependencies that might cause issues
-vi.mock('fs', () => {
+// Mock other common dependencies that might cause issues - but allow real access to templates
+vi.mock('fs', async () => {
+  const actual = await vi.importActual('fs') as any;
   // Track file system state
   const fileSystem: Map<string, string> = new Map();
 
   const mockFs = {
-    existsSync: vi.fn((path: string) => fileSystem.has(path)),
+    existsSync: vi.fn((path: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.existsSync(path);
+      }
+      return fileSystem.has(path);
+    }),
     readFileSync: vi.fn((path: string, encoding?: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.readFileSync(path, encoding || 'utf-8');
+      }
       const content = fileSystem.get(path);
       if (!content) {
         throw new Error(`ENOENT: no such file or directory, open '${path}'`);
@@ -324,8 +335,18 @@ vi.mock('fs', () => {
   };
 
   const mockPromises = {
-    exists: vi.fn((path: string) => Promise.resolve(fileSystem.has(path))),
+    exists: vi.fn((path: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.promises.access(path).then(() => true).catch(() => false);
+      }
+      return Promise.resolve(fileSystem.has(path));
+    }),
     readFile: vi.fn((path: string, encoding?: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.promises.readFile(path, encoding || 'utf-8');
+      }
       const content = fileSystem.get(path);
       if (!content) {
         return Promise.reject(new Error(`ENOENT: no such file or directory, open '${path}'`));
@@ -391,6 +412,10 @@ vi.mock('fs', () => {
     copyFile: vi.fn(() => Promise.resolve()),
     chmod: vi.fn(() => Promise.resolve()),
     access: vi.fn((path: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.promises.access(path);
+      }
       if (fileSystem.has(path)) {
         return Promise.resolve();
       }
@@ -549,41 +574,21 @@ vi.mock('process', () => ({
   }
 }));
 
-// Enhanced path mocks - support both named and default imports
-vi.mock('path', () => {
+// Enhanced path mocks - support both named and default imports but allow real path operations
+vi.mock('path', async () => {
+  const actual = await vi.importActual('path') as any;
+  
   const mockPath = {
-    join: vi.fn((...args: string[]) => args.join('/')),
-    resolve: vi.fn((...args: string[]) => {
-      // Handle relative paths by prefixing with mock workspace
-      if (args[0] && !args[0].startsWith('/')) {
-        return '/mock/workspace/' + args.join('/');
-      }
-      return args.join('/');
-    }),
-    dirname: vi.fn((path: string) => {
-      const parts = path.split('/');
-      parts.pop();
-      return parts.join('/') || '/';
-    }),
-    basename: vi.fn((path: string, ext?: string) => {
-      const base = path.split('/').pop() || '';
-      return ext ? base.replace(new RegExp(ext.replace('.', '\\.') + '$'), '') : base;
-    }),
-    extname: vi.fn((path: string) => {
-      const ext = path.substring(path.lastIndexOf('.'));
-      return ext.includes('/') ? '' : ext;
-    }),
-    relative: vi.fn((from: string, to: string) => {
-      // Simple relative path calculation
-      if (to.startsWith(from)) {
-        return to.substring(from.length + 1);
-      }
-      return to;
-    }),
-    normalize: vi.fn((path: string) => path.replace(/\/+/g, '/').replace(/\/$/, '')),
-    isAbsolute: vi.fn((path: string) => path.startsWith('/')),
-    sep: '/',
-    delimiter: ':'
+    join: actual.join,
+    resolve: actual.resolve,
+    dirname: actual.dirname,
+    basename: actual.basename,
+    extname: actual.extname,
+    relative: actual.relative,
+    normalize: actual.normalize,
+    isAbsolute: actual.isAbsolute,
+    sep: actual.sep,
+    delimiter: actual.delimiter
   };
 
   return {
@@ -602,18 +607,57 @@ vi.mock('path', () => {
   };
 });
 
-// Mock fs.realpath for symlink resolution
-vi.mock('fs/promises', () => ({
-  default: {
-    existsSync: vi.fn(() => true),
-    readFileSync: vi.fn(() => 'mock file content'),
-    writeFileSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    mkdtempSync: vi.fn((prefix: string) => `${prefix}mock-temp-dir`),
-    readdir: vi.fn(() => Promise.resolve(['file1.txt', 'file2.js'])),
-    readFile: vi.fn(() => Promise.resolve('mock file content')),
-    writeFile: vi.fn(() => Promise.resolve()),
+// Mock fs.realpath for symlink resolution - but allow real access to templates
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual('fs/promises') as any;
+  
+  return {
+    default: {
+      existsSync: vi.fn(() => true),
+      readFileSync: vi.fn(() => 'mock file content'),
+      writeFileSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      mkdtempSync: vi.fn((prefix: string) => `${prefix}mock-temp-dir`),
+      readdir: vi.fn(() => Promise.resolve(['file1.txt', 'file2.js'])),
+      readFile: vi.fn((path: string) => {
+        // Allow real file access for templates
+        if (path.includes('templates/') || path.includes('templates\\')) {
+          return actual.readFile(path, 'utf-8');
+        }
+        return Promise.resolve('mock file content');
+      }),
+      writeFile: vi.fn(() => Promise.resolve()),
+      mkdir: vi.fn(() => Promise.resolve()),
+      stat: vi.fn(() => Promise.resolve({
+        isDirectory: () => true,
+        isFile: () => false,
+        size: 0,
+        mtime: new Date(),
+        birthtime: new Date()
+      })),
+      realpath: vi.fn((path: string) => Promise.resolve(path)),
+      unlink: vi.fn(() => Promise.resolve()),
+      rmdir: vi.fn(() => Promise.resolve()),
+      copyFile: vi.fn(() => Promise.resolve()),
+      chmod: vi.fn(() => Promise.resolve()),
+      access: vi.fn((path: string) => {
+        // Allow real file access for templates
+        if (path.includes('templates/') || path.includes('templates\\')) {
+          return actual.access(path);
+        }
+        return Promise.resolve();
+      })
+    },
+    // Export named exports for direct imports
     mkdir: vi.fn(() => Promise.resolve()),
+    readFile: vi.fn((path: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.readFile(path, 'utf-8');
+      }
+      return Promise.resolve('mock file content');
+    }),
+    writeFile: vi.fn(() => Promise.resolve()),
     stat: vi.fn(() => Promise.resolve({
       isDirectory: () => true,
       isFile: () => false,
@@ -626,27 +670,16 @@ vi.mock('fs/promises', () => ({
     rmdir: vi.fn(() => Promise.resolve()),
     copyFile: vi.fn(() => Promise.resolve()),
     chmod: vi.fn(() => Promise.resolve()),
-    access: vi.fn(() => Promise.resolve())
-  },
-  // Export named exports for direct imports
-  mkdir: vi.fn(() => Promise.resolve()),
-  readFile: vi.fn(() => Promise.resolve('mock file content')),
-  writeFile: vi.fn(() => Promise.resolve()),
-  stat: vi.fn(() => Promise.resolve({
-    isDirectory: () => true,
-    isFile: () => false,
-    size: 0,
-    mtime: new Date(),
-    birthtime: new Date()
-  })),
-  realpath: vi.fn((path: string) => Promise.resolve(path)),
-  unlink: vi.fn(() => Promise.resolve()),
-  rmdir: vi.fn(() => Promise.resolve()),
-  copyFile: vi.fn(() => Promise.resolve()),
-  chmod: vi.fn(() => Promise.resolve()),
-  access: vi.fn(() => Promise.resolve()),
-  readdir: vi.fn(() => Promise.resolve(['file1.txt', 'file2.js']))
-}));
+    access: vi.fn((path: string) => {
+      // Allow real file access for templates
+      if (path.includes('templates/') || path.includes('templates\\')) {
+        return actual.access(path);
+      }
+      return Promise.resolve();
+    }),
+    readdir: vi.fn(() => Promise.resolve(['file1.txt', 'file2.js']))
+  };
+});
 
 
 // Mock performance monitor

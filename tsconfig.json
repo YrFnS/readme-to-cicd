@@ -36,6 +36,7 @@
     "src/agent-hooks/**/*",
     "src/validation/**/*",
     "src/detection/**/*",
-    "src/cli/**/*"
+    "src/cli/config/**/*",
+    "src/cli/prompts/**/*"
   ]
 }

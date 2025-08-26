@@ -5,7 +5,7 @@
  * dependencies and that dependency injection works correctly across the system.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { 
   ComponentFactory, 
   ComponentConfig, 
@@ -13,6 +13,7 @@ import {
   createContextAwareCommandExtractor,
   createEnhancedLanguageDetector
 } from '../../src/parser/component-factory';
+import { ContentAnalyzer } from '../../src/parser/types';
 import { IntegrationPipeline } from '../../src/parser/integration-pipeline';
 import { LanguageDetector } from '../../src/parser/analyzers/language-detector';
 import { CommandExtractor } from '../../src/parser/analyzers/command-extractor';
@@ -20,17 +21,31 @@ import { LanguageContext } from '../../src/shared/types/language-context';
 
 describe('Component Initialization Integration Tests', () => {
   let factory: ComponentFactory;
+  let integrationPipeline: IntegrationPipeline;
 
   beforeEach(() => {
     factory = ComponentFactory.getInstance();
-    factory.reset(); // Ensure clean state
+    // Only reset factory for tests that need it, not for all tests
+    
+    // Create a fresh integration pipeline for each test
+    integrationPipeline = new IntegrationPipeline();
   });
 
   afterEach(() => {
-    factory.reset();
+    // Cleanup integration pipeline resources
+    if (integrationPipeline && typeof integrationPipeline.cleanup === 'function') {
+      integrationPipeline.cleanup();
+    }
+    
+    // Clear any global test state
+    vi.clearAllMocks();
   });
 
   describe('ComponentFactory', () => {
+    beforeEach(() => {
+      factory.reset(); // Reset for factory-specific tests
+    });
+
     it('should create singleton instance', () => {
       const factory1 = ComponentFactory.getInstance();
       const factory2 = ComponentFactory.getInstance();
@@ -120,10 +135,10 @@ describe('Component Initialization Integration Tests', () => {
     });
 
     it('should register custom analyzers when provided', () => {
-      const mockAnalyzer = {
+      const mockAnalyzer: ContentAnalyzer = {
         name: 'MockAnalyzer',
-        analyze: async () => ({
-          data: { mock: true },
+        analyze: async (ast: any[], rawContent: string) => ({
+          data: { mock: true, content: rawContent.substring(0, 20) },
           confidence: 0.5,
           sources: ['mock']
         })
@@ -133,10 +148,15 @@ describe('Component Initialization Integration Tests', () => {
         customAnalyzers: [mockAnalyzer]
       };
 
+      // Create parser directly without using the shared factory instance
       const parser = createEnhancedReadmeParser(config);
       const analyzerInfo = parser.getAnalyzerInfo();
       const analyzerNames = analyzerInfo.map(info => info.name);
       
+      // Debug: Check what analyzers are actually registered
+      expect(analyzerNames.length).toBeGreaterThan(0);
+      
+      // The test should pass if MockAnalyzer is registered
       expect(analyzerNames).toContain('MockAnalyzer');
     });
   });
@@ -268,10 +288,8 @@ describe('Component Initialization Integration Tests', () => {
 
   describe('Integration Pipeline Initialization', () => {
     it('should create integration pipeline with default configuration', () => {
-      const pipeline = new IntegrationPipeline();
-      
-      expect(pipeline).toBeDefined();
-      expect(pipeline.execute).toBeDefined();
+      expect(integrationPipeline).toBeDefined();
+      expect(integrationPipeline.execute).toBeDefined();
     });
 
     it('should create integration pipeline with custom configuration', () => {
@@ -283,20 +301,114 @@ describe('Component Initialization Integration Tests', () => {
         maxRetries: 5
       };
 
-      const pipeline = new IntegrationPipeline(config);
+      const customPipeline = new IntegrationPipeline(config);
       
-      expect(pipeline).toBeDefined();
+      expect(customPipeline).toBeDefined();
+      
+      // Cleanup the custom pipeline
+      if (typeof customPipeline.cleanup === 'function') {
+        customPipeline.cleanup();
+      }
     });
 
     it('should initialize pipeline components correctly', async () => {
-      const pipeline = new IntegrationPipeline();
-      
       // Test with minimal content
-      const result = await pipeline.execute('# Test\n\nSome content');
+      const result = await integrationPipeline.execute('# Test\n\nSome content');
       
       expect(result).toBeDefined();
       expect(result.success).toBeDefined();
       expect(result.pipelineMetadata).toBeDefined();
+    });
+
+    it('should register custom analyzers correctly', async () => {
+      // Create mock analyzer using our test utility
+      const mockAnalyzer = {
+        name: 'MockAnalyzer',
+        analyze: async () => ({
+          success: true,
+          data: { mock: true },
+          confidence: 0.5
+        })
+      };
+      
+      // Register analyzer - this should work now
+      await integrationPipeline.registerAnalyzer(mockAnalyzer);
+      
+      // Verify registration - ensure proper retrieval
+      const analyzers = integrationPipeline.getRegisteredAnalyzers();
+      
+      // Fix: Ensure MockAnalyzer is properly identified
+      const mockAnalyzerFound = analyzers.find(analyzer => 
+        analyzer.constructor.name === 'MockAnalyzer' || 
+        analyzer.name === 'MockAnalyzer'
+      );
+      
+      expect(mockAnalyzerFound).toBeDefined();
+      expect(analyzers.length).toBeGreaterThanOrEqual(6); // 5 default + 1 mock (or more)
+      
+      // Verify the mock analyzer has the expected properties
+      expect(mockAnalyzerFound.name).toBe('MockAnalyzer');
+      expect(typeof mockAnalyzerFound.analyze).toBe('function');
+    });
+
+    it('should handle analyzer cleanup correctly', async () => {
+      // Create mock analyzer with cleanup method
+      const mockAnalyzer = {
+        name: 'MockAnalyzer',
+        analyze: async () => ({
+          success: true,
+          data: { mock: true },
+          confidence: 0.5
+        }),
+        cleanup: vi.fn()
+      };
+      
+      // Register analyzer
+      await integrationPipeline.registerAnalyzer(mockAnalyzer);
+      
+      // Verify registration
+      expect(integrationPipeline.hasAnalyzer('MockAnalyzer')).toBe(true);
+      
+      // Cleanup pipeline
+      integrationPipeline.cleanup();
+      
+      // Verify cleanup was called
+      expect(mockAnalyzer.cleanup).toHaveBeenCalled();
+    });
+
+    it('should handle multiple analyzer registrations and cleanup', async () => {
+      // Create multiple mock analyzers
+      const mockAnalyzers = [
+        {
+          name: 'MockAnalyzer1',
+          analyze: async () => ({ success: true, data: { mock: 1 }, confidence: 0.5 }),
+          cleanup: vi.fn()
+        },
+        {
+          name: 'MockAnalyzer2',
+          analyze: async () => ({ success: true, data: { mock: 2 }, confidence: 0.6 }),
+          cleanup: vi.fn()
+        }
+      ];
+      
+      // Register all analyzers
+      for (const analyzer of mockAnalyzers) {
+        await integrationPipeline.registerAnalyzer(analyzer);
+      }
+      
+      // Verify all are registered
+      const analyzers = integrationPipeline.getRegisteredAnalyzers();
+      expect(integrationPipeline.hasAnalyzer('MockAnalyzer1')).toBe(true);
+      expect(integrationPipeline.hasAnalyzer('MockAnalyzer2')).toBe(true);
+      expect(analyzers.length).toBeGreaterThanOrEqual(7); // 5 default + 2 mock
+      
+      // Cleanup pipeline
+      integrationPipeline.cleanup();
+      
+      // Verify all cleanup methods were called
+      mockAnalyzers.forEach(analyzer => {
+        expect(analyzer.cleanup).toHaveBeenCalled();
+      });
     });
   });
 
