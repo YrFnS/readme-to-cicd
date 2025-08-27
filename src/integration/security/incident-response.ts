@@ -15,18 +15,16 @@ import {
 import {
   IncidentResponseConfig
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 
 export class IncidentResponse implements IIncidentResponse {
   private config: IncidentResponseConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private incidents: Map<string, any> = new Map();
   private playbooks: Map<string, IncidentPlaybook> = new Map();
   private executions: Map<string, any> = new Map();
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
   }
 
   async initialize(config: IncidentResponseConfig): Promise<void> {
@@ -43,10 +41,10 @@ export class IncidentResponse implements IIncidentResponse {
       await this.initializeCommunicationSystem();
 
       this.initialized = true;
-      this.logger.info('IncidentResponse initialized successfully');
+      logger.info('IncidentResponse initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize IncidentResponse', { error });
+      logger.error('Failed to initialize IncidentResponse', { error });
       throw error;
     }
   }
@@ -80,7 +78,7 @@ export class IncidentResponse implements IIncidentResponse {
 
       this.incidents.set(incidentId, incidentRecord);
 
-      this.logger.info('Incident created', {
+      logger.info('Incident created', {
         incidentId,
         title: incident.title,
         severity: incident.severity,
@@ -99,7 +97,7 @@ export class IncidentResponse implements IIncidentResponse {
       return incidentId;
       
     } catch (error) {
-      this.logger.error('Failed to create incident', { error });
+      logger.error('Failed to create incident', { error });
       throw error;
     }
   }
@@ -120,7 +118,7 @@ export class IncidentResponse implements IIncidentResponse {
         throw new Error(`Playbook not found: ${playbookId}`);
       }
 
-      this.logger.info('Executing incident playbook', {
+      logger.info('Executing incident playbook', {
         incidentId,
         playbookId,
         playbookName: playbook.name
@@ -146,7 +144,7 @@ export class IncidentResponse implements IIncidentResponse {
 
         // Stop execution if step fails and is critical
         if (!stepResult.success && !step.automated) {
-          this.logger.warn('Playbook step failed', {
+          logger.warn('Playbook step failed', {
             incidentId,
             playbookId,
             stepId: step.id,
@@ -180,7 +178,7 @@ export class IncidentResponse implements IIncidentResponse {
         description: `Executed playbook: ${playbook.name} (${status})`
       });
 
-      this.logger.info('Playbook execution completed', {
+      logger.info('Playbook execution completed', {
         incidentId,
         playbookId,
         executionId,
@@ -193,7 +191,7 @@ export class IncidentResponse implements IIncidentResponse {
       return result;
       
     } catch (error) {
-      this.logger.error('Failed to execute playbook', { error, incidentId, playbookId });
+      logger.error('Failed to execute playbook', { error, incidentId, playbookId });
       throw error;
     }
   }
@@ -221,7 +219,7 @@ export class IncidentResponse implements IIncidentResponse {
         description: `Escalated from level ${previousLevel} to level ${level}`
       });
 
-      this.logger.info('Incident escalated', {
+      logger.info('Incident escalated', {
         incidentId,
         previousLevel,
         newLevel: level,
@@ -235,7 +233,7 @@ export class IncidentResponse implements IIncidentResponse {
       await this.sendEscalationNotifications(incident, level);
       
     } catch (error) {
-      this.logger.error('Failed to escalate incident', { error, incidentId, level });
+      logger.error('Failed to escalate incident', { error, incidentId, level });
       throw error;
     }
   }
@@ -294,7 +292,7 @@ export class IncidentResponse implements IIncidentResponse {
         });
       }
 
-      this.logger.info('Incident updated', {
+      logger.info('Incident updated', {
         incidentId,
         changes: changes.length,
         status: incident.status,
@@ -305,7 +303,7 @@ export class IncidentResponse implements IIncidentResponse {
       await this.checkAutoEscalation(incident);
       
     } catch (error) {
-      this.logger.error('Failed to update incident', { error, incidentId });
+      logger.error('Failed to update incident', { error, incidentId });
       throw error;
     }
   }
@@ -334,7 +332,7 @@ export class IncidentResponse implements IIncidentResponse {
         description: `Closed as ${resolution.type}: ${resolution.description}`
       });
 
-      this.logger.info('Incident closed', {
+      logger.info('Incident closed', {
         incidentId,
         title: incident.title,
         resolutionType: resolution.type,
@@ -348,7 +346,7 @@ export class IncidentResponse implements IIncidentResponse {
       await this.sendIncidentNotifications(incident, 'closed');
       
     } catch (error) {
-      this.logger.error('Failed to close incident', { error, incidentId });
+      logger.error('Failed to close incident', { error, incidentId });
       throw error;
     }
   }
@@ -364,7 +362,7 @@ export class IncidentResponse implements IIncidentResponse {
         throw new Error(`Incident not found: ${incidentId}`);
       }
 
-      this.logger.info('Generating incident report', { incidentId });
+      logger.info('Generating incident report', { incidentId });
 
       const timeline = incident.timeline;
       const impact = this.calculateIncidentImpact(incident);
@@ -381,7 +379,7 @@ export class IncidentResponse implements IIncidentResponse {
         recommendations
       };
 
-      this.logger.info('Incident report generated', {
+      logger.info('Incident report generated', {
         incidentId,
         timelineEvents: timeline.length,
         recommendations: recommendations.length
@@ -390,7 +388,7 @@ export class IncidentResponse implements IIncidentResponse {
       return report;
       
     } catch (error) {
-      this.logger.error('Failed to generate incident report', { error, incidentId });
+      logger.error('Failed to generate incident report', { error, incidentId });
       throw error;
     }
   }
@@ -405,7 +403,7 @@ export class IncidentResponse implements IIncidentResponse {
       this.playbooks.set(playbook.id, playbook);
     }
 
-    this.logger.info('Incident playbooks loaded', { count: this.playbooks.size });
+    logger.info('Incident playbooks loaded', { count: this.playbooks.size });
   }
 
   private async loadDefaultPlaybooks(): Promise<void> {
@@ -530,14 +528,14 @@ export class IncidentResponse implements IIncidentResponse {
 
   private async initializeEscalationSystem(): Promise<void> {
     // Initialize escalation system
-    this.logger.info('Escalation system initialized', {
+    logger.info('Escalation system initialized', {
       levels: this.config.escalation.levels.length
     });
   }
 
   private async initializeCommunicationSystem(): Promise<void> {
     // Initialize communication system
-    this.logger.info('Communication system initialized', {
+    logger.info('Communication system initialized', {
       channels: this.config.communication.channels.length
     });
   }
@@ -564,7 +562,7 @@ export class IncidentResponse implements IIncidentResponse {
       );
 
       if (matches) {
-        this.logger.info('Auto-executing playbook', {
+        logger.info('Auto-executing playbook', {
           incidentId,
           playbookId: id,
           playbookName: playbook.name
@@ -573,7 +571,7 @@ export class IncidentResponse implements IIncidentResponse {
         try {
           await this.executePlaybook(incidentId, id);
         } catch (error) {
-          this.logger.error('Auto-playbook execution failed', { error, incidentId, playbookId: id });
+          logger.error('Auto-playbook execution failed', { error, incidentId, playbookId: id });
         }
         break;
       }
@@ -582,7 +580,7 @@ export class IncidentResponse implements IIncidentResponse {
 
   private async executePlaybookStep(step: any, incident: any): Promise<{ success: boolean; output: string; error?: string }> {
     try {
-      this.logger.info('Executing playbook step', {
+      logger.info('Executing playbook step', {
         stepId: step.id,
         stepName: step.name,
         automated: step.automated
@@ -621,7 +619,7 @@ export class IncidentResponse implements IIncidentResponse {
 
     // Execute escalation actions
     for (const action of escalationLevel.actions) {
-      this.logger.info('Executing escalation action', {
+      logger.info('Executing escalation action', {
         incidentId: incident.id,
         level,
         action
@@ -659,11 +657,11 @@ export class IncidentResponse implements IIncidentResponse {
 
   private async executePostIncidentProcedures(incident: any): Promise<void> {
     // Schedule post-incident review
-    this.logger.info('Scheduling post-incident review', { incidentId: incident.id });
+    logger.info('Scheduling post-incident review', { incidentId: incident.id });
     
     // Update security measures if needed
     if (incident.severity === 'critical' || incident.severity === 'high') {
-      this.logger.info('Triggering security measure updates', { incidentId: incident.id });
+      logger.info('Triggering security measure updates', { incidentId: incident.id });
     }
   }
 
@@ -730,7 +728,7 @@ export class IncidentResponse implements IIncidentResponse {
   }
 
   private async sendIncidentNotifications(incident: any, event: string): Promise<void> {
-    this.logger.info('Sending incident notifications', {
+    logger.info('Sending incident notifications', {
       incidentId: incident.id,
       event,
       severity: incident.severity
@@ -738,7 +736,7 @@ export class IncidentResponse implements IIncidentResponse {
 
     // Mock notification sending
     for (const channel of this.config.communication.channels) {
-      this.logger.debug('Notification sent', {
+      logger.debug('Notification sent', {
         channel: channel.type,
         incidentId: incident.id,
         event
@@ -747,22 +745,22 @@ export class IncidentResponse implements IIncidentResponse {
   }
 
   private async sendEscalationNotifications(incident: any, level: number): Promise<void> {
-    this.logger.info('Sending escalation notifications', {
+    logger.info('Sending escalation notifications', {
       incidentId: incident.id,
       level
     });
   }
 
   private async notifyManagement(incident: any): Promise<void> {
-    this.logger.info('Notifying management', { incidentId: incident.id });
+    logger.info('Notifying management', { incidentId: incident.id });
   }
 
   private async activateCrisisTeam(incident: any): Promise<void> {
-    this.logger.info('Activating crisis team', { incidentId: incident.id });
+    logger.info('Activating crisis team', { incidentId: incident.id });
   }
 
   private async prepareExternalCommunication(incident: any): Promise<void> {
-    this.logger.info('Preparing external communication', { incidentId: incident.id });
+    logger.info('Preparing external communication', { incidentId: incident.id });
   }
 
   private estimateAffectedUsers(incident: any): number {

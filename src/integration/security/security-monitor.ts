@@ -16,11 +16,10 @@ import {
   AnomalyDetectionConfig,
   SecurityMonitoringConfig
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 
 export class SecurityMonitor implements ISecurityMonitor {
   private config: SecurityMonitoringConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private monitoring: boolean = false;
   private threatDetectors: Map<string, any> = new Map();
@@ -28,8 +27,7 @@ export class SecurityMonitor implements ISecurityMonitor {
   private alerts: SecurityAlert[] = [];
   private metrics: SecurityMetrics;
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
     this.metrics = this.initializeMetrics();
   }
 
@@ -47,10 +45,10 @@ export class SecurityMonitor implements ISecurityMonitor {
       await this.initializeAlerting();
 
       this.initialized = true;
-      this.logger.info('SecurityMonitor initialized successfully');
+      logger.info('SecurityMonitor initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize SecurityMonitor', { error });
+      logger.error('Failed to initialize SecurityMonitor', { error });
       throw error;
     }
   }
@@ -62,7 +60,7 @@ export class SecurityMonitor implements ISecurityMonitor {
       }
 
       if (this.monitoring) {
-        this.logger.warn('Security monitoring already started');
+        logger.warn('Security monitoring already started');
         return;
       }
 
@@ -76,10 +74,10 @@ export class SecurityMonitor implements ISecurityMonitor {
       await this.startMetricsCollection();
 
       this.monitoring = true;
-      this.logger.info('Security monitoring started');
+      logger.info('Security monitoring started');
       
     } catch (error) {
-      this.logger.error('Failed to start security monitoring', { error });
+      logger.error('Failed to start security monitoring', { error });
       throw error;
     }
   }
@@ -87,7 +85,7 @@ export class SecurityMonitor implements ISecurityMonitor {
   async stopMonitoring(): Promise<void> {
     try {
       if (!this.monitoring) {
-        this.logger.warn('Security monitoring not running');
+        logger.warn('Security monitoring not running');
         return;
       }
 
@@ -101,10 +99,10 @@ export class SecurityMonitor implements ISecurityMonitor {
       await this.stopMetricsCollection();
 
       this.monitoring = false;
-      this.logger.info('Security monitoring stopped');
+      logger.info('Security monitoring stopped');
       
     } catch (error) {
-      this.logger.error('Failed to stop security monitoring', { error });
+      logger.error('Failed to stop security monitoring', { error });
       throw error;
     }
   }
@@ -123,7 +121,7 @@ export class SecurityMonitor implements ISecurityMonitor {
           const detectorThreats = await detector.detect();
           threats.push(...detectorThreats);
         } catch (error) {
-          this.logger.error(`Threat detection failed for ${name}`, { error });
+          logger.error(`Threat detection failed for ${name}`, { error });
         }
       }
 
@@ -136,7 +134,7 @@ export class SecurityMonitor implements ISecurityMonitor {
         await this.handleCriticalThreat(threat);
       }
 
-      this.logger.info('Threat detection completed', {
+      logger.info('Threat detection completed', {
         threats: threats.length,
         critical: criticalThreats.length
       });
@@ -144,7 +142,7 @@ export class SecurityMonitor implements ISecurityMonitor {
       return threats;
       
     } catch (error) {
-      this.logger.error('Threat detection failed', { error });
+      logger.error('Threat detection failed', { error });
       throw error;
     }
   }
@@ -163,7 +161,7 @@ export class SecurityMonitor implements ISecurityMonitor {
           const detectorAnomalies = await detector.analyze();
           anomalies.push(...detectorAnomalies);
         } catch (error) {
-          this.logger.error(`Anomaly detection failed for ${name}`, { error });
+          logger.error(`Anomaly detection failed for ${name}`, { error });
         }
       }
 
@@ -173,7 +171,7 @@ export class SecurityMonitor implements ISecurityMonitor {
         await this.handleCriticalAnomaly(anomaly);
       }
 
-      this.logger.info('Anomaly detection completed', {
+      logger.info('Anomaly detection completed', {
         anomalies: anomalies.length,
         critical: criticalAnomalies.length
       });
@@ -181,7 +179,7 @@ export class SecurityMonitor implements ISecurityMonitor {
       return anomalies;
       
     } catch (error) {
-      this.logger.error('Anomaly detection failed', { error });
+      logger.error('Anomaly detection failed', { error });
       throw error;
     }
   }
@@ -198,7 +196,7 @@ export class SecurityMonitor implements ISecurityMonitor {
       return { ...this.metrics };
       
     } catch (error) {
-      this.logger.error('Failed to get security metrics', { error });
+      logger.error('Failed to get security metrics', { error });
       throw error;
     }
   }
@@ -222,14 +220,14 @@ export class SecurityMonitor implements ISecurityMonitor {
       // Update metrics
       this.updateAlertMetrics(alert);
 
-      this.logger.info('Security alert generated', {
+      logger.info('Security alert generated', {
         alertId: alert.id,
         type: alert.type,
         severity: alert.severity
       });
       
     } catch (error) {
-      this.logger.error('Failed to generate alert', { error });
+      logger.error('Failed to generate alert', { error });
       throw error;
     }
   }
@@ -246,7 +244,7 @@ export class SecurityMonitor implements ISecurityMonitor {
       this.threatDetectors.set(source.name, detector);
     }
 
-    this.logger.info('Threat detection initialized', {
+    logger.info('Threat detection initialized', {
       detectors: this.threatDetectors.size
     });
   }
@@ -262,14 +260,14 @@ export class SecurityMonitor implements ISecurityMonitor {
       this.anomalyDetectors.set(algorithm.name, detector);
     }
 
-    this.logger.info('Anomaly detection initialized', {
+    logger.info('Anomaly detection initialized', {
       detectors: this.anomalyDetectors.size
     });
   }
 
   private async initializeAlerting(): Promise<void> {
     // Initialize alerting system
-    this.logger.info('Security alerting initialized');
+    logger.info('Security alerting initialized');
   }
 
   private async startThreatDetection(): Promise<void> {
@@ -350,7 +348,7 @@ export class SecurityMonitor implements ISecurityMonitor {
 
   private async sendAlertNotifications(alert: SecurityAlert): Promise<void> {
     // Send alert notifications based on severity and configuration
-    this.logger.warn('Security alert notification', {
+    logger.warn('Security alert notification', {
       alertId: alert.id,
       type: alert.type,
       severity: alert.severity,
@@ -375,8 +373,8 @@ export class SecurityMonitor implements ISecurityMonitor {
     return {
       name: source.name,
       type: source.type,
-      start: async () => this.logger.info(`Started threat detector: ${source.name}`),
-      stop: async () => this.logger.info(`Stopped threat detector: ${source.name}`),
+      start: async () => logger.info(`Started threat detector: ${source.name}`),
+      stop: async () => logger.info(`Stopped threat detector: ${source.name}`),
       detect: async () => this.mockThreatDetection(source)
     };
   }
@@ -386,8 +384,8 @@ export class SecurityMonitor implements ISecurityMonitor {
     return {
       name: algorithm.name,
       type: algorithm.type,
-      start: async () => this.logger.info(`Started anomaly detector: ${algorithm.name}`),
-      stop: async () => this.logger.info(`Stopped anomaly detector: ${algorithm.name}`),
+      start: async () => logger.info(`Started anomaly detector: ${algorithm.name}`),
+      stop: async () => logger.info(`Stopped anomaly detector: ${algorithm.name}`),
       analyze: async () => this.mockAnomalyDetection(algorithm)
     };
   }
@@ -451,7 +449,7 @@ export class SecurityMonitor implements ISecurityMonitor {
 
   private async blockThreat(threat: ThreatDetectionResult): Promise<void> {
     // Block threat (e.g., IP address, domain, etc.)
-    this.logger.warn('Auto-blocking threat', {
+    logger.warn('Auto-blocking threat', {
       threatId: threat.id,
       type: threat.type,
       source: threat.source

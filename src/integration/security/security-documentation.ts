@@ -12,16 +12,15 @@ import {
   ComplianceGuide,
   TrainingMaterial
 } from './interfaces';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 
 export class SecurityDocumentation implements ISecurityDocumentation {
-  private logger: Logger;
   private initialized: boolean = false;
   private documents: Map<string, any> = new Map();
   private templates: Map<string, string> = new Map();
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
+    // Using central logger instance
   }
 
   async initialize(): Promise<void> {

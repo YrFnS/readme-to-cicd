@@ -16,18 +16,16 @@ import {
   PolicyConfig,
   PolicyRule
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 import { Result } from '../../shared/result';
 
 export class PolicyEngine implements IPolicyEngine {
   private config: PolicyConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private policies: Map<string, PolicyDefinition> = new Map();
   private violations: any[] = [];
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
   }
 
   async initialize(policies: PolicyConfig): Promise<void> {
@@ -44,10 +42,10 @@ export class PolicyEngine implements IPolicyEngine {
       await this.initializePolicyValidation();
 
       this.initialized = true;
-      this.logger.info('PolicyEngine initialized successfully');
+      logger.info('PolicyEngine initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize PolicyEngine', { error });
+      logger.error('Failed to initialize PolicyEngine', { error });
       throw error;
     }
   }
@@ -67,7 +65,7 @@ export class PolicyEngine implements IPolicyEngine {
         };
       }
 
-      this.logger.debug('Evaluating policy', { 
+      logger.debug('Evaluating policy', { 
         policy, 
         user: context.user.id,
         resource: context.resource.id,
@@ -77,7 +75,7 @@ export class PolicyEngine implements IPolicyEngine {
       // Evaluate policy rules
       const evaluationResult = await this.evaluatePolicyRules(policyDefinition, context);
 
-      this.logger.info('Policy evaluation completed', {
+      logger.info('Policy evaluation completed', {
         policy,
         result: evaluationResult.result,
         user: context.user.id
@@ -86,7 +84,7 @@ export class PolicyEngine implements IPolicyEngine {
       return evaluationResult;
       
     } catch (error) {
-      this.logger.error('Policy evaluation failed', { error, policy });
+      logger.error('Policy evaluation failed', { error, policy });
       return {
         policy,
         result: 'deny',
@@ -111,21 +109,21 @@ export class PolicyEngine implements IPolicyEngine {
         };
       }
 
-      this.logger.info('Enforcing policy', { policy, resource });
+      logger.info('Enforcing policy', { policy, resource });
 
       // Apply policy enforcement based on mode
       const enforcementResult = await this.applyPolicyEnforcement(policyDefinition, resource);
 
       // Log enforcement action
       if (enforcementResult.enforced) {
-        this.logger.info('Policy enforced successfully', {
+        logger.info('Policy enforced successfully', {
           policy,
           resource,
           action: enforcementResult.action,
           result: enforcementResult.result
         });
       } else {
-        this.logger.warn('Policy enforcement failed', {
+        logger.warn('Policy enforcement failed', {
           policy,
           resource,
           reason: enforcementResult.reason
@@ -135,7 +133,7 @@ export class PolicyEngine implements IPolicyEngine {
       return enforcementResult;
       
     } catch (error) {
-      this.logger.error('Policy enforcement failed', { error, policy, resource });
+      logger.error('Policy enforcement failed', { error, policy, resource });
       return {
         enforced: false,
         action: 'error',
@@ -151,7 +149,7 @@ export class PolicyEngine implements IPolicyEngine {
         throw new Error('PolicyEngine not initialized');
       }
 
-      this.logger.info('Validating policies', { count: this.policies.size });
+      logger.info('Validating policies', { count: this.policies.size });
 
       const errors: any[] = [];
       const warnings: any[] = [];
@@ -172,7 +170,7 @@ export class PolicyEngine implements IPolicyEngine {
         suggestions
       };
 
-      this.logger.info('Policy validation completed', {
+      logger.info('Policy validation completed', {
         valid: result.valid,
         errors: errors.length,
         warnings: warnings.length,
@@ -182,7 +180,7 @@ export class PolicyEngine implements IPolicyEngine {
       return result;
       
     } catch (error) {
-      this.logger.error('Policy validation failed', { error });
+      logger.error('Policy validation failed', { error });
       throw error;
     }
   }
@@ -202,14 +200,14 @@ export class PolicyEngine implements IPolicyEngine {
       // Update policy
       this.policies.set(policy, definition);
 
-      this.logger.info('Policy updated', {
+      logger.info('Policy updated', {
         policy,
         version: definition.version,
         rules: definition.rules.length
       });
       
     } catch (error) {
-      this.logger.error('Policy update failed', { error, policy });
+      logger.error('Policy update failed', { error, policy });
       throw error;
     }
   }
@@ -243,7 +241,7 @@ export class PolicyEngine implements IPolicyEngine {
       };
       
     } catch (error) {
-      this.logger.error('Failed to get policy status', { error });
+      logger.error('Failed to get policy status', { error });
       throw error;
     }
   }
@@ -328,17 +326,17 @@ export class PolicyEngine implements IPolicyEngine {
     this.policies.set('authorization-policy', authzPolicy);
     this.policies.set('data-protection-policy', dataPolicy);
 
-    this.logger.info('Default policies loaded', { count: 3 });
+    logger.info('Default policies loaded', { count: 3 });
   }
 
   private async loadCustomPolicies(): Promise<void> {
     // Load custom policies from configuration
-    this.logger.info('Custom policies loaded');
+    logger.info('Custom policies loaded');
   }
 
   private async initializePolicyEnforcement(): Promise<void> {
     // Initialize policy enforcement system
-    this.logger.info('Policy enforcement initialized', {
+    logger.info('Policy enforcement initialized', {
       mode: this.config.enforcement.mode,
       enabled: this.config.enforcement.enabled
     });
@@ -346,7 +344,7 @@ export class PolicyEngine implements IPolicyEngine {
 
   private async initializePolicyValidation(): Promise<void> {
     // Initialize policy validation system
-    this.logger.info('Policy validation initialized');
+    logger.info('Policy validation initialized');
   }
 
   private async evaluatePolicyRules(policy: PolicyDefinition, context: PolicyContext): Promise<PolicyResult> {
@@ -419,7 +417,7 @@ export class PolicyEngine implements IPolicyEngine {
       return { allow: true };
       
     } catch (error) {
-      this.logger.error('Rule evaluation failed', { error, rule });
+      logger.error('Rule evaluation failed', { error, rule });
       return { allow: false };
     }
   }
@@ -452,7 +450,7 @@ export class PolicyEngine implements IPolicyEngine {
       return { result: true, reason: 'Condition evaluation not implemented' };
       
     } catch (error) {
-      this.logger.error('Condition evaluation failed', { error, condition });
+      logger.error('Condition evaluation failed', { error, condition });
       return { result: false, reason: 'Condition evaluation error' };
     }
   }
@@ -610,7 +608,7 @@ export class PolicyEngine implements IPolicyEngine {
 
     this.violations.push(violation);
 
-    this.logger.warn('Policy violation recorded', {
+    logger.warn('Policy violation recorded', {
       policy,
       resource,
       violationId: this.violations.length

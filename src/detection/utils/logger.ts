@@ -251,16 +251,16 @@ export class DetectionLogger {
       // Use appropriate console method
       switch (logEntry.level) {
         case 'debug':
-          logger.debug('FrameworkDetection', output);
+          logger.debug(output, { component: 'FrameworkDetection' });
           break;
         case 'info':
-          logger.info('FrameworkDetection', output);
+          logger.info(output, { component: 'FrameworkDetection' });
           break;
         case 'warn':
-          logger.warn('FrameworkDetection', output);
+          logger.warn(output, { component: 'FrameworkDetection' });
           break;
         case 'error':
-          logger.error('FrameworkDetection', output);
+          logger.error(output, { component: 'FrameworkDetection' });
           break;
       }
     }

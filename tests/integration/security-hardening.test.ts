@@ -13,7 +13,7 @@ import { SecurityTraining } from '../../src/integration/security/security-traini
 import { SecurityDocumentation } from '../../src/integration/security/security-documentation';
 import { PenetrationTester } from '../../src/integration/security/penetration-tester';
 import { IncidentResponse } from '../../src/integration/security/incident-response';
-import { Logger } from '../../src/shared/logger';
+import { logger } from '../../src/shared/logging/central-logger';
 import type {
   SecurityConfig,
   ComplianceFramework,
@@ -24,7 +24,6 @@ import type {
 } from '../../src/integration/security/types';
 
 describe('Security Hardening and Compliance Validation', () => {
-  let logger: Logger;
   let securityManager: SecurityManager;
   let complianceManager: ComplianceManager;
   let vulnerabilityScanner: VulnerabilityScanner;
@@ -586,16 +585,15 @@ describe('Security Hardening and Compliance Validation', () => {
   };
 
   beforeEach(() => {
-    logger = new Logger('test');
-    securityManager = new SecurityManager(logger);
-    complianceManager = new ComplianceManager(logger);
-    vulnerabilityScanner = new VulnerabilityScanner(logger);
-    securityMonitor = new SecurityMonitor(logger);
-    policyEngine = new PolicyEngine(logger);
-    securityTraining = new SecurityTraining(logger);
-    securityDocumentation = new SecurityDocumentation(logger);
-    penetrationTester = new PenetrationTester(logger);
-    incidentResponse = new IncidentResponse(logger);
+    securityManager = new SecurityManager();
+    complianceManager = new ComplianceManager();
+    vulnerabilityScanner = new VulnerabilityScanner();
+    securityMonitor = new SecurityMonitor();
+    policyEngine = new PolicyEngine();
+    securityTraining = new SecurityTraining();
+    securityDocumentation = new SecurityDocumentation();
+    penetrationTester = new PenetrationTester();
+    incidentResponse = new IncidentResponse();
   });
 
   afterEach(() => {

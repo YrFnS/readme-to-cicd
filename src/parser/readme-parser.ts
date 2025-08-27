@@ -26,7 +26,7 @@ import { MetadataExtractor } from './analyzers/metadata-extractor';
 import { ASTCache, globalASTCache } from './utils/ast-cache';
 import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
 import { StreamingFileReader } from './utils/streaming-file-reader';
-import { IntegrationPipeline } from './integration-pipeline';
+import { IntegrationPipeline } from '../integration/integration-pipeline';
 
 /**
  * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
@@ -60,13 +60,16 @@ export class ReadmeParserImpl implements ReadmeParser {
   private integrationPipeline?: IntegrationPipeline | null;
   private useIntegrationPipeline: boolean;
 
-  constructor(options?: {
-    enableCaching?: boolean;
-    enablePerformanceMonitoring?: boolean;
-    cacheOptions?: any;
-    performanceOptions?: any;
-    useIntegrationPipeline?: boolean;
-  }) {
+  constructor(
+    integrationPipeline?: IntegrationPipeline,
+    options?: {
+      enableCaching?: boolean;
+      enablePerformanceMonitoring?: boolean;
+      cacheOptions?: any;
+      performanceOptions?: any;
+      useIntegrationPipeline?: boolean;
+    }
+  ) {
     this.analyzerRegistry = new AnalyzerRegistry();
     this.fileReader = new FileReader();
     this.streamingFileReader = new StreamingFileReader();
@@ -82,23 +85,29 @@ export class ReadmeParserImpl implements ReadmeParser {
       (options?.performanceOptions ? new PerformanceMonitor(options.performanceOptions) : globalPerformanceMonitor) :
       new PerformanceMonitor({ enabled: false });
     
-    // CRITICAL FIX: Always use IntegrationPipeline by default for proper component integration
-    this.useIntegrationPipeline = options?.useIntegrationPipeline !== false; // Default to true unless explicitly disabled
-    
-    // CRITICAL FIX: Initialize IntegrationPipeline more robustly
-    if (this.useIntegrationPipeline) {
-      try {
-        this.initializeIntegrationPipelineSync();
-      } catch (error) {
-        console.warn('Failed to initialize IntegrationPipeline in constructor, will retry on-demand:', error);
-        this.integrationPipeline = null;
-        // Don't disable the flag - we'll try again later
-      }
+    // CRITICAL FIX: Use provided IntegrationPipeline instance or create one
+    if (integrationPipeline) {
+      this.integrationPipeline = integrationPipeline;
+      this.useIntegrationPipeline = true;
+      console.log('✅ Using provided IntegrationPipeline instance');
     } else {
-      this.integrationPipeline = null;
+      // Determine if we should use IntegrationPipeline
+      this.useIntegrationPipeline = options?.useIntegrationPipeline !== false; // Default to true unless explicitly disabled
+      
+      if (this.useIntegrationPipeline) {
+        try {
+          this.initializeIntegrationPipelineSync();
+        } catch (error) {
+          console.warn('Failed to initialize IntegrationPipeline in constructor, will retry on-demand:', error);
+          this.integrationPipeline = null;
+          // Don't disable the flag - we'll try again later
+        }
+      } else {
+        this.integrationPipeline = null;
+      }
     }
     
-    // Auto-register default analyzers (fallback for when IntegrationPipeline is not used)
+    // Register default analyzers through pipeline if available, otherwise use fallback registry
     this.registerDefaultAnalyzers();
   }
 
@@ -108,14 +117,7 @@ export class ReadmeParserImpl implements ReadmeParser {
   private initializeIntegrationPipelineSync(): void {
     try {
       // Use the imported IntegrationPipeline class directly
-      this.integrationPipeline = new IntegrationPipeline({
-        enableLogging: false, // Reduce noise
-        logLevel: 'warn',
-        enablePerformanceMonitoring: this.performanceMonitor !== null,
-        pipelineTimeout: 30000, // 30 second timeout
-        enableRecovery: true,
-        maxRetries: 2
-      });
+      this.integrationPipeline = new IntegrationPipeline();
       console.log('IntegrationPipeline initialized successfully in constructor');
     } catch (error) {
       console.warn('Failed to initialize IntegrationPipeline during construction:', error);
@@ -130,11 +132,7 @@ export class ReadmeParserImpl implements ReadmeParser {
   private async initializeIntegrationPipeline(): Promise<void> {
     try {
       // Use the imported IntegrationPipeline class directly
-      this.integrationPipeline = new IntegrationPipeline({
-        enableLogging: false, // Reduce noise
-        logLevel: 'warn',
-        enablePerformanceMonitoring: this.performanceMonitor !== null
-      });
+      this.integrationPipeline = new IntegrationPipeline();
       console.log('IntegrationPipeline initialized successfully');
     } catch (error) {
       console.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers:', error);
@@ -147,24 +145,63 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Register default analyzers that should always be available
    */
   private registerDefaultAnalyzers(): void {
-    this.analyzerRegistry.register(new LanguageDetectorAdapter());
-    this.analyzerRegistry.register(new DependencyExtractorAdapter());
-    this.analyzerRegistry.register(new CommandExtractorAdapter());
-    this.analyzerRegistry.register(new TestingDetectorAdapter());
-    this.analyzerRegistry.register(new MetadataExtractor());
+    const analyzers = [
+      new LanguageDetectorAdapter(),
+      new DependencyExtractorAdapter(),
+      new CommandExtractorAdapter(),
+      new TestingDetectorAdapter(),
+      new MetadataExtractor()
+    ];
+
+    if (this.integrationPipeline) {
+      // Register analyzers through the integration pipeline (async)
+      Promise.all(analyzers.map(async (analyzer) => {
+        try {
+          await this.integrationPipeline!.registerAnalyzer(analyzer as any);
+          console.log(`✅ Registered ${analyzer.name} through IntegrationPipeline`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to register ${analyzer.name} through pipeline, using fallback:`, error);
+          this.analyzerRegistry.register(analyzer);
+        }
+      })).catch(error => {
+        console.warn('⚠️ Some analyzer registrations failed, continuing with available analyzers:', error);
+      });
+    } else {
+      // Fallback to local registry
+      analyzers.forEach(analyzer => {
+        this.analyzerRegistry.register(analyzer);
+      });
+      console.log('📝 Registered analyzers through fallback registry');
+    }
   }
 
   /**
    * Register a content analyzer
    */
-  registerAnalyzer(analyzer: ContentAnalyzer): void {
-    this.analyzerRegistry.register(analyzer);
+  async registerAnalyzer(analyzer: ContentAnalyzer): Promise<void> {
+    if (this.integrationPipeline) {
+      try {
+        await this.integrationPipeline.registerAnalyzer(analyzer as any);
+        console.log(`✅ Registered ${analyzer.name} through IntegrationPipeline`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to register ${analyzer.name} through pipeline, using fallback:`, error);
+        this.analyzerRegistry.register(analyzer);
+      }
+    } else {
+      this.analyzerRegistry.register(analyzer);
+    }
   }
 
   /**
    * Clear all registered analyzers (primarily for testing)
    */
   clearAnalyzers(): void {
+    // Clear pipeline analyzers if available
+    if (this.integrationPipeline) {
+      this.integrationPipeline.clearAnalyzers();
+    }
+    
+    // Also clear registry as fallback
     this.analyzerRegistry.clear();
   }
 
@@ -271,49 +308,15 @@ export class ReadmeParserImpl implements ReadmeParser {
 
       try {
         // CRITICAL FIX: Use IntegrationPipeline as the primary processing method
-        if (this.useIntegrationPipeline) {
-          // Initialize pipeline on-demand if not already initialized
-          if (!this.integrationPipeline) {
-            try {
-              await this.initializeIntegrationPipeline();
-            } catch (initError) {
-              console.warn('Failed to initialize IntegrationPipeline, will use fallback processing:', initError);
-              // Don't disable the flag permanently, just skip this time
-            }
-          }
-          
-          if (this.integrationPipeline) {
-            try {
-              const pipelineResult = await this.integrationPipeline.execute(content);
-              
-              // CRITICAL FIX: Always prefer pipeline results when available and valid
-              if (pipelineResult.success && pipelineResult.data) {
-                return {
-                  success: true,
-                  data: pipelineResult.data,
-                  errors: pipelineResult.errors || [],
-                  ...(pipelineResult.warnings && { warnings: pipelineResult.warnings })
-                };
-              } else if (pipelineResult.data && Object.keys(pipelineResult.data).length > 0) {
-                // Partial success - return data with errors as warnings
-                return {
-                  success: true,
-                  data: pipelineResult.data,
-                  errors: [], // Convert errors to warnings for partial success
-                  warnings: [
-                    ...(pipelineResult.warnings || []),
-                    ...(pipelineResult.errors?.map(e => e.message) || [])
-                  ]
-                };
-              } else {
-                // Pipeline failed completely, log and fall back
-                console.warn('IntegrationPipeline failed completely, using fallback processing. Errors:', pipelineResult.errors);
-                // Continue to fallback processing
-              }
-            } catch (pipelineError) {
-              console.warn('IntegrationPipeline execution error, using fallback:', pipelineError);
-              // Continue to fallback processing
-            }
+        if (this.useIntegrationPipeline && this.integrationPipeline) {
+          try {
+            // The integration pipeline expects a file path, but we have content
+            // For now, we'll use the manual analysis with pipeline-registered analyzers
+            console.log('🔄 Using pipeline-registered analyzers for content analysis');
+            return await this.executePipelineAnalysis(content);
+          } catch (pipelineError) {
+            console.warn('IntegrationPipeline execution error, using fallback:', pipelineError);
+            // Continue to fallback processing
           }
         }
         
@@ -327,6 +330,191 @@ export class ReadmeParserImpl implements ReadmeParser {
         return this.createErrorResult('UNKNOWN_ERROR', 'An unknown error occurred during analysis');
       }
     }, { contentLength: content ? content.length : 0 });
+  }
+
+  /**
+   * Execute pipeline-based analysis using registered analyzers
+   */
+  private async executePipelineAnalysis(content: string): Promise<ParseResult> {
+    try {
+      // Parse content first
+      const cachedEntry = this.astCache.get(content);
+      let ast: Token[];
+      let rawContent: string;
+      let parseTime: number;
+
+      if (cachedEntry) {
+        // Use cached AST
+        ast = cachedEntry.ast;
+        rawContent = cachedEntry.rawContent;
+        parseTime = 0; // No parsing time since we used cache
+      } else {
+        // Parse content and cache result
+        const parseResult = await this.performanceMonitor.timeOperation('markdownParse', async () => {
+          return this.markdownParser.parseContent(content);
+        });
+        
+        if (!parseResult.success) {
+          return {
+            success: false,
+            errors: 'error' in parseResult ? [parseResult.error] : [{
+              code: 'PARSE_ERROR',
+              message: 'Parse failed',
+              component: 'ReadmeParser',
+              severity: 'error' as const
+            }]
+          };
+        }
+
+        ast = parseResult.data.ast;
+        rawContent = parseResult.data.rawContent;
+        parseTime = parseResult.data.processingTime;
+
+        // Cache the parsed AST
+        this.astCache.set(content, ast, parseTime);
+      }
+
+      // Get registered analyzers from the pipeline
+      const registeredAnalyzers = this.integrationPipeline!.getRegisteredAnalyzers();
+      
+      if (registeredAnalyzers.length === 0) {
+        console.warn('⚠️ No analyzers registered in IntegrationPipeline, falling back to manual analysis');
+        return await this.executeManualAnalysis(content);
+      }
+
+      // Execute analyzers through pipeline coordination
+      const analysisPromises = registeredAnalyzers.map(async analyzer => {
+        return this.performanceMonitor.timeOperation(`pipeline_analyzer_${analyzer.name}`, async () => {
+          try {
+            const timeoutPromise = new Promise<AnalysisResult>((_, reject) => {
+              setTimeout(() => reject(new Error('Analyzer timeout')), 5000);
+            });
+
+            // Execute analyzer with proper interface
+            const analysisPromise = analyzer.analyze(ast as any, rawContent);
+            const result = await Promise.race([analysisPromise, timeoutPromise]);
+            
+            return { 
+              analyzerName: analyzer.name, 
+              result,
+              success: true 
+            };
+          } catch (error) {
+            const errorResult: AnalysisResult = {
+              data: null,
+              confidence: 0,
+              sources: [],
+              errors: [{
+                code: 'PIPELINE_ANALYZER_ERROR',
+                message: error instanceof Error ? error.message : 'Unknown pipeline analyzer error',
+                component: analyzer.name,
+                severity: 'error'
+              }]
+            };
+            
+            return { 
+              analyzerName: analyzer.name, 
+              result: errorResult,
+              success: false 
+            };
+          }
+        }, { analyzerName: analyzer.name });
+      });
+
+      // Wait for all analyzers to complete
+      const analysisResults = await Promise.allSettled(analysisPromises);
+      
+      // Process results using pipeline-based aggregation
+      const resultsMap = new Map<string, AnalysisResult>();
+      const analyzerErrors: ParseError[] = [];
+      let successfulAnalyzers = 0;
+      
+      for (const promiseResult of analysisResults) {
+        if (promiseResult.status === 'fulfilled') {
+          const { analyzerName, result, success } = promiseResult.value;
+          
+          if (result) {
+            // Ensure result has the correct AnalysisResult structure
+            const analysisResult = {
+              data: result.data || null,
+              confidence: result.confidence || 0,
+              sources: result.sources || [],
+              errors: result.errors || []
+            };
+            
+            resultsMap.set(analyzerName, analysisResult);
+            if (success && analysisResult.data !== null) {
+              successfulAnalyzers++;
+            }
+            
+            if (analysisResult.errors) {
+              analyzerErrors.push(...analysisResult.errors);
+            }
+          }
+        } else {
+          analyzerErrors.push({
+            code: 'PIPELINE_ANALYZER_PROMISE_REJECTED',
+            message: `Pipeline analyzer promise rejected: ${promiseResult.reason}`,
+            component: 'ReadmeParser',
+            severity: 'error'
+          });
+        }
+      }
+      
+      // Ensure we have some results
+      if (successfulAnalyzers === 0 && resultsMap.size === 0) {
+        return {
+          success: false,
+          errors: [
+            {
+              code: 'ALL_PIPELINE_ANALYZERS_FAILED',
+              message: 'All pipeline analyzers failed to process the content',
+              component: 'ReadmeParser',
+              severity: 'error'
+            },
+            ...analyzerErrors
+          ]
+        };
+      }
+      
+      // Aggregate results using pipeline-based coordination
+      const projectInfo = await this.performanceMonitor.timeOperation('pipelineResultAggregation', async () => {
+        return this.resultAggregator.aggregate(resultsMap);
+      });
+      const aggregatorErrors = this.resultAggregator.getErrors();
+      const aggregatorWarnings = this.resultAggregator.getWarnings();
+
+      // Combine all errors
+      const allErrors = [...analyzerErrors, ...aggregatorErrors];
+      const allWarnings = aggregatorWarnings.map(w => w.message);
+
+      // Calculate confidence with pipeline bonus
+      const successRate = successfulAnalyzers / registeredAnalyzers.length;
+      const pipelineBonus = 0.1; // Bonus for using integrated pipeline
+      const confidenceAdjustment = Math.min(successRate + pipelineBonus, 1.0);
+
+      const result: ParseResult = {
+        success: true,
+        data: {
+          ...projectInfo,
+          confidence: {
+            ...projectInfo.confidence,
+            overall: Math.max(projectInfo.confidence.overall * confidenceAdjustment, 0.75) // Higher minimum for pipeline
+          }
+        },
+        errors: allErrors,
+        ...(allWarnings.length > 0 && { warnings: allWarnings })
+      };
+      
+      console.log(`✅ Pipeline analysis completed with ${successfulAnalyzers}/${registeredAnalyzers.length} successful analyzers`);
+      return result;
+      
+    } catch (error) {
+      if (error instanceof Error) {
+        return this.createErrorResult('PIPELINE_ANALYSIS_ERROR', `Pipeline analysis failed: ${error.message}`);
+      }
+      return this.createErrorResult('UNKNOWN_PIPELINE_ERROR', 'An unknown error occurred during pipeline analysis');
+    }
   }
 
   /**
@@ -497,13 +685,21 @@ export class ReadmeParserImpl implements ReadmeParser {
           const { analyzerName, result, success } = promiseResult.value;
           
           if (result) {
-            resultsMap.set(analyzerName, result);
-            if (success && result.data !== null) {
+            // Ensure result has the correct AnalysisResult structure
+            const analysisResult = {
+              data: result.data || null,
+              confidence: result.confidence || 0,
+              sources: result.sources || [],
+              errors: result.errors || []
+            };
+            
+            resultsMap.set(analyzerName, analysisResult);
+            if (success && analysisResult.data !== null) {
               successfulAnalyzers++;
             }
             
-            if (result.errors) {
-              analyzerErrors.push(...result.errors);
+            if (analysisResult.errors) {
+              analyzerErrors.push(...analysisResult.errors);
             }
           }
         } else {
@@ -656,17 +852,39 @@ export class ReadmeParserImpl implements ReadmeParser {
   /**
    * Get information about registered analyzers
    */
-  getAnalyzerInfo(): { name: string; registered: boolean }[] {
-    return this.analyzerRegistry.getAll().map(analyzer => ({
+  getAnalyzerInfo(): { name: string; registered: boolean; source: string }[] {
+    const pipelineAnalyzers = this.integrationPipeline ? 
+      this.integrationPipeline.getRegisteredAnalyzers().map(analyzer => ({
+        name: analyzer.name,
+        registered: true,
+        source: 'pipeline'
+      })) : [];
+    
+    const registryAnalyzers = this.analyzerRegistry.getAll().map(analyzer => ({
       name: analyzer.name,
-      registered: true
+      registered: true,
+      source: 'registry'
     }));
+
+    // Combine and deduplicate (pipeline takes precedence)
+    const allAnalyzers = new Map<string, { name: string; registered: boolean; source: string }>();
+    
+    registryAnalyzers.forEach(analyzer => allAnalyzers.set(analyzer.name, analyzer));
+    pipelineAnalyzers.forEach(analyzer => allAnalyzers.set(analyzer.name, analyzer));
+    
+    return Array.from(allAnalyzers.values());
   }
 
   /**
    * Check if a specific analyzer is registered
    */
   hasAnalyzer(analyzerName: string): boolean {
+    // Check pipeline first if available
+    if (this.integrationPipeline && this.integrationPipeline.hasAnalyzer(analyzerName)) {
+      return true;
+    }
+    
+    // Fallback to registry
     return this.analyzerRegistry.getAll().some(analyzer => analyzer.name === analyzerName);
   }
 

@@ -17,19 +17,17 @@ import {
   CertificationConfig,
   AwarenessConfig
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 
 export class SecurityTraining implements ISecurityTraining {
   private config: TrainingConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private programs: Map<string, TrainingProgram> = new Map();
   private enrollments: Map<string, any> = new Map();
   private certificates: Map<string, Certificate> = new Map();
   private campaigns: Map<string, AwarenessCampaign> = new Map();
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
   }
 
   async initialize(config: TrainingConfig): Promise<void> {
@@ -49,10 +47,10 @@ export class SecurityTraining implements ISecurityTraining {
       await this.initializeTrackingSystem();
 
       this.initialized = true;
-      this.logger.info('SecurityTraining initialized successfully');
+      logger.info('SecurityTraining initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize SecurityTraining', { error });
+      logger.error('Failed to initialize SecurityTraining', { error });
       throw error;
     }
   }
@@ -76,7 +74,7 @@ export class SecurityTraining implements ISecurityTraining {
       // Store program
       this.programs.set(programId, program);
 
-      this.logger.info('Training program created', {
+      logger.info('Training program created', {
         programId,
         name: program.name,
         modules: program.modules.length,
@@ -86,7 +84,7 @@ export class SecurityTraining implements ISecurityTraining {
       return programId;
       
     } catch (error) {
-      this.logger.error('Failed to create training program', { error });
+      logger.error('Failed to create training program', { error });
       throw error;
     }
   }
@@ -105,7 +103,7 @@ export class SecurityTraining implements ISecurityTraining {
       // Check if user is already enrolled
       const enrollmentKey = `${userId}-${programId}`;
       if (this.enrollments.has(enrollmentKey)) {
-        this.logger.warn('User already enrolled in program', { userId, programId });
+        logger.warn('User already enrolled in program', { userId, programId });
         return;
       }
 
@@ -122,14 +120,14 @@ export class SecurityTraining implements ISecurityTraining {
 
       this.enrollments.set(enrollmentKey, enrollment);
 
-      this.logger.info('User enrolled in training program', {
+      logger.info('User enrolled in training program', {
         userId,
         programId,
         programName: program.name
       });
       
     } catch (error) {
-      this.logger.error('Failed to enroll user in training program', { error, userId, programId });
+      logger.error('Failed to enroll user in training program', { error, userId, programId });
       throw error;
     }
   }
@@ -179,7 +177,7 @@ export class SecurityTraining implements ISecurityTraining {
       return trainingProgress;
       
     } catch (error) {
-      this.logger.error('Failed to track training progress', { error, userId, programId });
+      logger.error('Failed to track training progress', { error, userId, programId });
       throw error;
     }
   }
@@ -225,7 +223,7 @@ export class SecurityTraining implements ISecurityTraining {
 
       this.certificates.set(certificateId, certificate);
 
-      this.logger.info('Certificate generated', {
+      logger.info('Certificate generated', {
         certificateId,
         userId,
         programId,
@@ -236,7 +234,7 @@ export class SecurityTraining implements ISecurityTraining {
       return certificate;
       
     } catch (error) {
-      this.logger.error('Failed to generate certificate', { error, userId, programId });
+      logger.error('Failed to generate certificate', { error, userId, programId });
       throw error;
     }
   }
@@ -285,7 +283,7 @@ export class SecurityTraining implements ISecurityTraining {
       return metrics;
       
     } catch (error) {
-      this.logger.error('Failed to get training metrics', { error });
+      logger.error('Failed to get training metrics', { error });
       throw error;
     }
   }
@@ -309,7 +307,7 @@ export class SecurityTraining implements ISecurityTraining {
 
       this.campaigns.set(campaignId, campaign);
 
-      this.logger.info('Awareness campaign scheduled', {
+      logger.info('Awareness campaign scheduled', {
         campaignId,
         name: campaign.name,
         topic: campaign.topic,
@@ -324,7 +322,7 @@ export class SecurityTraining implements ISecurityTraining {
       return campaignId;
       
     } catch (error) {
-      this.logger.error('Failed to schedule awareness campaign', { error });
+      logger.error('Failed to schedule awareness campaign', { error });
       throw error;
     }
   }
@@ -339,7 +337,7 @@ export class SecurityTraining implements ISecurityTraining {
       this.programs.set(program.id, program);
     }
 
-    this.logger.info('Training programs loaded', { count: this.programs.size });
+    logger.info('Training programs loaded', { count: this.programs.size });
   }
 
   private async loadDefaultPrograms(): Promise<void> {
@@ -446,7 +444,7 @@ export class SecurityTraining implements ISecurityTraining {
 
   private async initializeCertificationSystem(): Promise<void> {
     if (this.config.certification.enabled) {
-      this.logger.info('Certification system initialized', {
+      logger.info('Certification system initialized', {
         validity: this.config.certification.validity,
         renewal: this.config.certification.renewal
       });
@@ -455,12 +453,12 @@ export class SecurityTraining implements ISecurityTraining {
 
   private async initializeAwarenessCampaigns(): Promise<void> {
     // Initialize awareness campaign system
-    this.logger.info('Awareness campaigns initialized');
+    logger.info('Awareness campaigns initialized');
   }
 
   private async initializeTrackingSystem(): Promise<void> {
     // Initialize progress tracking system
-    this.logger.info('Training tracking system initialized');
+    logger.info('Training tracking system initialized');
   }
 
   private validateProgram(program: TrainingProgram): { valid: boolean; errors: string[] } {
@@ -542,7 +540,7 @@ export class SecurityTraining implements ISecurityTraining {
 
   private async scheduleCampaignExecution(campaign: AwarenessCampaign): Promise<void> {
     // Schedule campaign execution
-    this.logger.info(`Awareness campaign execution scheduled for ${campaign.startDate}`);
+    logger.info(`Awareness campaign execution scheduled for ${campaign.startDate}`);
     
     // Mock campaign execution
     setTimeout(() => {
@@ -551,7 +549,7 @@ export class SecurityTraining implements ISecurityTraining {
   }
 
   private async executeCampaign(campaign: AwarenessCampaign): Promise<void> {
-    this.logger.info('Executing awareness campaign', {
+    logger.info('Executing awareness campaign', {
       campaignId: campaign.id,
       name: campaign.name,
       topic: campaign.topic

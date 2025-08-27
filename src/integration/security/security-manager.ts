@@ -21,19 +21,17 @@ import {
   SecurityMetrics,
   ComponentStatus
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 import { Result } from '../../shared/result';
 
 export class SecurityManager implements ISecurityManager {
   private config: SecurityConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private authProviders: Map<string, any> = new Map();
   private encryptionKeys: Map<string, any> = new Map();
   private auditLog: AuditEvent[] = [];
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
   }
 
   async initialize(config: SecurityConfig): Promise<void> {
@@ -53,7 +51,7 @@ export class SecurityManager implements ISecurityManager {
       await this.initializeSecurityMonitoring();
       
       this.initialized = true;
-      this.logger.info('SecurityManager initialized successfully');
+      logger.info('SecurityManager initialized successfully');
       
       await this.auditLog({
         type: 'system.security.initialized',
@@ -63,7 +61,7 @@ export class SecurityManager implements ISecurityManager {
       });
       
     } catch (error) {
-      this.logger.error('Failed to initialize SecurityManager', { error });
+      logger.error('Failed to initialize SecurityManager', { error });
       throw error;
     }
   }
@@ -141,7 +139,7 @@ export class SecurityManager implements ISecurityManager {
       }
       
     } catch (error) {
-      this.logger.error('Authentication failed', { error, credentials: credentials.identifier });
+      logger.error('Authentication failed', { error, credentials: credentials.identifier });
       
       await this.auditLog({
         type: 'auth.error',
@@ -182,7 +180,7 @@ export class SecurityManager implements ISecurityManager {
       return authorized;
       
     } catch (error) {
-      this.logger.error('Authorization failed', { error, user: user.id, resource: resource.id });
+      logger.error('Authorization failed', { error, user: user.id, resource: resource.id });
       
       await this.auditLog({
         type: 'authz.error',
@@ -222,7 +220,7 @@ export class SecurityManager implements ISecurityManager {
       return encryptedData;
       
     } catch (error) {
-      this.logger.error('Encryption failed', { error });
+      logger.error('Encryption failed', { error });
       
       await this.auditLog({
         type: 'crypto.encrypt.error',
@@ -262,7 +260,7 @@ export class SecurityManager implements ISecurityManager {
       return decryptedData;
       
     } catch (error) {
-      this.logger.error('Decryption failed', { error });
+      logger.error('Decryption failed', { error });
       
       await this.auditLog({
         type: 'crypto.decrypt.error',
@@ -303,7 +301,7 @@ export class SecurityManager implements ISecurityManager {
       await this.checkAuditAlerts(auditEntry);
       
     } catch (error) {
-      this.logger.error('Audit logging failed', { error, event });
+      logger.error('Audit logging failed', { error, event });
     }
   }
 
@@ -349,7 +347,7 @@ export class SecurityManager implements ISecurityManager {
       return assessment;
       
     } catch (error) {
-      this.logger.error('Security assessment failed', { error });
+      logger.error('Security assessment failed', { error });
       throw error;
     }
   }
@@ -374,7 +372,7 @@ export class SecurityManager implements ISecurityManager {
       };
       
     } catch (error) {
-      this.logger.error('Failed to get security status', { error });
+      logger.error('Failed to get security status', { error });
       throw error;
     }
   }

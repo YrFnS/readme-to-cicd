@@ -19,19 +19,17 @@ import {
   PolicyConfig,
   ComplianceConfig
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 import { Result } from '../../shared/result';
 
 export class ComplianceManager implements IComplianceManager {
   private frameworks: Map<string, ComplianceFramework> = new Map();
   private config: ComplianceConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private assessments: Map<string, any> = new Map();
   private risks: RiskAssessment[] = [];
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
   }
 
   async initialize(frameworks: ComplianceFramework[]): Promise<void> {
@@ -39,7 +37,7 @@ export class ComplianceManager implements IComplianceManager {
       // Load compliance frameworks
       for (const framework of frameworks) {
         this.frameworks.set(framework.name, framework);
-        this.logger.info(`Loaded compliance framework: ${framework.name} v${framework.version}`);
+        logger.info(`Loaded compliance framework: ${framework.name} v${framework.version}`);
       }
 
       // Initialize compliance monitoring
@@ -52,10 +50,10 @@ export class ComplianceManager implements IComplianceManager {
       await this.initializeReporting();
 
       this.initialized = true;
-      this.logger.info('ComplianceManager initialized successfully');
+      logger.info('ComplianceManager initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize ComplianceManager', { error });
+      logger.error('Failed to initialize ComplianceManager', { error });
       throw error;
     }
   }
@@ -71,7 +69,7 @@ export class ComplianceManager implements IComplianceManager {
         throw new Error(`Unknown compliance framework: ${framework}`);
       }
 
-      this.logger.info(`Starting compliance validation for ${framework}`);
+      logger.info(`Starting compliance validation for ${framework}`);
 
       const assessment = {
         scope: ['integration-deployment', 'security-controls', 'data-protection'],
@@ -102,7 +100,7 @@ export class ComplianceManager implements IComplianceManager {
         generatedAt: new Date()
       };
 
-      this.logger.info(`Compliance validation completed for ${framework}`, {
+      logger.info(`Compliance validation completed for ${framework}`, {
         score,
         status,
         controlsAssessed: controlAssessments.length
@@ -111,7 +109,7 @@ export class ComplianceManager implements IComplianceManager {
       return report;
       
     } catch (error) {
-      this.logger.error(`Compliance validation failed for ${framework}`, { error });
+      logger.error(`Compliance validation failed for ${framework}`, { error });
       throw error;
     }
   }
@@ -122,7 +120,7 @@ export class ComplianceManager implements IComplianceManager {
         throw new Error('ComplianceManager not initialized');
       }
 
-      this.logger.info('Enforcing compliance policy', { policy: policy.enforcement });
+      logger.info('Enforcing compliance policy', { policy: policy.enforcement });
 
       // Validate policy configuration
       const validationResult = await this.validatePolicyConfig(policy);
@@ -138,7 +136,7 @@ export class ComplianceManager implements IComplianceManager {
       const enforcementResult = await this.applyPolicyEnforcement(policy);
       
       // Log policy enforcement
-      this.logger.info('Policy enforcement completed', {
+      logger.info('Policy enforcement completed', {
         mode: policy.enforcement.mode,
         result: enforcementResult.result,
         exceptions: policy.enforcement.exceptions.length
@@ -147,7 +145,7 @@ export class ComplianceManager implements IComplianceManager {
       return enforcementResult;
       
     } catch (error) {
-      this.logger.error('Policy enforcement failed', { error });
+      logger.error('Policy enforcement failed', { error });
       return {
         policy: 'error',
         result: 'deny',
@@ -162,7 +160,7 @@ export class ComplianceManager implements IComplianceManager {
         throw new Error('ComplianceManager not initialized');
       }
 
-      this.logger.info('Generating audit report', { 
+      logger.info('Generating audit report', { 
         start: timeRange.start, 
         end: timeRange.end 
       });
@@ -190,7 +188,7 @@ export class ComplianceManager implements IComplianceManager {
         recommendations
       };
 
-      this.logger.info('Audit report generated successfully', {
+      logger.info('Audit report generated successfully', {
         events: events.length,
         findings: findings.length,
         recommendations: recommendations.length
@@ -199,7 +197,7 @@ export class ComplianceManager implements IComplianceManager {
       return report;
       
     } catch (error) {
-      this.logger.error('Audit report generation failed', { error });
+      logger.error('Audit report generation failed', { error });
       throw error;
     }
   }
@@ -227,7 +225,7 @@ export class ComplianceManager implements IComplianceManager {
         await this.escalateHighRisk(risk);
       }
 
-      this.logger.info('Risk assessment tracked', {
+      logger.info('Risk assessment tracked', {
         riskId: risk.id,
         asset: risk.asset,
         threat: risk.threat,
@@ -235,7 +233,7 @@ export class ComplianceManager implements IComplianceManager {
       });
       
     } catch (error) {
-      this.logger.error('Risk tracking failed', { error, riskId: risk.id });
+      logger.error('Risk tracking failed', { error, riskId: risk.id });
       throw error;
     }
   }
@@ -271,7 +269,7 @@ export class ComplianceManager implements IComplianceManager {
       };
       
     } catch (error) {
-      this.logger.error('Failed to get compliance status', { error });
+      logger.error('Failed to get compliance status', { error });
       throw error;
     }
   }
@@ -292,7 +290,7 @@ export class ComplianceManager implements IComplianceManager {
         createdAt: new Date()
       });
 
-      this.logger.info('Assessment scheduled', {
+      logger.info('Assessment scheduled', {
         assessmentId,
         type: assessment.type,
         schedule: assessment.schedule
@@ -304,7 +302,7 @@ export class ComplianceManager implements IComplianceManager {
       return assessmentId;
       
     } catch (error) {
-      this.logger.error('Assessment scheduling failed', { error });
+      logger.error('Assessment scheduling failed', { error });
       throw error;
     }
   }
@@ -312,17 +310,17 @@ export class ComplianceManager implements IComplianceManager {
   // Private helper methods
   private async initializeComplianceMonitoring(): Promise<void> {
     // Initialize continuous compliance monitoring
-    this.logger.info('Initializing compliance monitoring');
+    logger.info('Initializing compliance monitoring');
   }
 
   private async initializeRiskTracking(): Promise<void> {
     // Initialize risk tracking system
-    this.logger.info('Initializing risk tracking');
+    logger.info('Initializing risk tracking');
   }
 
   private async initializeReporting(): Promise<void> {
     // Initialize reporting system
-    this.logger.info('Initializing compliance reporting');
+    logger.info('Initializing compliance reporting');
   }
 
   private async assessControls(controls: ComplianceControl[]): Promise<any[]> {
@@ -576,7 +574,7 @@ export class ComplianceManager implements IComplianceManager {
   }
 
   private async escalateHighRisk(risk: RiskAssessment): Promise<void> {
-    this.logger.warn('High risk detected - escalating', {
+    logger.warn('High risk detected - escalating', {
       riskId: risk.id,
       asset: risk.asset,
       threat: risk.threat,
@@ -625,7 +623,7 @@ export class ComplianceManager implements IComplianceManager {
 
   private async scheduleAssessmentExecution(assessmentId: string, assessment: AssessmentConfig): Promise<void> {
     // Schedule assessment execution
-    this.logger.info(`Assessment ${assessmentId} scheduled for ${assessment.schedule}`);
+    logger.info(`Assessment ${assessmentId} scheduled for ${assessment.schedule}`);
   }
 
   private async collectRequirementEvidence(requirement: string): Promise<string[]> {

@@ -15,18 +15,17 @@ import {
 import {
   PenetrationTestConfig
 } from './types';
-import { Logger } from '../../shared/logger';
+import { logger } from '../../shared/logging/central-logger';
 
 export class PenetrationTester implements IPenetrationTester {
   private config: PenetrationTestConfig;
-  private logger: Logger;
   private initialized: boolean = false;
   private testPlans: Map<string, PenTestPlan> = new Map();
   private testResults: Map<string, PenTestResult> = new Map();
   private reports: Map<string, PenTestReport> = new Map();
 
-  constructor(logger: Logger) {
-    this.logger = logger;
+  constructor() {
+    // Using central logger instance
   }
 
   async initialize(config: PenetrationTestConfig): Promise<void> {
@@ -40,10 +39,10 @@ export class PenetrationTester implements IPenetrationTester {
       await this.initializeReportingSystem();
 
       this.initialized = true;
-      this.logger.info('PenetrationTester initialized successfully');
+      logger.info('PenetrationTester initialized successfully');
       
     } catch (error) {
-      this.logger.error('Failed to initialize PenetrationTester', { error });
+      logger.error('Failed to initialize PenetrationTester', { error });
       throw error;
     }
   }

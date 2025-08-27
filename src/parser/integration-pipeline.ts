@@ -405,42 +405,16 @@ export class IntegrationPipeline {
     const contextsToUse = context.languageContexts || [];
     commandExtractor.setLanguageContexts(contextsToUse);
 
-    // Use context-aware extraction if contexts are available
-    if (contextsToUse.length > 0) {
-      // Use the context-aware extraction method
-      context.commandResults = commandExtractor.extractWithContext(
-        context.ast,
-        context.content
-      );
+    // Always use context-aware extraction (works with or without contexts)
+    context.commandResults = commandExtractor.extractWithContext(
+      context.ast,
+      context.content
+    );
 
+    if (contextsToUse.length > 0) {
       this.logger.info('IntegrationPipeline', `Context-aware extraction: ${context.commandResults.commands.length} commands with ${contextsToUse.length} contexts`);
     } else {
-      // Fallback to regular extraction but still use the enhanced analyze method
-      this.logger.warn('IntegrationPipeline', 'No language contexts available, using fallback extraction');
-
-      const result = await commandExtractor.analyze(context.ast, context.content);
-      if (result.success && result.data) {
-        // Convert to CommandExtractionResult format
-        const flattenedCommands = this.flattenCommands(result.data);
-        const associatedCommands = commandExtractor.assignDefaultContext(flattenedCommands, []);
-        
-        context.commandResults = {
-          commands: associatedCommands,
-          contextMappings: [],
-          extractionMetadata: {
-            totalCommands: flattenedCommands.length,
-            languagesDetected: 0,
-            contextBoundaries: 0,
-            extractionTimestamp: new Date()
-          }
-        };
-      } else {
-        // Handle both success=false (with errors) and success=true but no data cases
-        const errorMessage = !result.success && 'errors' in result && result.errors?.[0]?.message 
-          ? result.errors[0].message 
-          : 'Command extraction failed - no data returned';
-        throw new Error(`Command extraction failed: ${errorMessage}`);
-      }
+      this.logger.info('IntegrationPipeline', `Fallback extraction: ${context.commandResults.commands.length} commands with no contexts`);
     }
 
     if (!context.commandResults) {

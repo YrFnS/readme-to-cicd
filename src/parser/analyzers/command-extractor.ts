@@ -49,7 +49,7 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       yarn: [/yarn\s+start/gi, /yarn\s+dev/gi, /yarn\s+serve/gi],
       cargo: [/cargo\s+run/gi],
       go: [/go\s+run/gi, /go\s+run\s+main\.go/gi],
-      python: [/python\s+\w+\.py/gi, /python3\s+\w+\.py/gi, /python\s+-m\s+\w+/gi, /python\s+manage\.py\s+runserver/gi],
+      python: [/python\s+\w+\.py/gi, /python3\s+\w+\.py/gi, /python\s+-m\s+(?!pip\s+install)\w+/gi, /python\s+manage\.py\s+runserver/gi],
       java: [/java\s+-jar/gi, /java\s+\w+/gi],
       dotnet: [/dotnet\s+run/gi],
       ruby: [/ruby\s+\w+\.rb/gi, /bundle\s+exec\s+rails\s+server/gi],
@@ -76,6 +76,58 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
    */
   public setLanguageContexts(contexts: LanguageContext[]): void {
     this.languageContexts = contexts;
+  }
+
+  /**
+   * Extract commands with full context awareness and return detailed results
+   * This is the main entry point for context-aware command extraction
+   */
+  public extractWithContext(ast: MarkdownAST, content: string): CommandExtractionResult {
+    try {
+      this.rawContent = content;
+
+      // Extract the actual AST array from the wrapper object
+      const actualAST = Array.isArray(ast) ? ast : (ast as any)?.ast || [];
+
+      // Extract basic commands first
+      const extractionResult = this.extractCommands(actualAST, content);
+      const basicCommands = extractionResult.commands;
+
+      // Use language contexts if available, otherwise create empty array
+      const contextsToUse = this.languageContexts || [];
+
+      // Associate commands with contexts
+      const associatedCommands = this.assignDefaultContext(basicCommands, contextsToUse);
+
+      // Generate context mappings
+      const contextMappings = this.generateContextMappings(associatedCommands, contextsToUse);
+
+      // Generate extraction metadata
+      const extractionMetadata: ExtractionMetadata = {
+        totalCommands: associatedCommands.length,
+        languagesDetected: contextsToUse.length,
+        contextBoundaries: this.calculateContextBoundaries(contextsToUse),
+        extractionTimestamp: new Date()
+      };
+
+      return {
+        commands: associatedCommands,
+        contextMappings,
+        extractionMetadata
+      };
+    } catch (error) {
+      // Return empty result on error
+      return {
+        commands: [],
+        contextMappings: [],
+        extractionMetadata: {
+          totalCommands: 0,
+          languagesDetected: 0,
+          contextBoundaries: 0,
+          extractionTimestamp: new Date()
+        }
+      };
+    }
   }
 
   /**
@@ -689,8 +741,8 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
         finalLanguage = this.inferLanguageFromCommand(cmd.command);
       }
 
-      // Final fallback to Shell
-      if (!finalLanguage) {
+      // Final fallback to Shell - CRITICAL: Always ensure we have a language
+      if (!finalLanguage || finalLanguage === 'unknown') {
         finalLanguage = 'Shell';
       }
 
@@ -749,12 +801,12 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       let finalLanguage = command.language;
 
       // If no language, infer from command
-      if (!finalLanguage || finalLanguage === 'Shell') {
+      if (!finalLanguage || finalLanguage === 'Shell' || finalLanguage === 'unknown') {
         finalLanguage = this.inferLanguageFromCommand(command.command);
       }
 
-      // Final fallback
-      if (!finalLanguage) {
+      // Final fallback - CRITICAL: Always ensure we have a language
+      if (!finalLanguage || finalLanguage === 'unknown') {
         finalLanguage = 'Shell';
       }
 
@@ -784,6 +836,70 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     }
 
     return commandInfo;
+  }
+
+  /**
+   * Generate context mappings between language contexts and commands
+   */
+  private generateContextMappings(
+    associatedCommands: AssociatedCommand[], 
+    contexts: LanguageContext[]
+  ): ContextMapping[] {
+    const mappings: ContextMapping[] = [];
+
+    for (const context of contexts) {
+      // Find commands associated with this context
+      const contextCommands = associatedCommands
+        .filter(cmd => cmd.languageContext === context)
+        .map(cmd => ({
+          command: cmd.command,
+          language: cmd.language,
+          confidence: cmd.confidence
+        } as Command));
+
+      if (contextCommands.length > 0) {
+        mappings.push({
+          context,
+          commands: contextCommands,
+          sourceRange: context.sourceRange
+        });
+      }
+    }
+
+    return mappings;
+  }
+
+  /**
+   * Calculate the number of context boundaries
+   */
+  private calculateContextBoundaries(contexts: LanguageContext[]): number {
+    // Simple calculation: number of transitions between different languages
+    if (contexts.length <= 1) return 0;
+    
+    let boundaries = 0;
+    for (let i = 1; i < contexts.length; i++) {
+      if (contexts[i].language !== contexts[i - 1].language) {
+        boundaries++;
+      }
+    }
+    
+    return boundaries;
+  }
+
+  /**
+   * Flatten CommandInfo structure to Command array (helper for integration pipeline)
+   */
+  public flattenCommands(commandInfo: CommandInfo): Command[] {
+    const allCommands: Command[] = [];
+    
+    // Add all commands from each category
+    allCommands.push(...commandInfo.build);
+    allCommands.push(...commandInfo.test);
+    allCommands.push(...commandInfo.run);
+    allCommands.push(...commandInfo.install);
+    allCommands.push(...commandInfo.other);
+    
+    return allCommands;
   }
 
   /**
@@ -906,61 +1022,4 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
     } as AssociatedCommand;
   }
 
-  /**
-   * Enhanced context-aware command extraction (required by integration pipeline)
-   */
-  public extractWithContext(ast: MarkdownAST, content: string): CommandExtractionResult {
-    this.rawContent = content;
-
-    // Extract the actual AST array from the wrapper object
-    const actualAST = Array.isArray(ast) ? ast : (ast as any)?.ast || [];
-
-    // Extract commands with context information
-    const extractionResult = this.extractCommands(actualAST, content);
-    const basicCommands = extractionResult.commands;
-    const commands = this.assignDefaultContext(basicCommands, this.languageContexts);
-
-    // Create context mappings
-    const contextMappings: ContextMapping[] = [];
-    const contextGroups = new Map<string, AssociatedCommand[]>();
-
-    // Group commands by language context
-    for (const cmd of commands) {
-      const contextKey = cmd.languageContext.language;
-      if (!contextGroups.has(contextKey)) {
-        contextGroups.set(contextKey, []);
-      }
-      contextGroups.get(contextKey)!.push(cmd);
-    }
-
-    // Create context mappings for each group
-    for (const [language, groupCommands] of contextGroups) {
-      if (groupCommands.length > 0) {
-        const firstCommand = groupCommands[0]!; // Safe because we checked length > 0
-        contextMappings.push({
-          context: firstCommand.languageContext,
-          commands: groupCommands.map(cmd => ({
-            command: cmd.command,
-            language: cmd.language || 'Shell',
-            confidence: cmd.confidence
-          })),
-          sourceRange: firstCommand.languageContext.sourceRange
-        });
-      }
-    }
-
-    // Generate extraction metadata
-    const extractionMetadata: ExtractionMetadata = {
-      totalCommands: commands.length,
-      languagesDetected: new Set(commands.map(c => c.languageContext.language)).size,
-      contextBoundaries: contextMappings.length,
-      extractionTimestamp: new Date()
-    };
-
-    return {
-      commands,
-      contextMappings,
-      extractionMetadata
-    };
-  }
 }

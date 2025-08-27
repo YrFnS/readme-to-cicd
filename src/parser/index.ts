@@ -35,22 +35,36 @@ export { ResultAggregator } from './utils/result-aggregator';
 // Default parser instance factory
 import { ReadmeParserImpl } from './readme-parser';
 
+// Import IntegrationPipeline for factory functions
+import { IntegrationPipeline } from '../integration/integration-pipeline';
+
 /**
  * Create a new README parser instance
  */
-export function createReadmeParser(): ReadmeParserImpl {
-  return new ReadmeParserImpl();
+export function createReadmeParser(integrationPipeline?: IntegrationPipeline): ReadmeParserImpl {
+  return new ReadmeParserImpl(integrationPipeline);
 }
 
 /**
  * Create a new README parser instance with enhanced error handling
  */
-export function createReadmeParserWithErrorHandling(logLevel?: import('./utils/logger').LogLevel): ReadmeParserImpl {
+export function createReadmeParserWithErrorHandling(
+  integrationPipeline?: IntegrationPipeline,
+  logLevel?: import('./utils/logger').LogLevel
+): ReadmeParserImpl {
   // Configure logger if log level is provided
   if (logLevel !== undefined) {
     const { logger } = require('./utils/logger');
     logger.updateConfig({ level: logLevel });
   }
   
-  return new ReadmeParserImpl();
+  return new ReadmeParserImpl(integrationPipeline);
+}
+
+/**
+ * Create a new README parser instance with IntegrationPipeline
+ */
+export function createReadmeParserWithPipeline(): ReadmeParserImpl {
+  const pipeline = new IntegrationPipeline();
+  return new ReadmeParserImpl(pipeline);
 }
