@@ -142,7 +142,7 @@ export class PerformanceMonitor extends EventEmitter {
    * Start timing an operation
    */
   startOperation(operationId: string, component: string, metadata?: any): void {
-    if (!this.config.enableOperationTiming) return;
+    if (!this.config.enableOperationTiming) {return;}
     
     this.activeOperations.set(operationId, {
       startTime: Date.now(),
@@ -160,7 +160,7 @@ export class PerformanceMonitor extends EventEmitter {
    * End timing an operation
    */
   endOperation(operationId: string, component: string, success: boolean = true, error?: string): void {
-    if (!this.config.enableOperationTiming) return;
+    if (!this.config.enableOperationTiming) {return;}
     
     const activeOp = this.activeOperations.get(operationId);
     if (!activeOp) {
@@ -191,7 +191,7 @@ export class PerformanceMonitor extends EventEmitter {
         operationId,
         component,
         duration,
-        threshold: this.config.slowOperationThreshold
+        __threshold: this.config.slowOperationThreshold
       });
     }
     
@@ -213,7 +213,7 @@ export class PerformanceMonitor extends EventEmitter {
    * Record a custom metric
    */
   recordMetric(name: string, value: number, unit: string, tags?: Record<string, string>, metadata?: any): void {
-    if (!this.config.enableMetrics) return;
+    if (!this.config.enableMetrics) {return;}
     
     const metric: PerformanceMetric = {
       name,
@@ -459,7 +459,7 @@ export class PerformanceMonitor extends EventEmitter {
     }, this.config.metricsInterval);
     
     this.logger.debug('PerformanceMonitor', 'Metrics collection started', {
-      interval: this.config.metricsInterval
+      __interval: this.config.metricsInterval
     });
   }
 

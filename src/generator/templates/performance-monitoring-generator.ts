@@ -536,7 +536,7 @@ export class PerformanceMonitoringGenerator {
     const steps: StepTemplate[] = [];
     const primaryLanguage = detectionResult.languages.find(l => l.primary);
 
-    if (!primaryLanguage) return steps;
+    if (!primaryLanguage) {return steps;}
 
     switch (primaryLanguage.name.toLowerCase()) {
       case 'javascript':
@@ -1956,7 +1956,7 @@ esac
   // Utility methods
   private parseTimeoutFromDuration(duration: string): number {
     const match = duration.match(/(\d+)([smh])/);
-    if (!match || !match[1]) return 300; // 5 minutes default
+    if (!match || !match[1]) {return 300;} // 5 minutes default
 
     const value = parseInt(match[1]);
     const unit = match[2];

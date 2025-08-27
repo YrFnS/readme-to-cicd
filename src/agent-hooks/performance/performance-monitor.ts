@@ -1,4 +1,6 @@
 import { RepositoryInfo, WebhookEvent, AutomationDecision } from '../types';
+import { logger } from '../../shared/logging/central-logger';
+
 
 export interface AgentHooksPerformanceMetrics {
   id: string;
@@ -98,7 +100,7 @@ export class PerformanceMonitor {
    */
   startMonitoring(): void {
     this.isCollecting = true;
-    console.log('Performance monitoring started');
+    logger.info('performance', 'Performance monitoring started');
   }
 
   /**
@@ -106,7 +108,7 @@ export class PerformanceMonitor {
    */
   stopMonitoring(): void {
     this.isCollecting = false;
-    console.log('Performance monitoring stopped');
+    logger.info('performance', 'Performance monitoring stopped');
   }
 
   /**
@@ -119,7 +121,7 @@ export class PerformanceMonitor {
     success: boolean,
     error?: string
   ): string {
-    if (!this.isCollecting) return '';
+    if (!this.isCollecting) {return '';}
 
     const metricId = this.generateMetricId();
 
@@ -162,10 +164,10 @@ export class PerformanceMonitor {
     success: boolean,
     error?: string
   ): void {
-    if (!this.isCollecting) return;
+    if (!this.isCollecting) {return;}
 
     const metrics = this.metrics.get(metricId);
-    if (!metrics) return;
+    if (!metrics) {return;}
 
     metrics.analysisProcessing = {
       processingTime,
@@ -192,10 +194,10 @@ export class PerformanceMonitor {
     success: boolean,
     error?: string
   ): void {
-    if (!this.isCollecting) return;
+    if (!this.isCollecting) {return;}
 
     const metrics = this.metrics.get(metricId);
-    if (!metrics) return;
+    if (!metrics) {return;}
 
     const highPriorityDecisions = decisions.filter(d => d.priority === 'high' || d.priority === 'critical').length;
 
@@ -225,10 +227,10 @@ export class PerformanceMonitor {
     success: boolean,
     error?: string
   ): void {
-    if (!this.isCollecting) return;
+    if (!this.isCollecting) {return;}
 
     const metrics = this.metrics.get(metricId);
-    if (!metrics) return;
+    if (!metrics) {return;}
 
     metrics.prCreation = {
       processingTime,
@@ -254,10 +256,10 @@ export class PerformanceMonitor {
     apiCalls: number,
     rateLimitRemaining: number
   ): void {
-    if (!this.isCollecting) return;
+    if (!this.isCollecting) {return;}
 
     const metrics = this.metrics.get(metricId);
-    if (!metrics) return;
+    if (!metrics) {return;}
 
     metrics.resourceUsage = {
       cpuUsage,
@@ -294,7 +296,7 @@ export class PerformanceMonitor {
    * Get performance alerts
    */
   getAlerts(severity?: 'low' | 'medium' | 'high' | 'critical'): PerformanceAlert[] {
-    if (!severity) return this.alerts;
+    if (!severity) {return this.alerts;}
     return this.alerts.filter(alert => alert.severity === severity);
   }
 
@@ -306,22 +308,22 @@ export class PerformanceMonitor {
 
     // Deduct points for slow processing
     const totalTime = metrics.overall.totalProcessingTime;
-    if (totalTime > 30000) score -= 20; // Over 30 seconds
-    else if (totalTime > 10000) score -= 10; // Over 10 seconds
-    else if (totalTime > 5000) score -= 5; // Over 5 seconds
+    if (totalTime > 30000) {score -= 20;} // Over 30 seconds
+    else if (totalTime > 10000) {score -= 10;} // Over 10 seconds
+    else if (totalTime > 5000) {score -= 5;} // Over 5 seconds
 
     // Deduct points for failures
-    if (!metrics.webhookProcessing.success) score -= 15;
-    if (!metrics.analysisProcessing.success) score -= 15;
-    if (!metrics.automationProcessing.success) score -= 15;
-    if (!metrics.prCreation.success) score -= 15;
+    if (!metrics.webhookProcessing.success) {score -= 15;}
+    if (!metrics.analysisProcessing.success) {score -= 15;}
+    if (!metrics.automationProcessing.success) {score -= 15;}
+    if (!metrics.prCreation.success) {score -= 15;}
 
     // Deduct points for high resource usage
-    if (metrics.resourceUsage.cpuUsage > 80) score -= 10;
-    if (metrics.resourceUsage.memoryUsage > 85) score -= 10;
+    if (metrics.resourceUsage.cpuUsage > 80) {score -= 10;}
+    if (metrics.resourceUsage.memoryUsage > 85) {score -= 10;}
 
     // Deduct points for low rate limit remaining
-    if (metrics.resourceUsage.rateLimitRemaining < 100) score -= 10;
+    if (metrics.resourceUsage.rateLimitRemaining < 100) {score -= 10;}
 
     return Math.max(0, score);
   }
@@ -453,7 +455,7 @@ export class PerformanceMonitor {
     };
 
     this.alerts.push(alert);
-    console.warn(`Performance Alert [${severity.toUpperCase()}]: ${message}`);
+    logger.warn('performance', `Performance Alert [${severity.toUpperCase()}]: ${message}`);
   }
 
   /**

@@ -163,7 +163,7 @@ export class MonitoringSystem {
   ): TimeSeriesData {
     const matchingMetrics = Array.from(this.metrics.values())
       .filter(metric => {
-        if (metric.name !== metricName) return false;
+        if (metric.name !== metricName) {return false;}
         return Object.entries(labels).every(([key, value]) => metric.labels[key] === value);
       })
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -191,7 +191,7 @@ export class MonitoringSystem {
 
   acknowledgeAlert(alertId: string, userId?: string): boolean {
     const alert = this.activeAlerts.get(alertId);
-    if (!alert) return false;
+    if (!alert) {return false;}
 
     alert.status = AlertStatus.ACKNOWLEDGED;
     alert.acknowledgedAt = new Date();
@@ -205,7 +205,7 @@ export class MonitoringSystem {
 
   resolveAlert(alertId: string): boolean {
     const alert = this.activeAlerts.get(alertId);
-    if (!alert) return false;
+    if (!alert) {return false;}
 
     alert.status = AlertStatus.RESOLVED;
     alert.resolvedAt = new Date();
@@ -339,7 +339,7 @@ export class MonitoringSystem {
 
   endTrace(traceId: string): void {
     const trace = this.traces.get(traceId);
-    if (!trace) return;
+    if (!trace) {return;}
 
     trace.endTime = new Date();
     trace.duration = trace.endTime.getTime() - trace.startTime.getTime();
@@ -356,10 +356,10 @@ export class MonitoringSystem {
     kind: 'client' | 'server' | 'producer' | 'consumer' | 'internal' = 'internal',
     attributes: Record<string, any> = {}
   ): string | undefined {
-    if (!this.currentTraceId) return undefined;
+    if (!this.currentTraceId) {return undefined;}
 
     const trace = this.traces.get(this.currentTraceId);
-    if (!trace) return undefined;
+    if (!trace) {return undefined;}
 
     const span = this.createSpan(this.currentTraceId, name, kind, attributes);
     trace.spans.push(span);
@@ -368,13 +368,13 @@ export class MonitoringSystem {
   }
 
   endSpan(spanId: string): void {
-    if (!this.currentTraceId) return;
+    if (!this.currentTraceId) {return;}
 
     const trace = this.traces.get(this.currentTraceId);
-    if (!trace) return;
+    if (!trace) {return;}
 
     const span = trace.spans.find(s => s.id === spanId);
-    if (!span) return;
+    if (!span) {return;}
 
     span.endTime = new Date();
     span.duration = span.endTime.getTime() - span.startTime.getTime();
@@ -512,7 +512,7 @@ export class MonitoringSystem {
 
   private async evaluateAlertRules(): Promise<void> {
     for (const rule of this.alertRules.values()) {
-      if (!rule.enabled) continue;
+      if (!rule.enabled) {continue;}
 
       try {
         const isTriggered = await this.evaluateAlertCondition(rule.condition);
@@ -608,7 +608,7 @@ export class MonitoringSystem {
         this.recordMetric(
           'health_check_status',
           result.status === HealthStatus.HEALTHY ? 1 : 0,
-          { check_id: check.id, check_name: check.name }
+          { check_id: check.id, __check_name: check.name }
         );
 
         // Create alert if health check is unhealthy

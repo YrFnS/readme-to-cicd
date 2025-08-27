@@ -69,7 +69,7 @@ export class ApprovalWorkflowSystem {
 
   updateUser(userId: string, updates: Partial<User>): boolean {
     const user = this.users.get(userId);
-    if (!user) return false;
+    if (!user) {return false;}
 
     const updatedUser = { ...user, ...updates };
     this.users.set(userId, updatedUser);
@@ -92,15 +92,15 @@ export class ApprovalWorkflowSystem {
     const team = this.teams.get(teamId);
     const user = this.users.get(userId);
 
-    if (!team || !user) return false;
+    if (!team || !user) {return false;}
 
     const existingMember = team.members.find(m => m.userId === userId);
-    if (existingMember) return false;
+    if (existingMember) {return false;}
 
     team.members.push({
       userId,
       role,
-      joinedAt: new Date(),
+      __joinedAt: new Date(),
       permissions: this.getDefaultPermissions(role)
     });
 
@@ -110,10 +110,10 @@ export class ApprovalWorkflowSystem {
 
   removeTeamMember(teamId: string, userId: string): boolean {
     const team = this.teams.get(teamId);
-    if (!team) return false;
+    if (!team) {return false;}
 
     const memberIndex = team.members.findIndex(m => m.userId === userId);
-    if (memberIndex === -1) return false;
+    if (memberIndex === -1) {return false;}
 
     team.members.splice(memberIndex, 1);
     this.logAudit('team_member_removed', teamId, userId, {});
@@ -202,10 +202,10 @@ export class ApprovalWorkflowSystem {
   ): Promise<boolean> {
     try {
       const request = this.approvalRequests.get(requestId);
-      if (!request) return false;
+      if (!request) {return false;}
 
       const assignment = this.findUserAssignment(request, userId);
-      if (!assignment) return false;
+      if (!assignment) {return false;}
 
       // Update assignment
       assignment.status = decision === 'approve' ? 'approved' : 'rejected';
@@ -213,8 +213,8 @@ export class ApprovalWorkflowSystem {
         decision,
         metadata: {}
       };
-      if (comment) response.comment = comment;
-      if (conditions) response.conditions = conditions;
+      if (comment) {response.comment = comment;}
+      if (conditions) {response.conditions = conditions;}
       assignment.response = response;
       assignment.respondedAt = new Date();
 
@@ -252,7 +252,7 @@ export class ApprovalWorkflowSystem {
   ): Promise<boolean> {
     try {
       const request = this.approvalRequests.get(requestId);
-      if (!request) return false;
+      if (!request) {return false;}
 
       const comment: ApprovalComment = {
         id: this.generateId('comment'),
@@ -296,18 +296,18 @@ export class ApprovalWorkflowSystem {
 
   getApplicablePolicies(repository: RepositoryInfo, type: ApprovalType): ApprovalPolicy[] {
     return Array.from(this.approvalPolicies.values()).filter(policy => {
-      if (!policy.enabled || policy.approvalType !== type) return false;
+      if (!policy.enabled || policy.approvalType !== type) {return false;}
 
       // Check repository pattern
       if (policy.repositoryPattern) {
         const regex = new RegExp(policy.repositoryPattern);
-        if (!regex.test(repository.fullName)) return false;
+        if (!regex.test(repository.fullName)) {return false;}
       }
 
       // Check team membership
       if (policy.teamId) {
         const team = this.teams.get(policy.teamId);
-        if (!team || !team.repositories.includes(repository.fullName)) return false;
+        if (!team || !team.repositories.includes(repository.fullName)) {return false;}
       }
 
       return true;
@@ -351,9 +351,9 @@ export class ApprovalWorkflowSystem {
     const now = new Date();
 
     return delegations.filter(delegation => {
-      if (!delegation.isActive) return false;
-      if (delegation.startDate > now) return false;
-      if (delegation.endDate && delegation.endDate < now) return false;
+      if (!delegation.isActive) {return false;}
+      if (delegation.startDate > now) {return false;}
+      if (delegation.endDate && delegation.endDate < now) {return false;}
       return true;
     });
   }
@@ -442,7 +442,7 @@ export class ApprovalWorkflowSystem {
 
   private async assignStepApprovers(request: ApprovalRequest): Promise<void> {
     const currentStep = request.steps[request.currentStep];
-    if (!currentStep) return;
+    if (!currentStep) {return;}
 
     const approvers: ApprovalAssignment[] = [];
 
@@ -464,7 +464,7 @@ export class ApprovalWorkflowSystem {
     // Add team-based approvers
     for (const teamId of currentStep.teamIds) {
       const team = this.teams.get(teamId);
-      if (!team) continue;
+      if (!team) {continue;}
 
       for (const member of team.members) {
         if (member.role === TeamRole.OWNER || member.role === TeamRole.MAINTAINER) {
@@ -483,7 +483,7 @@ export class ApprovalWorkflowSystem {
 
   private isStepComplete(request: ApprovalRequest): boolean {
     const currentStep = request.steps[request.currentStep];
-    if (!currentStep) return true;
+    if (!currentStep) {return true;}
 
     const stepApprovers = request.approvers.filter(a =>
       request.approvers.some(ra => ra.userId === a.userId)
@@ -518,7 +518,7 @@ export class ApprovalWorkflowSystem {
 
   private isUserEligible(user: User, repository: RepositoryInfo): boolean {
     // Check if user is active and has appropriate permissions
-    if (!user.isActive) return false;
+    if (!user.isActive) {return false;}
 
     // Check team membership for repository
     const userTeams = this.getUserTeams(user.id);
@@ -568,7 +568,7 @@ export class ApprovalWorkflowSystem {
       await this.notificationSystem.sendNotification(
         NotificationType.CUSTOM,
         NotificationPriority.MEDIUM,
-        `Approval Decision: ${request.title}`,
+        `Approval __Decision: ${request.title}`,
         `${assignment.response?.decision.toUpperCase()} by user`,
         [{ channel: NotificationChannel.SLACK as const, address: `@${requester.username}` }],
         request.repository,
@@ -583,7 +583,7 @@ export class ApprovalWorkflowSystem {
       await this.notificationSystem.sendNotification(
         NotificationType.CUSTOM,
         NotificationPriority.MEDIUM,
-        `Approval Complete: ${request.title}`,
+        `Approval __Complete: ${request.title}`,
         `Your approval request has been ${request.status.toLowerCase()}`,
         [{ channel: NotificationChannel.SLACK as const, address: `@${requester.username}` }],
         request.repository,
@@ -593,7 +593,6 @@ export class ApprovalWorkflowSystem {
   }
 
   private async notifyStepAdvanced(request: ApprovalRequest): Promise<void> {
-    const newApprovers = request.approvers.map(a => a.userId);
     // Notify new step approvers
     // Implementation would send notifications to new approvers
   }
@@ -620,11 +619,11 @@ export class ApprovalWorkflowSystem {
     // Calculate average response time from audit logs
     const responseLogs = this.auditLogs.filter(log => log.action === 'approval_response');
 
-    if (responseLogs.length === 0) return 0;
+    if (responseLogs.length === 0) {return 0;}
 
     const totalTime = responseLogs.reduce((sum, log) => {
       const request = this.approvalRequests.get(log.requestId);
-      if (!request) return sum;
+      if (!request) {return sum;}
 
       const responseTime = log.timestamp.getTime() - request.createdAt.getTime();
       return sum + responseTime;

@@ -587,8 +587,8 @@ export class ErrorHandler {
   private calculateLevenshteinDistance(str1: string, str2: string): number {
     const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(0));
     
-    for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
-    for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
+    for (let i = 0; i <= str1.length; i++) {matrix[0]![i] = i;}
+    for (let j = 0; j <= str2.length; j++) {matrix[j]![0] = j;}
     
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
@@ -695,7 +695,7 @@ export class ErrorHandler {
    * Detect configuration file format
    */
   private detectConfigFormat(configPath?: string): string | undefined {
-    if (!configPath) return undefined;
+    if (!configPath) {return undefined;}
     
     const ext = path.extname(configPath).toLowerCase();
     switch (ext) {

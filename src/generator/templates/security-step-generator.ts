@@ -624,12 +624,12 @@ export class SecurityStepGenerator {
    * Get package ecosystem for Dependabot
    */
   private getPackageEcosystem(packageManagers: any[]): string {
-    if (packageManagers.some(pm => pm.name === 'npm')) return 'npm';
-    if (packageManagers.some(pm => pm.name === 'pip')) return 'pip';
-    if (packageManagers.some(pm => pm.name === 'maven')) return 'maven';
-    if (packageManagers.some(pm => pm.name === 'gradle')) return 'gradle';
-    if (packageManagers.some(pm => pm.name === 'cargo')) return 'cargo';
-    if (packageManagers.some(pm => pm.name === 'go')) return 'gomod';
+    if (packageManagers.some(pm => pm.name === 'npm')) {return 'npm';}
+    if (packageManagers.some(pm => pm.name === 'pip')) {return 'pip';}
+    if (packageManagers.some(pm => pm.name === 'maven')) {return 'maven';}
+    if (packageManagers.some(pm => pm.name === 'gradle')) {return 'gradle';}
+    if (packageManagers.some(pm => pm.name === 'cargo')) {return 'cargo';}
+    if (packageManagers.some(pm => pm.name === 'go')) {return 'gomod';}
     return 'npm'; // default fallback
   }  
 /**

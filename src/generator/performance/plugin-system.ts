@@ -420,7 +420,7 @@ export class PluginManager {
    * Register hooks for a plugin
    */
   private registerHooks(plugin: Plugin): void {
-    if (!plugin.hooks) return;
+    if (!plugin.hooks) {return;}
 
     for (const [hookType, hookFn] of Object.entries(plugin.hooks)) {
       if (hookFn && this.hookRegistry.has(hookType as keyof PluginHooks)) {
@@ -436,7 +436,7 @@ export class PluginManager {
    * Unregister hooks for a plugin
    */
   private unregisterHooks(plugin: Plugin): void {
-    if (!plugin.hooks) return;
+    if (!plugin.hooks) {return;}
 
     for (const hookType of Object.keys(plugin.hooks)) {
       if (this.hookRegistry.has(hookType as keyof PluginHooks)) {

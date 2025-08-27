@@ -243,9 +243,9 @@ export class FrameworkRegistry {
       for (const reqCustomization of customizations.requirements) {
         const requirement = customizedFramework.requirements.find(r => r.id === reqCustomization.id);
         if (requirement) {
-          if (reqCustomization.title) requirement.title = reqCustomization.title;
-          if (reqCustomization.description) requirement.description = reqCustomization.description;
-          if (reqCustomization.severity) requirement.severity = reqCustomization.severity;
+          if (reqCustomization.title) {requirement.title = reqCustomization.title;}
+          if (reqCustomization.description) {requirement.description = reqCustomization.description;}
+          if (reqCustomization.severity) {requirement.severity = reqCustomization.severity;}
         }
       }
     }
@@ -255,9 +255,9 @@ export class FrameworkRegistry {
       for (const controlCustomization of customizations.controls) {
         const control = customizedFramework.controls.find(c => c.id === controlCustomization.id);
         if (control) {
-          if (controlCustomization.name) control.name = controlCustomization.name;
-          if (controlCustomization.description) control.description = controlCustomization.description;
-          if (controlCustomization.frequency) control.frequency = controlCustomization.frequency;
+          if (controlCustomization.name) {control.name = controlCustomization.name;}
+          if (controlCustomization.description) {control.description = controlCustomization.description;}
+          if (controlCustomization.frequency) {control.frequency = controlCustomization.frequency;}
         }
       }
     }
@@ -288,7 +288,7 @@ export class FrameworkRegistry {
     const intersection = new Set([...controls1].filter(x => controls2.has(x)));
     const union = new Set([...controls1, ...controls2]);
 
-    if (union.size === 0) return 0;
+    if (union.size === 0) {return 0;}
 
     return Math.round((intersection.size / union.size) * 100);
   }

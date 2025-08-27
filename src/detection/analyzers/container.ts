@@ -251,7 +251,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
     const container: ContainerInfo = {
       type: 'docker',
       configFiles: ['Dockerfile'],
-      ...(dockerfileInfo?.baseImage && { baseImages: [dockerfileInfo.baseImage] }),
+      ...(dockerfileInfo?.baseImage && { _baseImages: [dockerfileInfo.baseImage] }),
       ...(dockerfileInfo?.exposedPorts && dockerfileInfo.exposedPorts.length > 0 && { ports: dockerfileInfo.exposedPorts }),
       ...(dockerfileInfo?.volumes && dockerfileInfo.volumes.length > 0 && { volumes: dockerfileInfo.volumes })
     };
@@ -781,7 +781,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
    * Calculate confidence based on evidence
    */
   private calculateEvidenceConfidence(evidence: Evidence[]): number {
-    if (evidence.length === 0) return 0;
+    if (evidence.length === 0) {return 0;}
     
     const totalWeight = evidence.reduce((sum, e) => sum + e.weight, 0);
     const maxPossibleWeight = evidence.length * 1.0; // Assuming max weight is 1.0
@@ -793,7 +793,7 @@ export class ContainerAnalyzer extends BaseLanguageAnalyzer {
    * Calculate overall confidence
    */
   private calculateConfidence(frameworks: FrameworkInfo[]): number {
-    if (frameworks.length === 0) return 0;
+    if (frameworks.length === 0) {return 0;}
     return Math.max(...frameworks.map(f => f.confidence));
   }
 

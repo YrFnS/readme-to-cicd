@@ -290,9 +290,9 @@ export class DeploymentGenerator {
   private getCloudProvider(deploymentTargets: any[]): 'aws' | 'azure' | 'gcp' | undefined {
     for (const target of deploymentTargets) {
       const platform = target.platform.toLowerCase();
-      if (platform.includes('aws')) return 'aws';
-      if (platform.includes('azure')) return 'azure';
-      if (platform.includes('gcp') || platform.includes('google')) return 'gcp';
+      if (platform.includes('aws')) {return 'aws';}
+      if (platform.includes('azure')) {return 'azure';}
+      if (platform.includes('gcp') || platform.includes('google')) {return 'gcp';}
     }
     return undefined;
   }

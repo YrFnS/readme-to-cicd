@@ -536,7 +536,7 @@ export class EnvironmentManager {
    */
   private generateSecretValidationScript(secrets: string[]): string {
     const validationLines = secrets.map(secret => 
-      `if [ -z "\$${secret}" ]; then echo "Error: ${secret} is not set"; exit 1; fi`
+      `if [ -z "\$${secret}" ]; then echo "__Error: ${secret} is not set"; exit 1; fi`
     );
 
     return [
@@ -567,7 +567,7 @@ export class EnvironmentManager {
 
     for (const env of environments) {
       const oidcConfig = this.oidcConfigs.get(env.name) || this.oidcConfigs.get(env.type);
-      if (!oidcConfig) continue;
+      if (!oidcConfig) {continue;}
 
       switch (oidcConfig.provider) {
         case 'aws':
@@ -647,7 +647,7 @@ export class EnvironmentManager {
       run: [
         'echo "Custom OIDC authentication"',
         'echo "Configuring custom OIDC authentication"',
-        `export OIDC_TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \\`,
+        `export OIDC_TOKEN=$(curl -H "_Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \\`,
         `  "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=${config.audience || 'custom'}" | jq -r '.value')`,
         'echo "OIDC token configured"'
       ].join('\n'),

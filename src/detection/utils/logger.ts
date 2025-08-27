@@ -1,3 +1,5 @@
+import { logger } from '../../shared/logging/central-logger';
+
 /**
  * Structured logging system for framework detection
  */
@@ -206,7 +208,7 @@ export class DetectionLogger {
    * Sanitize context to remove sensitive information
    */
   private sanitizeContext(context?: Record<string, any>): Record<string, any> | undefined {
-    if (!context) return undefined;
+    if (!context) {return undefined;}
 
     const sanitized = { ...context };
 
@@ -249,16 +251,16 @@ export class DetectionLogger {
       // Use appropriate console method
       switch (logEntry.level) {
         case 'debug':
-          console.debug(output);
+          logger.debug('FrameworkDetection', output);
           break;
         case 'info':
-          console.info(output);
+          logger.info('FrameworkDetection', output);
           break;
         case 'warn':
-          console.warn(output);
+          logger.warn('FrameworkDetection', output);
           break;
         case 'error':
-          console.error(output);
+          logger.error('FrameworkDetection', output);
           break;
       }
     }
@@ -323,7 +325,7 @@ export async function timeOperation<T>(
 /**
  * Utility function for safe logging of objects
  */
-export function safeStringify(obj: any, maxDepth: number = 3): string {
+export function safeStringify(obj: any, __maxDepth: number = 3): string {
   const seen = new WeakSet();
   
   return JSON.stringify(obj, (key, value) => {

@@ -39,7 +39,7 @@ export interface ResourceUsageData {
 export interface CostOptimizer {
   analyzeResourceUsage(data: ResourceUsageData[]): Promise<OptimizationRecommendation[]>;
   calculatePotentialSavings(recommendations: OptimizationRecommendation[]): Promise<number>;
-  implementRecommendation(recommendationId: string): Promise<void>;
+  implementRecommendation(__recommendationId: string): Promise<void>;
 }
 
 export interface CostStorage {
@@ -168,8 +168,6 @@ export class CostAnalyzer extends EventEmitter {
       const costs = data.map(d => d.cost);
       const current = costs[costs.length - 1] || 0;
       const average = costs.reduce((a, b) => a + b, 0) / costs.length;
-      const total = costs.reduce((a, b) => a + b, 0);
-
       breakdown[resourceType] = {
         current,
         projected: this.projectCost(costs),
@@ -187,7 +185,7 @@ export class CostAnalyzer extends EventEmitter {
    */
   async getCostTrends(
     timeRange: { start: Date; end: Date },
-    interval: 'hour' | 'day' | 'week' | 'month' = 'day'
+    __interval: 'hour' | 'day' | 'week' | 'month' = 'day'
   ): Promise<CostTrendMetrics> {
     return this.storage.getCostTrends(timeRange);
   }
@@ -413,7 +411,7 @@ export class CostAnalyzer extends EventEmitter {
   }
 
   private projectCost(costs: number[]): number {
-    if (costs.length < 2) return costs[0] || 0;
+    if (costs.length < 2) {return costs[0] || 0;}
     
     // Simple linear projection
     const recent = costs.slice(-5); // Use last 5 data points
@@ -422,14 +420,14 @@ export class CostAnalyzer extends EventEmitter {
   }
 
   private calculateTrend(costs: number[]): 'increasing' | 'decreasing' | 'stable' {
-    if (costs.length < 2) return 'stable';
+    if (costs.length < 2) {return 'stable';}
     
     const recent = costs.slice(-5);
     const trend = recent[recent.length - 1] - recent[0];
     const threshold = recent[0] * 0.05; // 5% threshold
     
-    if (trend > threshold) return 'increasing';
-    if (trend < -threshold) return 'decreasing';
+    if (trend > threshold) {return 'increasing';}
+    if (trend < -threshold) {return 'decreasing';}
     return 'stable';
   }
 

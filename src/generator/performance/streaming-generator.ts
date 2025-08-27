@@ -159,7 +159,7 @@ export class StreamingWorkflowGenerator {
     const templates = new Map<string, WorkflowTemplate>();
     for (let i = 0; i < workflowPlan.templates.length; i++) {
       const templateName = workflowPlan.templates[i];
-      if (!templateName) continue;
+      if (!templateName) {continue;}
       
       const template = await this.loadTemplate(templateName, context);
       templates.set(templateName, template);
@@ -285,7 +285,7 @@ export class StreamingWorkflowGenerator {
     
     for (let i = 0; i < workflowTypes.length; i++) {
       const workflowType = workflowTypes[i];
-      if (!workflowType) continue;
+      if (!workflowType) {continue;}
       
       const options: GenerationOptions = {
         workflowType,

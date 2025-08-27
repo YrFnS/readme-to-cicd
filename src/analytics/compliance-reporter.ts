@@ -27,7 +27,7 @@ export interface ComplianceReporterConfig {
 export interface ComplianceEngine {
   assessCompliance(framework: ComplianceFramework): Promise<ComplianceAssessment>;
   validateControls(controls: ComplianceControl[]): Promise<ControlValidationResult[]>;
-  generateEvidence(requirement: ComplianceRequirement): Promise<ComplianceEvidence>;
+  generateEvidence(__requirement: ComplianceRequirement): Promise<ComplianceEvidence>;
 }
 
 export interface ComplianceAssessment {
@@ -158,7 +158,7 @@ export class ComplianceReporter extends EventEmitter {
     outcome: 'success' | 'failure',
     details?: Record<string, any>
   ): Promise<void> {
-    if (!this.config.enableAuditTrail) return;
+    if (!this.config.enableAuditTrail) {return;}
 
     const auditEvent: AuditEvent = {
       id: this.generateAuditEventId(),

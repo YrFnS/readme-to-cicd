@@ -374,7 +374,7 @@ export class EnhancedWorkflowValidator extends WorkflowValidator {
     // Analyze caching opportunities
     jobs.forEach(jobId => {
       const job = workflowObject.jobs[jobId];
-      if (!job.steps) return;
+      if (!job.steps) {return;}
 
       let hasSetupStep = false;
       let hasCacheStep = false;
@@ -470,7 +470,7 @@ export class EnhancedWorkflowValidator extends WorkflowValidator {
     if (workflowObject.jobs) {
       Object.keys(workflowObject.jobs).forEach(jobId => {
         const job = workflowObject.jobs[jobId];
-        if (!job.steps) return;
+        if (!job.steps) {return;}
 
         job.steps.forEach((step: any, stepIndex: number) => {
           if (step.uses) {
@@ -840,16 +840,16 @@ export class EnhancedWorkflowValidator extends WorkflowValidator {
   private estimateStepRuntime(step: any, detectionResult?: DetectionResult): number {
     // Basic runtime estimation based on step type
     if (step.uses) {
-      if (step.uses.includes('setup-')) return 30; // Setup steps
-      if (step.uses.includes('cache')) return 10; // Cache steps
-      if (step.uses.includes('checkout')) return 15; // Checkout
+      if (step.uses.includes('setup-')) {return 30;} // Setup steps
+      if (step.uses.includes('cache')) {return 10;} // Cache steps
+      if (step.uses.includes('checkout')) {return 15;} // Checkout
       return 20; // Other actions
     }
     
     if (step.run) {
-      if (step.run.includes('install') || step.run.includes('npm ci')) return 60;
-      if (step.run.includes('build')) return 120;
-      if (step.run.includes('test')) return 90;
+      if (step.run.includes('install') || step.run.includes('npm ci')) {return 60;}
+      if (step.run.includes('build')) {return 120;}
+      if (step.run.includes('test')) {return 90;}
       return 30; // Other run commands
     }
     
@@ -921,16 +921,16 @@ export class EnhancedWorkflowValidator extends WorkflowValidator {
   }
 
   private categorizeBestPractice(rule: string): string {
-    if (rule.includes('naming')) return 'naming';
-    if (rule.includes('structure')) return 'structure';
-    if (rule.includes('error')) return 'error-handling';
+    if (rule.includes('naming')) {return 'naming';}
+    if (rule.includes('structure')) {return 'structure';}
+    if (rule.includes('error')) {return 'error-handling';}
     return 'general';
   }
 
   private getBestPracticeBenefit(rule: string): string {
-    if (rule.includes('naming')) return 'Improved readability and maintainability';
-    if (rule.includes('structure')) return 'Better workflow organization';
-    if (rule.includes('error')) return 'More robust error handling';
+    if (rule.includes('naming')) {return 'Improved readability and maintainability';}
+    if (rule.includes('structure')) {return 'Better workflow organization';}
+    if (rule.includes('error')) {return 'More robust error handling';}
     return 'General improvement';
   }
 
@@ -951,9 +951,9 @@ export class EnhancedWorkflowValidator extends WorkflowValidator {
   }
 
   private getRunnerAlternatives(runner: string): string[] {
-    if (runner.includes('ubuntu')) return ['ubuntu-latest', 'ubuntu-22.04'];
-    if (runner.includes('windows')) return ['windows-latest', 'windows-2022'];
-    if (runner.includes('macos')) return ['macos-latest', 'macos-12'];
+    if (runner.includes('ubuntu')) {return ['ubuntu-latest', 'ubuntu-22.04'];}
+    if (runner.includes('windows')) {return ['windows-latest', 'windows-2022'];}
+    if (runner.includes('macos')) {return ['macos-latest', 'macos-12'];}
     return ['ubuntu-latest'];
   }
 

@@ -171,7 +171,7 @@ export class AnalyticsEngine {
         NotificationPriority.MEDIUM,
         'Performance Analysis Complete',
         `Performance analysis completed for ${repository.fullName}`,
-        [{ channel: NotificationChannel.SLACK, address: '#analytics' }],
+        [{ channel: NotificationChannel.SLACK, __address: '#analytics' }],
         repository,
         { analysisId }
       );
@@ -477,7 +477,7 @@ export class AnalyticsEngine {
     try {
       const template = this.reportTemplates.get(templateId);
       if (!template) {
-        throw new Error(`Report template not found: ${templateId}`);
+        throw new Error(`Report template not __found: ${templateId}`);
       }
 
       const reportId = this.generateId('report');
@@ -641,7 +641,7 @@ export class AnalyticsEngine {
 
   updateDashboard(dashboardId: string, updates: Partial<DashboardDefinition>): boolean {
     const dashboard = this.dashboards.get(dashboardId);
-    if (!dashboard) return false;
+    if (!dashboard) {return false;}
 
     const updatedDashboard = { ...dashboard, ...updates };
     this.dashboards.set(dashboardId, updatedDashboard);
@@ -775,7 +775,7 @@ export class AnalyticsEngine {
 
     for (let time = currentTime; time <= endTime; time += interval) {
       values.push({
-        timestamp: new Date(time),
+        __timestamp: new Date(time),
         value: Math.random() * 100 + 50 // Mock values between 50-150
       });
     }
@@ -791,7 +791,7 @@ export class AnalyticsEngine {
   private calculateTimeframe(timeframe: AnalyticsTimeframe): { startDate: Date; endDate: Date } {
     const now = new Date();
     const endDate = new Date(now);
-    let startDate = new Date(now);
+    const startDate = new Date(now);
 
     switch (timeframe) {
       case AnalyticsTimeframe.LAST_HOUR:
@@ -837,10 +837,10 @@ export class AnalyticsEngine {
 
   private calculatePercentile(value: number, benchmark: number): number {
     // Simple percentile calculation - in reality this would be more sophisticated
-    if (value <= benchmark * 0.5) return 25;
-    if (value <= benchmark * 0.8) return 50;
-    if (value <= benchmark * 0.95) return 75;
-    if (value <= benchmark * 1.1) return 90;
+    if (value <= benchmark * 0.5) {return 25;}
+    if (value <= benchmark * 0.8) {return 50;}
+    if (value <= benchmark * 0.95) {return 75;}
+    if (value <= benchmark * 1.1) {return 90;}
     return 95;
   }
 

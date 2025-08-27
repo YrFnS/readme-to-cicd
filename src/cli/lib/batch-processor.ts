@@ -843,33 +843,33 @@ export class BatchProcessor {
     let complexityScore = 0;
 
     // Package managers and build tools
-    if (entries.has('package.json')) complexityScore += 2;
-    if (entries.has('yarn.lock') || entries.has('package-lock.json')) complexityScore += 1;
-    if (entries.has('Dockerfile')) complexityScore += 2;
-    if (entries.has('docker-compose.yml')) complexityScore += 2;
-    if (entries.has('Makefile')) complexityScore += 1;
-    if (entries.has('CMakeLists.txt')) complexityScore += 2;
-    if (entries.has('pom.xml') || entries.has('build.gradle')) complexityScore += 2;
-    if (entries.has('Cargo.toml')) complexityScore += 2;
-    if (entries.has('go.mod')) complexityScore += 1;
-    if (entries.has('requirements.txt') || entries.has('setup.py') || entries.has('pyproject.toml')) complexityScore += 1;
+    if (entries.has('package.json')) {complexityScore += 2;}
+    if (entries.has('yarn.lock') || entries.has('package-lock.json')) {complexityScore += 1;}
+    if (entries.has('Dockerfile')) {complexityScore += 2;}
+    if (entries.has('docker-compose.yml')) {complexityScore += 2;}
+    if (entries.has('Makefile')) {complexityScore += 1;}
+    if (entries.has('CMakeLists.txt')) {complexityScore += 2;}
+    if (entries.has('pom.xml') || entries.has('build.gradle')) {complexityScore += 2;}
+    if (entries.has('Cargo.toml')) {complexityScore += 2;}
+    if (entries.has('go.mod')) {complexityScore += 1;}
+    if (entries.has('requirements.txt') || entries.has('setup.py') || entries.has('pyproject.toml')) {complexityScore += 1;}
 
     // Configuration files
-    if (entries.has('tsconfig.json')) complexityScore += 1;
-    if (entries.has('webpack.config.js') || entries.has('vite.config.js')) complexityScore += 2;
-    if (entries.has('.eslintrc.json') || entries.has('.eslintrc.js')) complexityScore += 1;
+    if (entries.has('tsconfig.json')) {complexityScore += 1;}
+    if (entries.has('webpack.config.js') || entries.has('vite.config.js')) {complexityScore += 2;}
+    if (entries.has('.eslintrc.json') || entries.has('.eslintrc.js')) {complexityScore += 1;}
 
     // Source directories
-    if (entries.has('src')) complexityScore += 1;
-    if (entries.has('lib')) complexityScore += 1;
-    if (entries.has('test') || entries.has('tests')) complexityScore += 1;
+    if (entries.has('src')) {complexityScore += 1;}
+    if (entries.has('lib')) {complexityScore += 1;}
+    if (entries.has('test') || entries.has('tests')) {complexityScore += 1;}
 
     // CI/CD files
-    if (entries.has('.github')) complexityScore += 1;
-    if (entries.has('.gitlab-ci.yml')) complexityScore += 1;
+    if (entries.has('.github')) {complexityScore += 1;}
+    if (entries.has('.gitlab-ci.yml')) {complexityScore += 1;}
 
-    if (complexityScore >= 8) return 'high';
-    if (complexityScore >= 4) return 'medium';
+    if (complexityScore >= 8) {return 'high';}
+    if (complexityScore >= 4) {return 'medium';}
     return 'low';
   }
 

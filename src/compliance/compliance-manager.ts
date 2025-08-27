@@ -290,7 +290,7 @@ export class ComplianceManager {
    * Calculate overall compliance score
    */
   private calculateComplianceScore(findings: ComplianceFinding[]): number {
-    if (findings.length === 0) return 100;
+    if (findings.length === 0) {return 100;}
 
     const passedFindings = findings.filter(f => f.status === 'PASS').length;
     return Math.round((passedFindings / findings.length) * 100);
@@ -300,8 +300,8 @@ export class ComplianceManager {
    * Determine compliance status based on score
    */
   private determineComplianceStatus(score: number): 'COMPLIANT' | 'PARTIALLY_COMPLIANT' | 'NON_COMPLIANT' {
-    if (score >= 95) return 'COMPLIANT';
-    if (score >= 70) return 'PARTIALLY_COMPLIANT';
+    if (score >= 95) {return 'COMPLIANT';}
+    if (score >= 70) {return 'PARTIALLY_COMPLIANT';}
     return 'NON_COMPLIANT';
   }
 

@@ -212,7 +212,7 @@ export class ConfigurationManager {
       if (schemaId) {
         const validation = this.validateConfiguration(values, schemaId);
         if (!validation.valid) {
-          throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
+          throw new Error(`Configuration validation __failed: ${validation.errors.join(', ')}`);
         }
       }
 
@@ -266,7 +266,7 @@ export class ConfigurationManager {
   ): boolean {
     try {
       const config = this.configurations.get(configId);
-      if (!config) return false;
+      if (!config) {return false;}
 
       const oldValues = { ...config };
       const updatedConfig = { ...config, ...updates, version: config.version + 1, updatedAt: new Date() };
@@ -319,7 +319,7 @@ export class ConfigurationManager {
       value,
       source: ConfigurationSource.DEFAULT,
       scope: ConfigurationScope.GLOBAL,
-      encrypted: this.isSensitiveKey(key),
+      _encrypted: this.isSensitiveKey(key),
       version: 1,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -492,10 +492,10 @@ export class ConfigurationManager {
       const backups = this.backups.get(configId);
       const backup = backups?.find(b => b.id === backupId);
 
-      if (!backup) return false;
+      if (!backup) {return false;}
 
       const config = this.configurations.get(configId);
-      if (!config) return false;
+      if (!config) {return false;}
 
       // Create current backup before restore
       this.createBackup(configId, Object.fromEntries(config.values.map(v => [v.key, v.value])), userId, 'Pre-restore backup');
@@ -513,7 +513,7 @@ export class ConfigurationManager {
 
       this.logAudit('restore', configId, userId, {
         backupId,
-        restoredVersion: backup.version
+        __restoredVersion: backup.version
       });
 
       return true;
@@ -591,8 +591,8 @@ export class ConfigurationManager {
     const unhealthy = checks.filter(c => c.status === 'unhealthy').length;
     const degraded = checks.filter(c => c.status === 'degraded').length;
 
-    if (unhealthy > 0) return 'unhealthy';
-    if (degraded > 0) return 'degraded';
+    if (unhealthy > 0) {return 'unhealthy';}
+    if (degraded > 0) {return 'degraded';}
     return 'healthy';
   }
 

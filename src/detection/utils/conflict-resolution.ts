@@ -101,7 +101,7 @@ export class ConflictResolver {
     conflicts: DetectionConflict[], 
     context: ResolutionContext
   ): { resolvedContext: ResolutionContext; warnings: string[] } {
-    let resolvedContext = { ...context };
+    const resolvedContext = { ...context };
     const warnings: string[] = [];
 
     for (const conflict of conflicts) {
@@ -503,9 +503,6 @@ export class ConflictResolver {
     const contradictions: Evidence[] = [];
     
     // Look for evidence that suggests different frameworks for same type
-    const frameworkEvidence = evidenceList.filter(e => 
-      e.type === 'dependency' || e.type === 'config_file');
-    
     // This is a simplified implementation - real contradiction detection would be more sophisticated
     return contradictions;
   }
@@ -523,8 +520,8 @@ export class ConflictResolver {
       const v1Part = v1Parts[i] || 0;
       const v2Part = v2Parts[i] || 0;
       
-      if (v1Part > v2Part) return 1;
-      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) {return 1;}
+      if (v1Part < v2Part) {return -1;}
     }
     
     return 0;

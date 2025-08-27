@@ -36,8 +36,6 @@ export class RiskManager {
       risk.riskScore = riskScore;
 
       // Determine risk level
-      const riskLevel = this.determineRiskLevel(riskScore);
-
       // Generate mitigation strategies if not provided
       if (!risk.mitigation || risk.mitigation.length === 0) {
         risk.mitigation = await this.generateMitigationStrategies(risk);
@@ -283,10 +281,10 @@ export class RiskManager {
    * Determine risk level based on score
    */
   private determineRiskLevel(score: number): 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH' {
-    if (score >= 20) return 'VERY_HIGH';
-    if (score >= 15) return 'HIGH';
-    if (score >= 10) return 'MEDIUM';
-    if (score >= 5) return 'LOW';
+    if (score >= 20) {return 'VERY_HIGH';}
+    if (score >= 15) {return 'HIGH';}
+    if (score >= 10) {return 'MEDIUM';}
+    if (score >= 5) {return 'LOW';}
     return 'VERY_LOW';
   }
 
@@ -513,7 +511,7 @@ export class RiskManager {
    * Calculate overall mitigation progress
    */
   private calculateMitigationProgress(risks: RiskAssessment[]): number {
-    if (risks.length === 0) return 100;
+    if (risks.length === 0) {return 100;}
     
     const totalProgress = risks.reduce((sum, risk) => {
       return sum + this.calculateMitigationProgressForRisk(risk);

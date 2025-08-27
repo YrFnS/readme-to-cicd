@@ -207,10 +207,10 @@ export class RuleManager {
     const suggestions: string[] = [];
 
     // Basic validation
-    if (!rule.name) errors.push('Rule name is required');
-    if (!rule.triggers.length) errors.push('At least one trigger is required');
-    if (!rule.conditions.length) errors.push('At least one condition is required');
-    if (!rule.actions.length) errors.push('At least one action is required');
+    if (!rule.name) {errors.push('Rule name is required');}
+    if (!rule.triggers.length) {errors.push('At least one trigger is required');}
+    if (!rule.conditions.length) {errors.push('At least one condition is required');}
+    if (!rule.actions.length) {errors.push('At least one action is required');}
 
     // Priority validation
     if (rule.priority < 1 || rule.priority > 10) {
@@ -271,7 +271,7 @@ export class RuleManager {
    * Get alerts
    */
   getAlerts(severity?: 'low' | 'medium' | 'high' | 'critical'): RuleAlert[] {
-    if (!severity) return this.alerts;
+    if (!severity) {return this.alerts;}
     return this.alerts.filter(alert => alert.severity === severity);
   }
 
@@ -306,7 +306,7 @@ export class RuleManager {
       falsePositives: 0,
       truePositives: 0,
       precision: 0,
-      recall: 0
+      __recall: 0
     });
   }
 
@@ -333,7 +333,7 @@ export class RuleManager {
 
   private updateRuleMetrics(ruleId: string, history: RuleExecutionHistory): void {
     const metrics = this.ruleMetrics.get(ruleId);
-    if (!metrics) return;
+    if (!metrics) {return;}
 
     metrics.executions++;
     if (history.success) {
@@ -426,7 +426,7 @@ export class RuleManager {
 
   private async createConflictAlert(conflict: RuleConflict): Promise<void> {
     const firstRule = conflict.conflictingRules[0];
-    if (!firstRule) return;
+    if (!firstRule) {return;}
 
     const alert: RuleAlert = {
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

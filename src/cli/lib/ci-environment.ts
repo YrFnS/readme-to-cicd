@@ -148,10 +148,10 @@ export class CIEnvironmentDetector implements CIEnvironment {
       environmentVariables: this.filterCIVariables(this.environmentVariables)
     };
     
-    if (buildId) info.buildId = buildId;
-    if (branchName) info.branchName = branchName;
-    if (commitSha) info.commitSha = commitSha;
-    if (pullRequestNumber) info.pullRequestNumber = pullRequestNumber;
+    if (buildId) {info.buildId = buildId;}
+    if (branchName) {info.branchName = branchName;}
+    if (commitSha) {info.commitSha = commitSha;}
+    if (pullRequestNumber) {info.pullRequestNumber = pullRequestNumber;}
     
     return info;
   }

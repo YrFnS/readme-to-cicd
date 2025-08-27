@@ -119,7 +119,7 @@ export class ProgressManager {
    * Update current step progress
    */
   updateStep(message: string, details?: string): void {
-    if (!this.currentStep) return;
+    if (!this.currentStep) {return;}
 
     const step = this.steps.get(this.currentStep);
     if (step) {
@@ -143,7 +143,7 @@ export class ProgressManager {
    */
   completeStep(id: string, status: 'success' | 'error' | 'skipped', error?: CLIError): void {
     const step = this.steps.get(id);
-    if (!step) return;
+    if (!step) {return;}
 
     step.status = status;
     step.endTime = new Date();
@@ -201,7 +201,7 @@ export class ProgressManager {
    * Implements requirement 3.3: Summary display with generated files and execution statistics
    */
   info(message: string, details?: string): void {
-    if (this.options.quiet) return;
+    if (this.options.quiet) {return;}
 
     const timestamp = this.options.showTimestamps ? chalk.gray(`[${this.formatTimestamp(new Date())}]`) : '';
     console.log(`${timestamp} ${chalk.blue('ℹ')} ${message}`);
@@ -215,7 +215,7 @@ export class ProgressManager {
    * Log warning message
    */
   warn(message: string, details?: string): void {
-    if (this.options.quiet) return;
+    if (this.options.quiet) {return;}
 
     const timestamp = this.options.showTimestamps ? chalk.gray(`[${this.formatTimestamp(new Date())}]`) : '';
     console.log(`${timestamp} ${chalk.yellow('⚠')} ${message}`);
@@ -254,7 +254,7 @@ export class ProgressManager {
    * Implements requirement 3.4: Verbose and debug output modes with detailed information
    */
   debug(message: string, data?: any): void {
-    if (!this.options.debug) return;
+    if (!this.options.debug) {return;}
 
     const timestamp = this.formatTimestamp(new Date());
     console.log(chalk.gray(`[DEBUG ${timestamp}] ${message}`));
@@ -269,7 +269,7 @@ export class ProgressManager {
    * Implements requirement 3.5: Summary display with generated files and execution statistics
    */
   displaySummary(summary: ExecutionSummary, generatedFiles: string[] = []): void {
-    if (this.options.quiet) return;
+    if (this.options.quiet) {return;}
 
     const endTime = new Date();
     const totalDuration = endTime.getTime() - this.startTime.getTime();

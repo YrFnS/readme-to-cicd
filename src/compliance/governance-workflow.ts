@@ -235,13 +235,13 @@ export class GovernanceWorkflowManager {
     const pendingApprovals: WorkflowPendingApproval[] = [];
 
     for (const instance of this.activeInstances.values()) {
-      if (instance.status !== 'ACTIVE') continue;
+      if (instance.status !== 'ACTIVE') {continue;}
 
       const workflow = this.workflows.get(instance.workflowId);
-      if (!workflow) continue;
+      if (!workflow) {continue;}
 
       const currentStep = workflow.steps[instance.currentStep];
-      if (!currentStep) continue;
+      if (!currentStep) {continue;}
 
       // Check if user is assigned to current step
       if (currentStep.assignee === userId || 
@@ -338,7 +338,7 @@ export class GovernanceWorkflowManager {
    */
   private async processNextStep(instance: WorkflowInstance): Promise<void> {
     const workflow = this.workflows.get(instance.workflowId);
-    if (!workflow) return;
+    if (!workflow) {return;}
 
     const currentStep = workflow.steps[instance.currentStep];
     if (!currentStep) {
@@ -379,7 +379,7 @@ export class GovernanceWorkflowManager {
     actor: string
   ): Promise<void> {
     const workflow = this.workflows.get(instance.workflowId);
-    if (!workflow) return;
+    if (!workflow) {return;}
 
     const currentStep = workflow.steps[instance.currentStep];
     const stepInstance = instance.steps[instance.currentStep];
@@ -413,7 +413,7 @@ export class GovernanceWorkflowManager {
     actor: string
   ): Promise<void> {
     const workflow = this.workflows.get(instance.workflowId);
-    if (!workflow) return;
+    if (!workflow) {return;}
 
     const currentStep = workflow.steps[instance.currentStep];
     const stepInstance = instance.steps[instance.currentStep];
@@ -469,7 +469,7 @@ export class GovernanceWorkflowManager {
     actor: string
   ): Promise<void> {
     const workflow = this.workflows.get(instance.workflowId);
-    if (!workflow) return;
+    if (!workflow) {return;}
 
     // Find escalation approvers
     const escalationApprovers = workflow.approvers.filter(a => a.role === 'ESCALATION');
@@ -664,7 +664,7 @@ export class GovernanceWorkflowManager {
     data: any
   ): Promise<void> {
     const workflow = this.workflows.get(instance.workflowId);
-    if (!workflow) return;
+    if (!workflow) {return;}
 
     for (const notification of workflow.notifications) {
       await this.notificationService.send({

@@ -79,7 +79,7 @@ export class ResultAggregator {
         type: 'conflict',
         message: `${conflictCount} framework conflicts resolved by confidence score`,
         affected: ['frameworks'],
-        resolution: 'Review detection results and verify framework choices'
+        __resolution: 'Review detection results and verify framework choices'
       });
     }
     
@@ -90,7 +90,7 @@ export class ResultAggregator {
    * Calculate aggregated confidence score
    */
   calculateAggregatedConfidence(results: LanguageDetectionResult[]): number {
-    if (results.length === 0) return 0;
+    if (results.length === 0) {return 0;}
     
     const totalConfidence = results.reduce((sum, result) => sum + result.confidence, 0);
     return totalConfidence / results.length;

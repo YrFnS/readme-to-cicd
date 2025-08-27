@@ -186,8 +186,8 @@ export class RustWorkflowGenerator {
     
     // Check version string for channel indicators
     if (rustVersion) {
-      if (rustVersion.includes('nightly')) return 'nightly';
-      if (rustVersion.includes('beta')) return 'beta';
+      if (rustVersion.includes('nightly')) {return 'nightly';}
+      if (rustVersion.includes('beta')) {return 'beta';}
     }
     
     // Default to stable

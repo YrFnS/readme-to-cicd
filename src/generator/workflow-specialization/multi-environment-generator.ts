@@ -1369,7 +1369,7 @@ export class MultiEnvironmentGenerator {
    */
   private convertDurationToSeconds(duration: string): string {
     const match = duration.match(/^(\d+)([smh])$/);
-    if (!match) return '60'; // Default to 60 seconds
+    if (!match) {return '60';} // Default to 60 seconds
 
     const value = parseInt(match[1] || '60', 10);
     const unit = match[2];

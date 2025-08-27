@@ -836,8 +836,8 @@ export class ConfigExporter {
       const aVal = a[i] || 0;
       const bVal = b[i] || 0;
       
-      if (aVal < bVal) return -1;
-      if (aVal > bVal) return 1;
+      if (aVal < bVal) {return -1;}
+      if (aVal > bVal) {return 1;}
     }
     
     return 0;

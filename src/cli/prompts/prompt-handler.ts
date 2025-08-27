@@ -625,8 +625,8 @@ export class PromptHandler {
    * Get color for confidence level
    */
   private getConfidenceColor(confidence: number): (text: string) => string {
-    if (confidence >= 90) return chalk.green;
-    if (confidence >= 70) return chalk.yellow;
+    if (confidence >= 90) {return chalk.green;}
+    if (confidence >= 70) {return chalk.yellow;}
     return chalk.red;
   }
 

@@ -162,10 +162,10 @@ export class HelpSystem {
       sections.push('Options:');
       help.options.forEach(option => {
         let optionLine = `  ${option.flag}`;
-        if (option.type) optionLine += ` <${option.type}>`;
+        if (option.type) {optionLine += ` <${option.type}>`;}
         optionLine += `  ${option.description}`;
-        if (option.default) optionLine += ` (default: ${option.default})`;
-        if (option.required) optionLine += ' [required]';
+        if (option.default) {optionLine += ` (default: ${option.default})`;}
+        if (option.required) {optionLine += ' [required]';}
         sections.push(optionLine);
         
         if (option.examples && option.examples.length > 0) {

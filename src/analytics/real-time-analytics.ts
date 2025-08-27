@@ -421,7 +421,7 @@ export class RealTimeAnalytics extends EventEmitter {
   }
 
   private async processBatch(): Promise<void> {
-    if (this.eventBuffer.length === 0) return;
+    if (this.eventBuffer.length === 0) {return;}
 
     const batch = this.eventBuffer.splice(0, this.config.bufferSize);
     
@@ -471,7 +471,7 @@ export class RealTimeAnalytics extends EventEmitter {
 
   private async evaluateAlerts(): Promise<void> {
     for (const [alertId, rule] of this.alertRules) {
-      if (!rule.enabled) continue;
+      if (!rule.enabled) {continue;}
 
       try {
         const shouldTrigger = await this.shouldTriggerAlert(rule);
@@ -502,7 +502,7 @@ export class RealTimeAnalytics extends EventEmitter {
 
   private async handleAlertTrigger(trigger: AlertTrigger): Promise<void> {
     const rule = this.alertRules.get(trigger.ruleId);
-    if (!rule) return;
+    if (!rule) {return;}
 
     // Execute alert actions
     for (const action of rule.actions) {

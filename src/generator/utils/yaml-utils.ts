@@ -45,7 +45,7 @@ export class YAMLUtils {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (!line) continue; // Handle undefined case
+      if (!line) {continue;} // Handle undefined case
       
       const trimmedLine = line.trim();
       
@@ -54,7 +54,7 @@ export class YAMLUtils {
       // Only add blank lines after top-level keys if the next line is not empty and not indented
       if (i < lines.length - 1) {
         const nextLine = lines[i + 1];
-        if (!nextLine) continue; // Handle undefined case
+        if (!nextLine) {continue;} // Handle undefined case
         
         const nextTrimmed = nextLine.trim();
         
@@ -111,7 +111,7 @@ export class YAMLUtils {
       const lines = yamlContent.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (!line) continue; // Handle undefined case
+        if (!line) {continue;} // Handle undefined case
         if (line.trim() && !line.match(/^\s*(#|[\w-]+\s*:|[\w-]+\s*:\s*.+|-\s*.+|\s*.+)$/)) {
           return {
             isValid: false,
@@ -328,7 +328,7 @@ export class YAMLUtils {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (!line) continue;
+      if (!line) {continue;}
       const commentMatch = line.match(/^\s*#\s*(.+)$/);
       
       if (commentMatch && commentMatch[1]) {
@@ -351,7 +351,7 @@ export class YAMLUtils {
 
     for (let i = 0; i < transformedLines.length; i++) {
       const line = transformedLines[i];
-      if (!line) continue;
+      if (!line) {continue;}
       
       // Check if there's a comment for this line in the original
       const originalLineNumber = i + 1 + commentOffset;

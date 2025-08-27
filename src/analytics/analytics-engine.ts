@@ -35,8 +35,8 @@ export interface AnalyticsEngineConfig {
 export interface AnalyticsStorage {
   store(events: AnalyticsEvent[]): Promise<void>;
   query(query: AnalyticsQuery): Promise<AnalyticsEvent[]>;
-  aggregate(aggregation: AnalyticsAggregation): Promise<any>;
-  cleanup(olderThan: Date): Promise<void>;
+  aggregate(__aggregation: AnalyticsAggregation): Promise<any>;
+  cleanup(__olderThan: Date): Promise<void>;
 }
 
 export interface AnalyticsQuery {
@@ -105,7 +105,7 @@ export class AnalyticsEngine extends EventEmitter {
     sessionId?: string,
     data?: Record<string, any>
   ): Promise<void> {
-    if (!this.config.enableUsageTracking) return;
+    if (!this.config.enableUsageTracking) {return;}
 
     await this.trackEvent({
       type: 'user_action',
@@ -128,7 +128,7 @@ export class AnalyticsEngine extends EventEmitter {
     sessionId?: string,
     metadata?: Record<string, any>
   ): Promise<void> {
-    if (!this.config.enableUsageTracking) return;
+    if (!this.config.enableUsageTracking) {return;}
 
     await this.trackEvent({
       type: 'user_action',
@@ -151,7 +151,7 @@ export class AnalyticsEngine extends EventEmitter {
     component: string,
     metadata?: Record<string, any>
   ): Promise<void> {
-    if (!this.config.enablePerformanceTracking) return;
+    if (!this.config.enablePerformanceTracking) {return;}
 
     await this.trackEvent({
       type: 'performance_metric',
@@ -173,7 +173,7 @@ export class AnalyticsEngine extends EventEmitter {
     category: string,
     metadata?: Record<string, any>
   ): Promise<void> {
-    if (!this.config.enableBusinessTracking) return;
+    if (!this.config.enableBusinessTracking) {return;}
 
     await this.trackEvent({
       type: 'business_metric',
@@ -243,7 +243,7 @@ export class AnalyticsEngine extends EventEmitter {
    * Flush buffered events to storage
    */
   async flush(): Promise<void> {
-    if (this.eventBuffer.length === 0) return;
+    if (this.eventBuffer.length === 0) {return;}
 
     const events = [...this.eventBuffer];
     this.eventBuffer = [];
@@ -290,7 +290,7 @@ export class AnalyticsEngine extends EventEmitter {
   }
 
   private anonymizeUserId(userId?: string): string | undefined {
-    if (!userId) return undefined;
+    if (!userId) {return undefined;}
     // Simple hash-based anonymization
     return `anon_${this.simpleHash(userId)}`;
   }
@@ -391,7 +391,7 @@ export class AnalyticsEngine extends EventEmitter {
     });
 
     const sessionDurations = Array.from(sessions.values()).map(sessionEvents => {
-      if (sessionEvents.length < 2) return 0;
+      if (sessionEvents.length < 2) {return 0;}
       const start = Math.min(...sessionEvents.map(e => e.timestamp.getTime()));
       const end = Math.max(...sessionEvents.map(e => e.timestamp.getTime()));
       return end - start;
