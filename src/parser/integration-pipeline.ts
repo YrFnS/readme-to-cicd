@@ -1558,6 +1558,13 @@ export class IntegrationPipeline {
   }
 
   /**
+   * Clear all registered analyzers (for testing)
+   */
+  public clearAnalyzers(): void {
+    this.clearCustomAnalyzers();
+  }
+
+  /**
    * Cleanup method for proper resource disposal
    */
   cleanup(): void {

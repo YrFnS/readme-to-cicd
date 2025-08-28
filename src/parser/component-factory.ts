@@ -161,7 +161,7 @@ export class ComponentFactory {
     const dependencies = this.createDependencies();
     
     // Create parser with enhanced configuration
-    const parser = new ReadmeParserImpl({
+    const parser = new ReadmeParserImpl(undefined, {
       enableCaching: this.config.enableCaching ?? true,
       enablePerformanceMonitoring: this.config.enablePerformanceMonitoring ?? true
     });

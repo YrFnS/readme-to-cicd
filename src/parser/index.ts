@@ -36,7 +36,7 @@ export { ResultAggregator } from './utils/result-aggregator';
 import { ReadmeParserImpl } from './readme-parser';
 
 // Import IntegrationPipeline for factory functions
-import { IntegrationPipeline } from '../integration/integration-pipeline';
+import { IntegrationPipeline } from './integration-pipeline';
 
 /**
  * Create a new README parser instance

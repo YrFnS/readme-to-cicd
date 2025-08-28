@@ -252,7 +252,7 @@ export type ErrorSeverity = 'error' | 'warning' | 'info';
 // Analyzer interface for modular analysis
 export interface ContentAnalyzer {
   readonly name: string;
-  analyze(ast: Token[], rawContent: string): Promise<AnalysisResult>;
+  analyze(ast: Token[], rawContent: string, context?: import('../../shared/types/analysis-context').AnalysisContext): Promise<AnalysisResult>;
 }
 
 export interface AnalysisResult {

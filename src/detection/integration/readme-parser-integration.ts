@@ -96,7 +96,7 @@ export class ReadmeParserIntegration {
       ...config
     };
 
-    this.readmeParser = new ReadmeParserImpl({
+    this.readmeParser = new ReadmeParserImpl(undefined, {
       enableCaching: true,
       enablePerformanceMonitoring: true,
       useIntegrationPipeline: true

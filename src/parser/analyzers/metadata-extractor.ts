@@ -1,16 +1,25 @@
 import { ContentAnalyzer, AnalysisResult, ProjectMetadata, MarkdownAST, EnvironmentVariable } from '../types';
+import { AnalysisContext } from '../../shared/types/analysis-context';
+import { ContextAwareAnalyzer } from './context-aware-analyzer';
 import { MarkdownUtils } from '../../shared/markdown-parser';
 
 /**
- * Extracts project metadata from README content
+ * Extracts project metadata from README content with context sharing capabilities
  */
-export class MetadataExtractor implements ContentAnalyzer {
+export class MetadataExtractor extends ContextAwareAnalyzer {
   readonly name = 'MetadataExtractor';
 
-  async analyze(ast: MarkdownAST, rawContent: string): Promise<AnalysisResult> {
+  protected async performAnalysis(
+    ast: MarkdownAST, 
+    rawContent: string, 
+    context?: AnalysisContext
+  ): Promise<AnalysisResult> {
     try {
-      const metadata = this.extractMetadata(ast, rawContent);
-      const confidence = this.calculateConfidence(metadata, rawContent);
+      // Get context information to enhance metadata extraction
+      const contextInfo = this.getContextInfo(context);
+      
+      const metadata = this.extractMetadata(ast, rawContent, contextInfo);
+      const confidence = this.calculateConfidence(metadata, rawContent, contextInfo);
       
       const sources = ['title-extraction', 'description-extraction'];
       if (metadata.structure) {
@@ -18,6 +27,11 @@ export class MetadataExtractor implements ContentAnalyzer {
       }
       if (metadata.environment) {
         sources.push('environment-detection');
+      }
+      
+      // Share metadata results with context
+      if (context) {
+        this.shareMetadataResults(context, metadata);
       }
 
       return {
@@ -39,8 +53,89 @@ export class MetadataExtractor implements ContentAnalyzer {
       };
     }
   }
+  
+  /**
+   * Get context information to enhance metadata extraction
+   */
+  private getContextInfo(context?: AnalysisContext): {
+    languages: string[];
+    dependencies: any[];
+    commands: any[];
+  } {
+    const info = {
+      languages: [] as string[],
+      dependencies: [] as any[],
+      commands: [] as any[]
+    };
+    
+    if (!context) return info;
+    
+    try {
+      // Get language information
+      const languageContexts = this.getLanguageContexts(context);
+      info.languages = languageContexts.map(lc => lc.language);
+      
+      // Get dependency information
+      const dependencyData = this.getSharedData(context, 'extracted_dependencies');
+      if (dependencyData && typeof dependencyData === 'object') {
+        info.dependencies = [
+          ...((dependencyData as any).dependencies || []),
+          ...((dependencyData as any).packages || [])
+        ];
+      }
+      
+      // Get command information
+      const commandData = this.getSharedData(context, 'extracted_commands');
+      if (commandData && typeof commandData === 'object') {
+        info.commands = [
+          ...((commandData as any).build || []),
+          ...((commandData as any).test || []),
+          ...((commandData as any).run || []),
+          ...((commandData as any).install || [])
+        ];
+      }
+      
+      console.log(`✅ [${this.name}] Using context info - Languages: ${info.languages.length}, Dependencies: ${info.dependencies.length}, Commands: ${info.commands.length}`);
+      
+    } catch (error) {
+      console.warn(`⚠️ [${this.name}] Failed to get context info:`, error);
+    }
+    
+    return info;
+  }
+  
+  /**
+   * Share metadata results with analysis context
+   */
+  private shareMetadataResults(context: AnalysisContext, metadata: ProjectMetadata): void {
+    try {
+      // Store metadata in shared data
+      this.setSharedData(context, 'extracted_metadata', metadata);
+      
+      // Create project summary for other analyzers
+      const projectSummary = {
+        name: metadata.name,
+        description: metadata.description,
+        hasStructure: !!(metadata.structure && metadata.structure.length > 0),
+        hasEnvironmentVars: !!(metadata.environment && metadata.environment.length > 0),
+        structureCount: metadata.structure?.length || 0,
+        envVarCount: metadata.environment?.length || 0
+      };
+      
+      this.setSharedData(context, 'project_summary', projectSummary);
+      
+      console.log(`✅ [${this.name}] Shared metadata results for project: ${metadata.name}`);
+      
+    } catch (error) {
+      console.warn(`⚠️ [${this.name}] Failed to share metadata results:`, error);
+    }
+  }
 
-  private extractMetadata(ast: MarkdownAST, content: string): ProjectMetadata {
+  private extractMetadata(
+    ast: MarkdownAST, 
+    content: string, 
+    contextInfo?: { languages: string[]; dependencies: any[]; commands: any[] }
+  ): ProjectMetadata {
     const projectName = this.extractProjectName(ast, content);
     const metadata: ProjectMetadata = {
       name: projectName || 'Project' // Always provide a fallback name
@@ -58,8 +153,8 @@ export class MetadataExtractor implements ContentAnalyzer {
       metadata.structure = structure;
     }
 
-    // Extract environment variables
-    const environment = this.extractEnvironmentVariables(ast, content);
+    // Extract environment variables (enhanced with context)
+    const environment = this.extractEnvironmentVariables(ast, content, contextInfo);
     if (environment && environment.length > 0) {
       metadata.environment = environment;
     }
@@ -224,7 +319,11 @@ export class MetadataExtractor implements ContentAnalyzer {
     return structure.length > 0 ? [...new Set(structure)] : undefined;
   }
 
-  private extractEnvironmentVariables(ast: MarkdownAST, content: string): EnvironmentVariable[] | undefined {
+  private extractEnvironmentVariables(
+    ast: MarkdownAST, 
+    content: string, 
+    contextInfo?: { languages: string[]; dependencies: any[]; commands: any[] }
+  ): EnvironmentVariable[] | undefined {
     const envVars: EnvironmentVariable[] = [];
 
     // Look for environment variable patterns with default values
@@ -295,7 +394,109 @@ export class MetadataExtractor implements ContentAnalyzer {
       }
     }
 
+    // Enhance with context-based environment variables
+    if (contextInfo) {
+      this.enhanceEnvVarsWithContext(envVars, contextInfo);
+    }
+    
     return envVars.length > 0 ? envVars : undefined;
+  }
+  
+  /**
+   * Enhance environment variables with context information
+   */
+  private enhanceEnvVarsWithContext(
+    envVars: EnvironmentVariable[], 
+    contextInfo: { languages: string[]; dependencies: any[]; commands: any[] }
+  ): void {
+    try {
+      // Add language-specific environment variables
+      for (const language of contextInfo.languages) {
+        const langEnvVars = this.getLanguageSpecificEnvVars(language);
+        for (const envVar of langEnvVars) {
+          const existing = envVars.find(ev => ev.name === envVar.name);
+          if (!existing) {
+            envVars.push(envVar);
+          }
+        }
+      }
+      
+      // Add dependency-specific environment variables
+      for (const dependency of contextInfo.dependencies) {
+        const depEnvVars = this.getDependencySpecificEnvVars(dependency);
+        for (const envVar of depEnvVars) {
+          const existing = envVars.find(ev => ev.name === envVar.name);
+          if (!existing) {
+            envVars.push(envVar);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.warn(`⚠️ [${this.name}] Failed to enhance env vars with context:`, error);
+    }
+  }
+  
+  /**
+   * Get language-specific environment variables
+   */
+  private getLanguageSpecificEnvVars(language: string): EnvironmentVariable[] {
+    const languageEnvVars: Record<string, EnvironmentVariable[]> = {
+      'JavaScript': [
+        { name: 'NODE_ENV', description: 'Node.js environment', required: false, defaultValue: 'development' },
+        { name: 'PORT', description: 'Server port', required: false, defaultValue: '3000' }
+      ],
+      'TypeScript': [
+        { name: 'NODE_ENV', description: 'Node.js environment', required: false, defaultValue: 'development' },
+        { name: 'PORT', description: 'Server port', required: false, defaultValue: '3000' }
+      ],
+      'Python': [
+        { name: 'PYTHONPATH', description: 'Python module search path', required: false },
+        { name: 'FLASK_ENV', description: 'Flask environment', required: false, defaultValue: 'development' },
+        { name: 'DJANGO_SETTINGS_MODULE', description: 'Django settings module', required: false }
+      ],
+      'Go': [
+        { name: 'GOPATH', description: 'Go workspace path', required: false },
+        { name: 'GO111MODULE', description: 'Go modules mode', required: false, defaultValue: 'on' }
+      ],
+      'Rust': [
+        { name: 'RUST_LOG', description: 'Rust logging level', required: false, defaultValue: 'info' }
+      ]
+    };
+    
+    return languageEnvVars[language] || [];
+  }
+  
+  /**
+   * Get dependency-specific environment variables
+   */
+  private getDependencySpecificEnvVars(dependency: any): EnvironmentVariable[] {
+    const envVars: EnvironmentVariable[] = [];
+    
+    if (!dependency.name) return envVars;
+    
+    const depName = dependency.name.toLowerCase();
+    
+    // Database dependencies
+    if (depName.includes('postgres') || depName.includes('pg')) {
+      envVars.push({ name: 'DATABASE_URL', description: 'PostgreSQL connection URL', required: true });
+    } else if (depName.includes('mysql')) {
+      envVars.push({ name: 'MYSQL_URL', description: 'MySQL connection URL', required: true });
+    } else if (depName.includes('mongodb') || depName.includes('mongoose')) {
+      envVars.push({ name: 'MONGODB_URI', description: 'MongoDB connection URI', required: true });
+    }
+    
+    // Redis dependencies
+    if (depName.includes('redis')) {
+      envVars.push({ name: 'REDIS_URL', description: 'Redis connection URL', required: false });
+    }
+    
+    // Authentication dependencies
+    if (depName.includes('jwt') || depName.includes('auth')) {
+      envVars.push({ name: 'JWT_SECRET', description: 'JWT signing secret', required: true });
+    }
+    
+    return envVars;
   }
 
   private isRequiredEnvVar(name: string): boolean {
@@ -339,7 +540,11 @@ export class MetadataExtractor implements ContentAnalyzer {
       .trim();
   }
 
-  private calculateConfidence(metadata: ProjectMetadata, _content: string): number {
+  private calculateConfidence(
+    metadata: ProjectMetadata, 
+    _content: string, 
+    contextInfo?: { languages: string[]; dependencies: any[]; commands: any[] }
+  ): number {
     let confidence = 0;
 
     // Project name confidence
@@ -361,7 +566,37 @@ export class MetadataExtractor implements ContentAnalyzer {
     if (metadata.environment && metadata.environment.length > 0) {
       confidence += 0.1;
     }
+    
+    // Context enhancement bonus
+    if (contextInfo) {
+      const contextBonus = this.calculateContextBonus(contextInfo);
+      confidence += contextBonus;
+    }
 
     return Math.min(confidence, 1.0);
+  }
+  
+  /**
+   * Calculate confidence bonus from context information
+   */
+  private calculateContextBonus(contextInfo: { languages: string[]; dependencies: any[]; commands: any[] }): number {
+    let bonus = 0;
+    
+    // Bonus for having language context
+    if (contextInfo.languages.length > 0) {
+      bonus += 0.05;
+    }
+    
+    // Bonus for having dependency context
+    if (contextInfo.dependencies.length > 0) {
+      bonus += 0.05;
+    }
+    
+    // Bonus for having command context
+    if (contextInfo.commands.length > 0) {
+      bonus += 0.05;
+    }
+    
+    return Math.min(bonus, 0.15); // Cap at 15% bonus
   }
 }

@@ -105,7 +105,7 @@ export class IntegrationPipeline {
       if (options.emitEvents && this.webhookManager) {
         await this.emitEvent('pipeline.failed', {
           readmePath,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           duration,
           timestamp: new Date()
         });

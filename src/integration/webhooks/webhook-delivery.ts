@@ -64,7 +64,7 @@ export class WebhookDelivery extends EventEmitter {
         webhookId: webhook.id,
         eventId: event.id,
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         attempt,
         deliveredAt: new Date(),
         duration

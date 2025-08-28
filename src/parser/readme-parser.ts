@@ -26,7 +26,7 @@ import { MetadataExtractor } from './analyzers/metadata-extractor';
 import { ASTCache, globalASTCache } from './utils/ast-cache';
 import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
 import { StreamingFileReader } from './utils/streaming-file-reader';
-import { IntegrationPipeline } from '../integration/integration-pipeline';
+import { IntegrationPipeline } from './integration-pipeline';
 
 /**
  * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
@@ -333,7 +333,7 @@ export class ReadmeParserImpl implements ReadmeParser {
   }
 
   /**
-   * Execute pipeline-based analysis using registered analyzers
+   * Execute pipeline-based analysis using registered analyzers with context sharing
    */
   private async executePipelineAnalysis(content: string): Promise<ParseResult> {
     try {
@@ -382,7 +382,10 @@ export class ReadmeParserImpl implements ReadmeParser {
         return await this.executeManualAnalysis(content);
       }
 
-      // Execute analyzers through pipeline coordination
+      // Create shared analysis context
+      const analysisContext = this.createAnalysisContext(content, rawContent);
+      
+      // Execute analyzers through pipeline coordination with context sharing
       const analysisPromises = registeredAnalyzers.map(async analyzer => {
         return this.performanceMonitor.timeOperation(`pipeline_analyzer_${analyzer.name}`, async () => {
           try {
@@ -390,8 +393,8 @@ export class ReadmeParserImpl implements ReadmeParser {
               setTimeout(() => reject(new Error('Analyzer timeout')), 5000);
             });
 
-            // Execute analyzer with proper interface
-            const analysisPromise = analyzer.analyze(ast as any, rawContent);
+            // Execute analyzer with proper interface and shared context
+            const analysisPromise = (analyzer as any).analyze(ast as any, rawContent, analysisContext);
             const result = await Promise.race([analysisPromise, timeoutPromise]);
             
             return { 
@@ -436,10 +439,10 @@ export class ReadmeParserImpl implements ReadmeParser {
           if (result) {
             // Ensure result has the correct AnalysisResult structure
             const analysisResult = {
-              data: result.data || null,
-              confidence: result.confidence || 0,
-              sources: result.sources || [],
-              errors: result.errors || []
+              data: (result as any).data || null,
+              confidence: (result as any).confidence || 0,
+              sources: (result as any).sources || [],
+              errors: (result as any).errors || []
             };
             
             resultsMap.set(analyzerName, analysisResult);
@@ -518,6 +521,58 @@ export class ReadmeParserImpl implements ReadmeParser {
   }
 
   /**
+   * Run analyzer with context support
+   */
+  private async runAnalyzerWithContext(
+    analyzer: ContentAnalyzer, 
+    ast: Token[], 
+    content: string, 
+    context: import('../shared/types/analysis-context').AnalysisContext
+  ): Promise<AnalysisResult> {
+    try {
+      // Check if analyzer supports context (has 3 parameters)
+      if (analyzer.analyze.length >= 3) {
+        return await analyzer.analyze(ast, content, context);
+      } else {
+        // Fallback to legacy analyzer interface
+        return await analyzer.analyze(ast, content);
+      }
+    } catch (error) {
+      return {
+        data: null,
+        confidence: 0,
+        sources: [],
+        errors: [{
+          code: 'ANALYZER_CONTEXT_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown analyzer context error',
+          component: analyzer.name,
+          severity: 'error'
+        }]
+      };
+    }
+  }
+
+  /**
+   * Create analysis context for sharing data between analyzers
+   */
+  private createAnalysisContext(content: string, rawContent: string): import('../shared/types/analysis-context').AnalysisContext {
+    const { AnalysisContextBuilder } = require('../shared/types/analysis-context');
+    
+    // Calculate content hash for caching
+    const crypto = require('crypto');
+    const contentHash = crypto.createHash('md5').update(content).digest('hex');
+    
+    return AnalysisContextBuilder.create()
+      .withSourceInfo({
+        contentLength: content.length,
+        lineCount: rawContent.split('\n').length,
+        contentHash,
+        contentType: 'markdown' as const
+      })
+      .build();
+  }
+
+  /**
    * Execute manual analysis as fallback when IntegrationPipeline is not available
    */
   private async executeManualAnalysis(content: string): Promise<ParseResult> {
@@ -565,6 +620,8 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Execute context-aware analysis with proper analyzer coordination (fallback method)
    */
   private async executeContextAwareAnalysis(ast: Token[], content: string): Promise<ParseResult> {
+    // Create shared analysis context for manual analysis
+    const analysisContext = this.createAnalysisContext(content, content);
     try {
       // Step 1: Run LanguageDetector first to get language contexts
       const languageDetectorAdapter = this.analyzerRegistry.getAll().find(a => a.name === 'LanguageDetector') as any;
@@ -642,7 +699,7 @@ export class ReadmeParserImpl implements ReadmeParser {
               setTimeout(() => reject(new Error('Analyzer timeout')), 5000);
             });
 
-            const analysisPromise = this.runAnalyzer(analyzer, ast, content);
+            const analysisPromise = this.runAnalyzerWithContext(analyzer, ast, content, analysisContext);
             const result = await Promise.race([analysisPromise, timeoutPromise]);
             
             return { 
