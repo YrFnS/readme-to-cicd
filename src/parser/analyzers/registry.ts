@@ -10,7 +10,7 @@ import { AnalyzerResult } from '../types';
  */
 export interface Analyzer<T = any> {
   readonly name: string;
-  analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<T>>;
+  analyze(ast: MarkdownAST, content: string, context?: import('../../shared/types/analysis-context').AnalysisContext): Promise<AnalyzerResult<T>>;
 }
 
 /**

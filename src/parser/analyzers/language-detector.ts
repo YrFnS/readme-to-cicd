@@ -1,6 +1,7 @@
 import { AnalyzerResult, LanguageInfo, LanguageSource } from '../types';
 import { MarkdownAST, MarkdownNode } from '../../shared/markdown-parser';
 import { Analyzer } from './registry';
+import { BaseAnalyzer } from './base-analyzer';
 import { 
   LanguageContext, 
   Evidence, 
@@ -16,7 +17,7 @@ import { ContextCollection } from '../../shared/types/context-manager';
 /**
  * Enhanced Language Detector with confidence scoring and context generation
  */
-export class LanguageDetector implements Analyzer<LanguageInfo[]> {
+export class LanguageDetector extends BaseAnalyzer<LanguageInfo[]> {
   readonly name = 'LanguageDetector';
   
   private confidenceCalculator: ConfidenceCalculator;
@@ -25,6 +26,7 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
   private rawContent: string = '';
 
   constructor() {
+    super();
     this.confidenceCalculator = new ConfidenceCalculator();
     this.sourceTracker = new SourceTracker();
     this.contextCollection = new ContextCollection();
@@ -99,8 +101,13 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
     }]
   ]);
 
-  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<LanguageInfo[]>> {
+  async analyze(ast: MarkdownAST, content: string, context?: import('../../shared/types/analysis-context').AnalysisContext): Promise<AnalyzerResult<LanguageInfo[]>> {
     try {
+      // Set analysis context if provided
+      if (context) {
+        this.setAnalysisContext(context);
+      }
+
       // Initialize tracking for this content
       this.rawContent = content;
       this.sourceTracker.initializeTracking(content);
@@ -112,6 +119,18 @@ export class LanguageDetector implements Analyzer<LanguageInfo[]> {
       // Use the working detectLanguages method instead of broken enhanced detection
       const languages = this.detectLanguages(actualAST, content);
       const confidence = this.calculateOverallConfidence(languages);
+
+      // Share language contexts with other analyzers through the analysis context
+      if (context) {
+        const detectionResult = this.detectWithContext(ast, content);
+        
+        // Update shared data with language contexts
+        this.updateSharedData('languageContexts', detectionResult.contexts);
+        this.updateSharedData('languageDetectionResult', detectionResult);
+        
+        // Add language contexts to the analysis context
+        detectionResult.contexts.forEach(ctx => this.addLanguageContext(ctx));
+      }
       
       return {
         success: true,

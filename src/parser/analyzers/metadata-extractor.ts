@@ -1,25 +1,30 @@
-import { ContentAnalyzer, AnalysisResult, ProjectMetadata, MarkdownAST, EnvironmentVariable } from '../types';
+import { AnalyzerResult, ProjectMetadata, MarkdownAST, EnvironmentVariable } from '../types';
 import { AnalysisContext } from '../../shared/types/analysis-context';
-import { ContextAwareAnalyzer } from './context-aware-analyzer';
+import { BaseAnalyzer } from './base-analyzer';
 import { MarkdownUtils } from '../../shared/markdown-parser';
 
 /**
  * Extracts project metadata from README content with context sharing capabilities
  */
-export class MetadataExtractor extends ContextAwareAnalyzer {
+export class MetadataExtractor extends BaseAnalyzer<ProjectMetadata> {
   readonly name = 'MetadataExtractor';
 
-  protected async performAnalysis(
+  async analyze(
     ast: MarkdownAST, 
-    rawContent: string, 
+    content: string, 
     context?: AnalysisContext
-  ): Promise<AnalysisResult> {
+  ): Promise<AnalyzerResult<ProjectMetadata>> {
     try {
+      // Set analysis context if provided
+      if (context) {
+        this.setAnalysisContext(context);
+      }
+
       // Get context information to enhance metadata extraction
       const contextInfo = this.getContextInfo(context);
       
-      const metadata = this.extractMetadata(ast, rawContent, contextInfo);
-      const confidence = this.calculateConfidence(metadata, rawContent, contextInfo);
+      const metadata = this.extractMetadata(ast, content, contextInfo);
+      const confidence = this.calculateMetadataConfidence(metadata, content, contextInfo);
       
       const sources = ['title-extraction', 'description-extraction'];
       if (metadata.structure) {
@@ -31,26 +36,22 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
       
       // Share metadata results with context
       if (context) {
-        this.shareMetadataResults(context, metadata);
+        this.updateSharedData('projectMetadata', metadata);
+        this.updateSharedData('projectName', metadata.name);
+        this.updateSharedData('projectDescription', metadata.description);
+        
+        // Validate data flow to potential consumers
+        this.validateDataFlow('YamlGenerator', ['projectMetadata']);
       }
 
-      return {
-        data: metadata,
-        confidence,
-        sources
-      };
+      return this.createSuccessResult(metadata, confidence, sources);
     } catch (error) {
-      return {
-        data: { name: 'Project' },
-        confidence: 0,
-        sources: [],
-        errors: [{
-          code: 'METADATA_EXTRACTION_ERROR',
-          message: `Failed to extract metadata: ${(error as Error).message}`,
-          component: 'MetadataExtractor',
-          severity: 'error'
-        }]
-      };
+      const parseError = this.createError(
+        'METADATA_EXTRACTION_ERROR',
+        `Failed to extract metadata: ${(error as Error).message}`,
+        'error'
+      );
+      return this.createErrorResult(parseError);
     }
   }
   
@@ -72,11 +73,11 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
     
     try {
       // Get language information
-      const languageContexts = this.getLanguageContexts(context);
+      const languageContexts = this.getLanguageContexts();
       info.languages = languageContexts.map(lc => lc.language);
       
       // Get dependency information
-      const dependencyData = this.getSharedData(context, 'extracted_dependencies');
+      const dependencyData = this.getSharedData('extracted_dependencies');
       if (dependencyData && typeof dependencyData === 'object') {
         info.dependencies = [
           ...((dependencyData as any).dependencies || []),
@@ -85,7 +86,7 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
       }
       
       // Get command information
-      const commandData = this.getSharedData(context, 'extracted_commands');
+      const commandData = this.getSharedData('extracted_commands');
       if (commandData && typeof commandData === 'object') {
         info.commands = [
           ...((commandData as any).build || []),
@@ -110,7 +111,7 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
   private shareMetadataResults(context: AnalysisContext, metadata: ProjectMetadata): void {
     try {
       // Store metadata in shared data
-      this.setSharedData(context, 'extracted_metadata', metadata);
+      this.updateSharedData('extracted_metadata', metadata);
       
       // Create project summary for other analyzers
       const projectSummary = {
@@ -122,7 +123,7 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
         envVarCount: metadata.environment?.length || 0
       };
       
-      this.setSharedData(context, 'project_summary', projectSummary);
+      this.updateSharedData('project_summary', projectSummary);
       
       console.log(`✅ [${this.name}] Shared metadata results for project: ${metadata.name}`);
       
@@ -540,7 +541,7 @@ export class MetadataExtractor extends ContextAwareAnalyzer {
       .trim();
   }
 
-  private calculateConfidence(
+  private calculateMetadataConfidence(
     metadata: ProjectMetadata, 
     _content: string, 
     contextInfo?: { languages: string[]; dependencies: any[]; commands: any[] }

@@ -1,80 +1,31 @@
 import * as assert from 'assert';
-import * as vscode from 'vscode';
 import * as sinon from 'sinon';
-import { ExtensionManager } from '../../src/core/ExtensionManager';
+import { setupVSCodeMock, cleanupVSCodeMock, createMockExtensionContext } from '../setup/vscode-mock';
+import { MockExtensionManager } from '../mocks/ExtensionManager.mock';
 
 suite('Extension Activation and Lifecycle Tests', () => {
-  let mockContext: vscode.ExtensionContext;
-  let extensionManager: ExtensionManager;
+  let mockContext: any;
+  let extensionManager: MockExtensionManager;
 
   setup(() => {
-    // Create mock extension context
-    mockContext = {
-      subscriptions: [],
-      workspaceState: {
-        get: sinon.stub().returns({}),
-        update: sinon.stub().resolves()
-      } as any,
-      globalState: {
-        get: sinon.stub().returns({}),
-        update: sinon.stub().resolves()
-      } as any,
-      extensionPath: '/mock/extension/path',
-      extensionUri: vscode.Uri.file('/mock/extension/path'),
-      environmentVariableCollection: {} as any,
-      asAbsolutePath: sinon.stub().returns('/mock/path'),
-      storageUri: vscode.Uri.file('/mock/storage'),
-      globalStorageUri: vscode.Uri.file('/mock/global-storage'),
-      logUri: vscode.Uri.file('/mock/log'),
-      secrets: {} as any,
-      extension: {} as any
-    };
+    setupVSCodeMock();
+    mockContext = createMockExtensionContext();
   });
 
   teardown(() => {
+    cleanupVSCodeMock();
     sinon.restore();
   });
 
   test('ExtensionManager should initialize successfully', async () => {
-    extensionManager = new ExtensionManager(mockContext);
+    extensionManager = new MockExtensionManager(mockContext);
     
     assert.ok(extensionManager, 'ExtensionManager should be created');
     assert.strictEqual(extensionManager.isExtensionActivated(), false, 'Extension should not be activated initially');
   });
 
   test('ExtensionManager should activate all components', async () => {
-    extensionManager = new ExtensionManager(mockContext);
-    
-    // Mock workspace folders
-    const mockWorkspaceFolders = [
-      {
-        uri: vscode.Uri.file('/mock/workspace'),
-        name: 'test-workspace',
-        index: 0
-      }
-    ];
-    sinon.stub(vscode.workspace, 'workspaceFolders').value(mockWorkspaceFolders);
-    
-    // Mock configuration
-    const mockConfig = {
-      get: sinon.stub().returns('default-value'),
-      has: sinon.stub().returns(true),
-      inspect: sinon.stub().returns({}),
-      update: sinon.stub().resolves()
-    };
-    sinon.stub(vscode.workspace, 'getConfiguration').returns(mockConfig as any);
-    
-    // Mock file system watcher
-    const mockWatcher = {
-      onDidCreate: sinon.stub(),
-      onDidChange: sinon.stub(),
-      onDidDelete: sinon.stub(),
-      dispose: sinon.stub()
-    };
-    sinon.stub(vscode.workspace, 'createFileSystemWatcher').returns(mockWatcher as any);
-    
-    // Mock findFiles
-    sinon.stub(vscode.workspace, 'findFiles').resolves([]);
+    extensionManager = new MockExtensionManager(mockContext);
     
     await extensionManager.activate();
     
@@ -86,52 +37,24 @@ suite('Extension Activation and Lifecycle Tests', () => {
   });
 
   test('ExtensionManager should handle activation errors gracefully', async () => {
-    extensionManager = new ExtensionManager(mockContext);
+    extensionManager = new MockExtensionManager(mockContext);
     
     // Mock an error during workspace initialization
-    sinon.stub(vscode.workspace, 'workspaceFolders').value(null);
-    sinon.stub(vscode.workspace, 'getConfiguration').throws(new Error('Configuration error'));
+    extensionManager.getWorkspaceManager().initialize.rejects(new Error('Workspace initialization failed'));
     
     try {
       await extensionManager.activate();
       assert.fail('Should have thrown an error');
     } catch (error) {
       assert.ok(error instanceof Error, 'Should throw an Error');
-      assert.ok(error.message.includes('Extension activation failed'), 'Should include activation failure message');
+      assert.ok(error.message.includes('Workspace initialization failed'), 'Should include workspace failure message');
     }
     
     assert.strictEqual(extensionManager.isExtensionActivated(), false, 'Extension should not be activated after error');
   });
 
   test('ExtensionManager should deactivate successfully', async () => {
-    extensionManager = new ExtensionManager(mockContext);
-    
-    // Mock successful activation first
-    const mockWorkspaceFolders = [
-      {
-        uri: vscode.Uri.file('/mock/workspace'),
-        name: 'test-workspace',
-        index: 0
-      }
-    ];
-    sinon.stub(vscode.workspace, 'workspaceFolders').value(mockWorkspaceFolders);
-    
-    const mockConfig = {
-      get: sinon.stub().returns('default-value'),
-      has: sinon.stub().returns(true),
-      inspect: sinon.stub().returns({}),
-      update: sinon.stub().resolves()
-    };
-    sinon.stub(vscode.workspace, 'getConfiguration').returns(mockConfig as any);
-    
-    const mockWatcher = {
-      onDidCreate: sinon.stub(),
-      onDidChange: sinon.stub(),
-      onDidDelete: sinon.stub(),
-      dispose: sinon.stub()
-    };
-    sinon.stub(vscode.workspace, 'createFileSystemWatcher').returns(mockWatcher as any);
-    sinon.stub(vscode.workspace, 'findFiles').resolves([]);
+    extensionManager = new MockExtensionManager(mockContext);
     
     await extensionManager.activate();
     assert.strictEqual(extensionManager.isExtensionActivated(), true, 'Extension should be activated');
@@ -142,36 +65,12 @@ suite('Extension Activation and Lifecycle Tests', () => {
   });
 
   test('ExtensionManager should handle deactivation errors gracefully', async () => {
-    extensionManager = new ExtensionManager(mockContext);
-    
-    // Mock successful activation
-    const mockWorkspaceFolders = [
-      {
-        uri: vscode.Uri.file('/mock/workspace'),
-        name: 'test-workspace',
-        index: 0
-      }
-    ];
-    sinon.stub(vscode.workspace, 'workspaceFolders').value(mockWorkspaceFolders);
-    
-    const mockConfig = {
-      get: sinon.stub().returns('default-value'),
-      has: sinon.stub().returns(true),
-      inspect: sinon.stub().returns({}),
-      update: sinon.stub().resolves()
-    };
-    sinon.stub(vscode.workspace, 'getConfiguration').returns(mockConfig as any);
-    
-    const mockWatcher = {
-      onDidCreate: sinon.stub(),
-      onDidChange: sinon.stub(),
-      onDidDelete: sinon.stub(),
-      dispose: sinon.stub().throws(new Error('Dispose error'))
-    };
-    sinon.stub(vscode.workspace, 'createFileSystemWatcher').returns(mockWatcher as any);
-    sinon.stub(vscode.workspace, 'findFiles').resolves([]);
+    extensionManager = new MockExtensionManager(mockContext);
     
     await extensionManager.activate();
+    
+    // Mock dispose error
+    extensionManager.getWorkspaceManager().dispose.throws(new Error('Dispose error'));
     
     // Deactivation should not throw even if components fail to dispose
     await extensionManager.deactivate();
@@ -179,34 +78,7 @@ suite('Extension Activation and Lifecycle Tests', () => {
   });
 
   test('ExtensionManager should prevent double activation', async () => {
-    extensionManager = new ExtensionManager(mockContext);
-    
-    // Mock workspace and configuration
-    const mockWorkspaceFolders = [
-      {
-        uri: vscode.Uri.file('/mock/workspace'),
-        name: 'test-workspace',
-        index: 0
-      }
-    ];
-    sinon.stub(vscode.workspace, 'workspaceFolders').value(mockWorkspaceFolders);
-    
-    const mockConfig = {
-      get: sinon.stub().returns('default-value'),
-      has: sinon.stub().returns(true),
-      inspect: sinon.stub().returns({}),
-      update: sinon.stub().resolves()
-    };
-    sinon.stub(vscode.workspace, 'getConfiguration').returns(mockConfig as any);
-    
-    const mockWatcher = {
-      onDidCreate: sinon.stub(),
-      onDidChange: sinon.stub(),
-      onDidDelete: sinon.stub(),
-      dispose: sinon.stub()
-    };
-    sinon.stub(vscode.workspace, 'createFileSystemWatcher').returns(mockWatcher as any);
-    sinon.stub(vscode.workspace, 'findFiles').resolves([]);
+    extensionManager = new MockExtensionManager(mockContext);
     
     // First activation
     await extensionManager.activate();
@@ -221,7 +93,7 @@ suite('Extension Activation and Lifecycle Tests', () => {
   });
 
   test('ExtensionManager should handle deactivation when not activated', async () => {
-    extensionManager = new ExtensionManager(mockContext);
+    extensionManager = new MockExtensionManager(mockContext);
     
     // Deactivate without activating first
     await extensionManager.deactivate();

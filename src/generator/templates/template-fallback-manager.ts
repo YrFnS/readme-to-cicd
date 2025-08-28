@@ -115,12 +115,14 @@ export class TemplateFallbackManager {
     // Build fallback hierarchy based on detection results
     const fallbackHierarchy = this.buildFallbackHierarchy(detectionResult, preferredTemplate);
 
-    // Try each template in the hierarchy
+    // Try each template in the hierarchy using error recovery
     return this.errorRecovery.withTemplateFallback(
       async (templateName: string) => {
         const result = await this.loadTemplate(templateName);
         if (!result.success) {
-          throw 'error' in result ? result.error : new Error('Template loading failed');
+          const error = (result as { success: false; error: any }).error;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(errorMessage);
         }
         return result.data;
       },
@@ -244,13 +246,26 @@ export class TemplateFallbackManager {
       if (this.config.validateTemplates) {
         const validationResult = await this.validateTemplate(template);
         if (!validationResult.success) {
-          throw 'error' in validationResult ? validationResult.error : new Error('Template validation failed');
+          const error = (validationResult as { success: false; error: any }).error;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(errorMessage);
         }
       }
 
       // Cache template if caching is enabled
       if (this.config.cacheTemplates) {
-        const metadata = await this.loadTemplateMetadata(templateName);
+        // Create default metadata without loading from file to avoid extra reads
+        const metadata: TemplateMetadata = {
+          name: templateName,
+          type: 'generic' as const,
+          frameworks: [],
+          languages: [],
+          description: `Template for ${templateName}`,
+          version: '1.0.0',
+          lastModified: new Date(),
+          dependencies: []
+        };
+        
         this.templateCache.set(templateName, {
           template,
           metadata,
@@ -262,6 +277,11 @@ export class TemplateFallbackManager {
 
       return { success: true, data: template };
     } catch (error) {
+      // Distinguish between file loading errors and parsing errors
+      if (error instanceof TemplateCompilationError) {
+        return { success: false, error };
+      }
+      
       return {
         success: false,
         error: new TemplateLoadError(
@@ -333,27 +353,28 @@ export class TemplateFallbackManager {
   ): string[] {
     const hierarchy: string[] = [];
 
-    // Add preferred template first
-    if (preferredTemplate) {
+    // Apply custom fallback rules first (highest priority)
+    const applicableRules = this.config.customFallbackRules
+      .filter(rule => rule.condition(detectionResult))
+      .sort((a, b) => b.priority - a.priority);
+
+    applicableRules.forEach(rule => {
+      if (!hierarchy.includes(rule.fallbackTemplate)) {
+        hierarchy.push(rule.fallbackTemplate);
+      }
+    });
+
+    // Add preferred template after custom rules (if not already added by rules)
+    if (preferredTemplate && !hierarchy.includes(preferredTemplate)) {
       hierarchy.push(preferredTemplate);
     }
-
-    // Apply custom fallback rules
-    this.config.customFallbackRules
-      .filter(rule => rule.condition(detectionResult))
-      .sort((a, b) => b.priority - a.priority)
-      .forEach(rule => {
-        if (!hierarchy.includes(rule.fallbackTemplate)) {
-          hierarchy.push(rule.fallbackTemplate);
-        }
-      });
 
     // Add framework-specific templates
     detectionResult.frameworks
       .sort((a, b) => b.confidence - a.confidence)
       .forEach(framework => {
         const frameworkTemplates = [
-          `${framework.name}-${framework.version}`,
+          `${framework.name}-${framework.version || 'latest'}`,
           `${framework.name}-latest`,
           `${framework.name}-generic`
         ];
@@ -369,7 +390,7 @@ export class TemplateFallbackManager {
       .filter(lang => lang.primary)
       .forEach(language => {
         const languageTemplates = [
-          `${language.name}-${language.version}`,
+          `${language.name}-${language.version || 'latest'}`,
           `${language.name}-latest`,
           `${language.name}-generic`
         ];
@@ -399,7 +420,8 @@ export class TemplateFallbackManager {
     try {
       // This would typically use a YAML parser and template engine
       // For now, return a basic structure
-      return JSON.parse(content) as WorkflowTemplate;
+      const parsed = JSON.parse(content) as WorkflowTemplate;
+      return parsed;
     } catch (error) {
       throw new TemplateCompilationError(
         templateName,

@@ -1,623 +1,765 @@
 /**
  * Analysis Context Infrastructure
  * 
- * This module provides the core infrastructure for sharing analysis context
- * and data between different analyzers in the integration pipeline.
+ * This module provides the core infrastructure for sharing data between analyzers
+ * during the analysis pipeline execution. It enables proper context propagation
+ * and data flow validation.
  */
 
 import { LanguageContext, Evidence, SourceRange } from './language-context';
 import { ParseError } from '../../parser/types';
 
 /**
- * Core analysis context interface that provides shared data and state
- * between analyzers during the analysis pipeline execution
+ * Core analysis context interface that provides shared data between analyzers
  */
 export interface AnalysisContext {
   /** Unique identifier for this analysis session */
   sessionId: string;
   
-  /** Language contexts detected and shared between analyzers */
+  /** Original content being analyzed */
+  content: string;
+  
+  /** Language contexts detected during analysis */
   languageContexts: LanguageContext[];
   
   /** Shared data store for inter-analyzer communication */
   sharedData: Map<string, any>;
   
-  /** Analysis metadata and processing information */
+  /** Analysis metadata and tracking information */
   metadata: AnalysisMetadata;
   
-  /** Context validation state */
+  /** Context validation status */
   validation: ContextValidation;
   
-  /** Context inheritance chain */
-  inheritanceChain: ContextInheritance[];
+  /** Performance tracking data */
+  performance: PerformanceData;
+  
+  /** Inheritance chain for context propagation */
+  inheritanceChain?: string[];
 }
 
 /**
- * Metadata about the analysis process and context
+ * Analysis metadata and tracking information
  */
 export interface AnalysisMetadata {
   /** Timestamp when analysis started */
   startTime: Date;
   
-  /** Timestamp when analysis completed (if finished) */
-  endTime?: Date;
+  /** Current analysis stage */
+  currentStage: string;
   
-  /** List of analyzers that have processed this context */
+  /** Completed analysis stages */
+  completedStages: string[];
+  
+  /** Failed analysis stages */
+  failedStages: string[];
+  
+  /** Analyzers that have processed this context */
   processedBy: string[];
+  
+  /** Source file path (if applicable) */
+  sourcePath?: string;
+  
+  /** Content hash for validation */
+  contentHash: string;
   
   /** Current analyzer being executed */
   currentAnalyzer?: string;
   
-  /** Source content information */
-  sourceInfo: SourceInfo;
-  
-  /** Performance metrics */
-  performance: PerformanceMetrics;
+  /** Performance tracking data */
+  performance?: {
+    startTime: number;
+    endTime?: number;
+    duration?: number;
+    memoryUsage?: number;
+    analyzerTimes?: Map<string, number>;
+    totalProcessingTime?: number;
+  };
   
   /** Quality metrics */
-  quality: QualityMetrics;
+  quality?: {
+    score: number;
+    factors: Array<{ name: string; score: number; weight: number }>;
+    confidenceDistribution?: {
+      byAnalyzer: Map<string, number>;
+      average: number;
+      minimum: number;
+      maximum: number;
+      variance: number;
+      standardDeviation: number;
+    };
+  };
+  
+  /** Analysis errors */
+  errors?: ParseError[];
 }
 
 /**
- * Information about the source content being analyzed
+ * Context validation status and data flow tracking
  */
-export interface SourceInfo {
-  /** Content length in characters */
-  contentLength: number;
+export interface ContextValidation {
+  /** Whether the context is valid for analysis */
+  isValid: boolean;
   
-  /** Number of lines in the content */
-  lineCount: number;
+  /** Data flow validation results */
+  dataFlow: DataFlowValidation[];
   
-  /** Content hash for caching and validation */
-  contentHash: string;
+  /** Context consistency checks */
+  consistency: ConsistencyCheck[];
   
-  /** Source file path (if available) */
-  filePath?: string;
+  /** Validation errors and warnings */
+  issues: ValidationIssue[];
   
-  /** Content type/format */
-  contentType: 'markdown' | 'text' | 'other';
+  /** Overall validation score (0-1) */
+  validationScore: number;
+  
+  /** Validation errors */
+  errors?: ValidationError[];
+  
+  /** Validation warnings */
+  warnings?: ValidationWarning[];
+  
+  /** Rules that were applied during validation */
+  rulesApplied?: string[];
+  
+  /** Data flow validation results */
+  dataFlowValidation?: DataFlowValidation[];
 }
 
 /**
- * Performance metrics for the analysis process
+ * Data flow validation between analyzers
  */
-export interface PerformanceMetrics {
-  /** Total processing time in milliseconds */
-  totalProcessingTime: number;
+export interface DataFlowValidation {
+  /** Source analyzer name */
+  sourceAnalyzer: string;
   
-  /** Processing time per analyzer */
-  analyzerTimes: Map<string, number>;
+  /** Target analyzer name */
+  targetAnalyzer: string;
   
-  /** Memory usage metrics */
-  memoryUsage?: MemoryUsage;
+  /** Data keys being passed */
+  dataKeys: string[];
   
-  /** Cache hit/miss statistics */
-  cacheStats?: CacheStatistics;
+  /** Whether the data flow is valid */
+  isValid: boolean;
+  
+  /** Validation errors */
+  errors: string[];
+  
+  /** Data integrity score (0-1) */
+  integrityScore: number;
+  
+  /** Execution sequence information */
+  executionSequence?: {
+    order: number;
+    timestamp: Date;
+    dependencies: string[];
+  };
 }
 
 /**
- * Memory usage information
+ * Context consistency check result
  */
-export interface MemoryUsage {
-  /** Peak memory usage in bytes */
-  peakUsage: number;
-  
-  /** Current memory usage in bytes */
-  currentUsage: number;
-  
-  /** Memory usage by component */
-  componentUsage: Map<string, number>;
-}
-
-/**
- * Cache statistics
- */
-export interface CacheStatistics {
-  /** Number of cache hits */
-  hits: number;
-  
-  /** Number of cache misses */
-  misses: number;
-  
-  /** Cache hit ratio (0.0 to 1.0) */
-  hitRatio: number;
-}
-
-/**
- * Quality metrics for the analysis results
- */
-export interface QualityMetrics {
-  /** Overall data quality score (0.0 to 1.0) */
-  overallQuality: number;
-  
-  /** Completeness score (0.0 to 1.0) */
-  completeness: number;
-  
-  /** Consistency score across analyzers (0.0 to 1.0) */
-  consistency: number;
-  
-  /** Confidence score aggregation */
-  confidenceDistribution: ConfidenceDistribution;
-  
-  /** Data integrity checks */
-  integrityChecks: IntegrityCheck[];
-}
-
-/**
- * Distribution of confidence scores across different analysis aspects
- */
-export interface ConfidenceDistribution {
-  /** Average confidence across all analyzers */
-  average: number;
-  
-  /** Minimum confidence score */
-  minimum: number;
-  
-  /** Maximum confidence score */
-  maximum: number;
-  
-  /** Standard deviation of confidence scores */
-  standardDeviation: number;
-  
-  /** Confidence scores by analyzer */
-  byAnalyzer: Map<string, number>;
-}
-
-/**
- * Data integrity check result
- */
-export interface IntegrityCheck {
-  /** Name of the integrity check */
-  name: string;
+export interface ConsistencyCheck {
+  /** Check type identifier */
+  checkType: string;
   
   /** Whether the check passed */
   passed: boolean;
   
-  /** Severity of failure (if any) */
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  
-  /** Description of the check or failure */
+  /** Check description */
   description: string;
   
-  /** Suggested remediation */
-  remediation?: string;
+  /** Issues found during check */
+  issues: string[];
+  
+  /** Confidence in the check result */
+  confidence: number;
 }
 
 /**
- * Context validation state and results
+ * Validation issue tracking
  */
-export interface ContextValidation {
-  /** Whether the context is valid */
-  isValid: boolean;
+export interface ValidationIssue {
+  /** Issue type */
+  type: 'error' | 'warning' | 'info';
   
-  /** Validation errors */
-  errors: ValidationError[];
+  /** Issue severity */
+  severity: 'critical' | 'high' | 'medium' | 'low';
   
-  /** Validation warnings */
-  warnings: ValidationWarning[];
-  
-  /** Validation rules that were applied */
-  rulesApplied: ValidationRule[];
-  
-  /** Data flow validation results */
-  dataFlowValidation: DataFlowValidation;
-}
-
-/**
- * Validation error information
- */
-export interface ValidationError {
-  /** Error code */
-  code: string;
-  
-  /** Human-readable error message */
+  /** Issue message */
   message: string;
   
-  /** Component that generated the error */
+  /** Component that reported the issue */
   component: string;
   
-  /** Severity level */
-  severity: 'error' | 'warning' | 'info';
-  
-  /** Location where error occurred (if applicable) */
+  /** Source location (if applicable) */
   location?: SourceRange;
   
-  /** Suggested fix */
-  suggestedFix?: string;
+  /** Suggested resolution */
+  resolution?: string;
 }
 
 /**
- * Validation warning information
+ * Performance tracking data
  */
-export interface ValidationWarning {
-  /** Warning code */
-  code: string;
+export interface PerformanceData {
+  /** Total analysis time (ms) */
+  totalTime: number;
   
-  /** Human-readable warning message */
-  message: string;
+  /** Per-analyzer timing data */
+  analyzerTimes: Map<string, number>;
   
-  /** Component that generated the warning */
-  component: string;
+  /** Memory usage tracking */
+  memoryUsage: MemoryUsage;
   
-  /** Location where warning occurred (if applicable) */
-  location?: SourceRange;
+  /** Performance metrics */
+  metrics: PerformanceMetrics;
 }
 
 /**
- * Validation rule definition
+ * Memory usage tracking
  */
-export interface ValidationRule {
-  /** Rule identifier */
-  id: string;
+export interface MemoryUsage {
+  /** Peak memory usage (bytes) */
+  peak: number;
   
-  /** Rule name */
-  name: string;
+  /** Current memory usage (bytes) */
+  current: number;
   
-  /** Rule description */
-  description: string;
-  
-  /** Rule type */
-  type: 'data-integrity' | 'context-consistency' | 'flow-validation' | 'quality-check';
-  
-  /** Whether the rule is mandatory */
-  mandatory: boolean;
-  
-  /** Rule execution result */
-  result: 'passed' | 'failed' | 'skipped';
+  /** Memory usage by analyzer */
+  byAnalyzer: Map<string, number>;
 }
 
 /**
- * Data flow validation results
+ * Performance metrics
  */
-export interface DataFlowValidation {
-  /** Whether data flow is valid */
-  isValid: boolean;
+export interface PerformanceMetrics {
+  /** Operations per second */
+  operationsPerSecond: number;
   
-  /** Sequence of analyzers executed */
-  executionSequence: string[];
+  /** Average processing time per analyzer */
+  averageAnalyzerTime: number;
   
-  /** Dependencies between analyzers */
-  dependencies: AnalyzerDependency[];
+  /** Context switching overhead */
+  contextSwitchingTime: number;
   
-  /** Data propagation validation */
-  dataPropagation: DataPropagationCheck[];
-  
-  /** Context inheritance validation */
-  inheritanceValidation: InheritanceValidation[];
+  /** Data serialization time */
+  serializationTime: number;
 }
 
 /**
- * Analyzer dependency information
+ * Context sharing configuration
  */
-export interface AnalyzerDependency {
-  /** Analyzer that depends on another */
-  dependent: string;
+export interface ContextSharingConfig {
+  /** Enable context validation */
+  enableValidation: boolean;
   
-  /** Analyzer that is depended upon */
-  dependency: string;
+  /** Enable performance tracking */
+  enablePerformanceTracking: boolean;
   
-  /** Type of dependency */
-  type: 'data' | 'context' | 'sequence' | 'optional';
+  /** Maximum context size (bytes) */
+  maxContextSize: number;
   
-  /** Whether the dependency was satisfied */
-  satisfied: boolean;
+  /** Context timeout (ms) */
+  contextTimeout: number;
   
-  /** Description of the dependency */
-  description?: string;
+  /** Enable data flow logging */
+  enableDataFlowLogging: boolean;
 }
 
 /**
- * Data propagation check result
+ * Context update operation
  */
-export interface DataPropagationCheck {
-  /** Source analyzer */
-  source: string;
-  
-  /** Target analyzer */
-  target: string;
-  
-  /** Data key being propagated */
-  dataKey: string;
-  
-  /** Whether propagation was successful */
-  successful: boolean;
-  
-  /** Error message if propagation failed */
-  error?: string;
-}
-
-/**
- * Context inheritance validation result
- */
-export interface InheritanceValidation {
-  /** Child analyzer */
-  child: string;
-  
-  /** Parent analyzer */
-  parent: string;
-  
-  /** Type of inheritance */
-  inheritanceType: 'language-context' | 'shared-data' | 'metadata';
-  
-  /** Whether inheritance was successful */
-  successful: boolean;
-  
-  /** Inheritance rule applied */
-  ruleApplied?: string;
-  
-  /** Error message if inheritance failed */
-  error?: string;
-}
-
-/**
- * Context inheritance information
- */
-export interface ContextInheritance {
-  /** Analyzer that inherited context */
+export interface ContextUpdate {
+  /** Analyzer making the update */
   analyzer: string;
   
-  /** Source of the inherited context */
-  source: string;
+  /** Update type */
+  type: 'add' | 'update' | 'remove';
   
-  /** Type of inheritance */
-  type: 'language-context' | 'shared-data' | 'metadata';
+  /** Data key being updated */
+  key: string;
   
-  /** Timestamp when inheritance occurred */
+  /** New value (for add/update operations) */
+  value?: any;
+  
+  /** Update timestamp */
   timestamp: Date;
   
-  /** Success status */
-  successful: boolean;
-  
-  /** Additional metadata */
+  /** Update metadata */
   metadata?: Record<string, any>;
 }
 
 /**
- * Context builder for creating and managing analysis contexts
+ * Context snapshot for rollback/recovery
  */
-export class AnalysisContextBuilder {
-  private context: Partial<AnalysisContext> = {};
+export interface ContextSnapshot {
+  /** Snapshot identifier */
+  id: string;
   
-  /**
-   * Create a new context builder
-   */
-  static create(): AnalysisContextBuilder {
-    return new AnalysisContextBuilder();
+  /** Snapshot timestamp */
+  timestamp: Date;
+  
+  /** Analyzer that created the snapshot */
+  createdBy: string;
+  
+  /** Snapshot data */
+  data: {
+    languageContexts: LanguageContext[];
+    sharedData: Record<string, any>;
+    metadata: AnalysisMetadata;
+  };
+}
+
+/**
+ * Base class for context-aware analyzers
+ */
+export abstract class ContextAwareAnalyzer {
+  protected context?: AnalysisContext;
+  protected config: ContextSharingConfig;
+
+  constructor(config: Partial<ContextSharingConfig> = {}) {
+    this.config = {
+      enableValidation: true,
+      enablePerformanceTracking: true,
+      maxContextSize: 10 * 1024 * 1024, // 10MB
+      contextTimeout: 30000, // 30 seconds
+      enableDataFlowLogging: false,
+      ...config
+    };
   }
-  
+
   /**
-   * Set the session ID
+   * Set the analysis context for this analyzer
    */
-  withSessionId(sessionId: string): AnalysisContextBuilder {
-    this.context.sessionId = sessionId;
-    return this;
+  public setAnalysisContext(context: AnalysisContext): void {
+    this.context = context;
+    this.onContextSet(context);
   }
-  
+
   /**
-   * Set language contexts
+   * Get the current analysis context
    */
-  withLanguageContexts(contexts: LanguageContext[]): AnalysisContextBuilder {
-    this.context.languageContexts = contexts;
-    return this;
+  public getAnalysisContext(): AnalysisContext | undefined {
+    return this.context;
   }
-  
+
   /**
-   * Set source information
+   * Update shared data in the context
    */
-  withSourceInfo(sourceInfo: SourceInfo): AnalysisContextBuilder {
-    if (!this.context.metadata) {
-      this.context.metadata = this.createDefaultMetadata();
+  protected updateSharedData(key: string, value: any, metadata?: Record<string, any>): void {
+    if (!this.context) {
+      throw new Error('Analysis context not set');
     }
-    this.context.metadata.sourceInfo = sourceInfo;
-    return this;
-  }
-  
-  /**
-   * Add shared data
-   */
-  withSharedData(key: string, value: any): AnalysisContextBuilder {
-    if (!this.context.sharedData) {
-      this.context.sharedData = new Map();
-    }
+
+    const update: ContextUpdate = {
+      analyzer: this.getAnalyzerName(),
+      type: this.context.sharedData.has(key) ? 'update' : 'add',
+      key,
+      value,
+      timestamp: new Date(),
+      metadata
+    };
+
     this.context.sharedData.set(key, value);
-    return this;
+    this.context.metadata.processedBy.push(this.getAnalyzerName());
+
+    if (this.config.enableDataFlowLogging) {
+      this.logContextUpdate(update);
+    }
   }
-  
+
   /**
-   * Build the analysis context
+   * Get shared data from the context
    */
-  build(): AnalysisContext {
-    // Ensure all required fields are present
-    const sessionId = this.context.sessionId || this.generateSessionId();
-    const languageContexts = this.context.languageContexts || [];
-    const sharedData = this.context.sharedData || new Map();
-    const metadata = this.context.metadata || this.createDefaultMetadata();
-    const validation = this.createDefaultValidation();
-    const inheritanceChain = this.context.inheritanceChain || [];
+  protected getSharedData<T = any>(key: string): T | undefined {
+    if (!this.context) {
+      return undefined;
+    }
+
+    return this.context.sharedData.get(key) as T;
+  }
+
+  /**
+   * Check if shared data exists
+   */
+  protected hasSharedData(key: string): boolean {
+    if (!this.context) {
+      return false;
+    }
+
+    return this.context.sharedData.has(key);
+  }
+
+  /**
+   * Get language contexts from the analysis context
+   */
+  protected getLanguageContexts(): LanguageContext[] {
+    if (!this.context) {
+      return [];
+    }
+
+    return this.context.languageContexts;
+  }
+
+  /**
+   * Add a language context to the analysis context
+   */
+  protected addLanguageContext(context: LanguageContext): void {
+    if (!this.context) {
+      throw new Error('Analysis context not set');
+    }
+
+    this.context.languageContexts.push(context);
+  }
+
+  /**
+   * Validate context data flow
+   */
+  protected validateDataFlow(targetAnalyzer: string, dataKeys: string[]): DataFlowValidation {
+    if (!this.context) {
+      return {
+        sourceAnalyzer: this.getAnalyzerName(),
+        targetAnalyzer,
+        dataKeys,
+        isValid: false,
+        errors: ['Analysis context not set'],
+        integrityScore: 0
+      };
+    }
+
+    const errors: string[] = [];
+    let validKeys = 0;
+
+    for (const key of dataKeys) {
+      if (!this.context.sharedData.has(key)) {
+        errors.push(`Missing required data key: ${key}`);
+      } else {
+        validKeys++;
+      }
+    }
+
+    const integrityScore = dataKeys.length > 0 ? validKeys / dataKeys.length : 1;
+    const isValid = errors.length === 0;
+
+    const validation: DataFlowValidation = {
+      sourceAnalyzer: this.getAnalyzerName(),
+      targetAnalyzer,
+      dataKeys,
+      isValid,
+      errors,
+      integrityScore
+    };
+
+    this.context.validation.dataFlow.push(validation);
+
+    return validation;
+  }
+
+  /**
+   * Create a context snapshot for rollback
+   */
+  protected createSnapshot(): ContextSnapshot {
+    if (!this.context) {
+      throw new Error('Analysis context not set');
+    }
+
+    return {
+      id: `snapshot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      createdBy: this.getAnalyzerName(),
+      data: {
+        languageContexts: [...this.context.languageContexts],
+        sharedData: Object.fromEntries(this.context.sharedData),
+        metadata: { ...this.context.metadata }
+      }
+    };
+  }
+
+  /**
+   * Abstract method to get the analyzer name
+   */
+  protected abstract getAnalyzerName(): string;
+
+  /**
+   * Called when context is set (override in subclasses)
+   */
+  protected onContextSet(context: AnalysisContext): void {
+    // Default implementation - can be overridden
+  }
+
+  /**
+   * Log context update (override in subclasses for custom logging)
+   */
+  protected logContextUpdate(update: ContextUpdate): void {
+    // Default implementation - can be overridden
+    console.debug(`Context update: ${update.analyzer} ${update.type} ${update.key}`);
+  }
+}
+
+/**
+ * Analysis context utilities
+ */
+export class AnalysisContextUtils {
+  /**
+   * Merge two analysis contexts
+   */
+  static merge(context1: AnalysisContext, context2: AnalysisContext): AnalysisContext {
+    return {
+      ...context1,
+      languageContexts: [...context1.languageContexts, ...context2.languageContexts],
+      sharedData: new Map([...context1.sharedData, ...context2.sharedData]),
+      metadata: {
+        ...context1.metadata,
+        processedBy: [...context1.metadata.processedBy, ...context2.metadata.processedBy]
+      }
+    };
+  }
+
+  /**
+   * Clone an analysis context
+   */
+  static clone(context: AnalysisContext): AnalysisContext {
+    return {
+      ...context,
+      languageContexts: [...context.languageContexts],
+      sharedData: new Map(context.sharedData),
+      metadata: { ...context.metadata },
+      validation: { ...context.validation },
+      performance: { ...context.performance }
+    };
+  }
+
+  /**
+   * Validate an analysis context
+   */
+  static validate(context: AnalysisContext): ContextValidation {
+    const issues: ValidationIssue[] = [];
+    
+    // Basic validation
+    if (!context.sessionId) {
+      issues.push({
+        type: 'error',
+        severity: 'critical',
+        message: 'Missing session ID',
+        component: 'AnalysisContextUtils'
+      });
+    }
+    
+    if (!context.content) {
+      issues.push({
+        type: 'warning',
+        severity: 'medium',
+        message: 'Empty content',
+        component: 'AnalysisContextUtils'
+      });
+    }
     
     return {
-      sessionId,
-      languageContexts,
-      sharedData,
-      metadata,
-      validation,
-      inheritanceChain
-    };
-  }
-  
-  /**
-   * Generate a unique session ID
-   */
-  private generateSessionId(): string {
-    return `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-  
-  /**
-   * Create default metadata
-   */
-  private createDefaultMetadata(): AnalysisMetadata {
-    return {
-      startTime: new Date(),
-      processedBy: [],
-      sourceInfo: {
-        contentLength: 0,
-        lineCount: 0,
-        contentHash: '',
-        contentType: 'markdown'
-      },
-      performance: {
-        totalProcessingTime: 0,
-        analyzerTimes: new Map()
-      },
-      quality: {
-        overallQuality: 0,
-        completeness: 0,
-        consistency: 0,
-        confidenceDistribution: {
-          average: 0,
-          minimum: 0,
-          maximum: 0,
-          standardDeviation: 0,
-          byAnalyzer: new Map()
-        },
-        integrityChecks: []
-      }
-    };
-  }
-  
-  /**
-   * Create default validation state
-   */
-  private createDefaultValidation(): ContextValidation {
-    return {
-      isValid: true,
-      errors: [],
-      warnings: [],
-      rulesApplied: [],
-      dataFlowValidation: {
-        isValid: true,
-        executionSequence: [],
-        dependencies: [],
-        dataPropagation: [],
-        inheritanceValidation: []
-      }
+      isValid: issues.filter(i => i.type === 'error').length === 0,
+      dataFlow: context.validation.dataFlow,
+      consistency: context.validation.consistency,
+      issues,
+      validationScore: issues.length === 0 ? 1.0 : 0.5
     };
   }
 }
 
 /**
- * Utility functions for working with analysis contexts
+ * Validation error type
  */
-export class AnalysisContextUtils {
-  /**
-   * Validate an analysis context
-   */
-  static validate(context: AnalysisContext): ContextValidation {
-    const errors: ValidationError[] = [];
-    const warnings: ValidationWarning[] = [];
-    const rulesApplied: ValidationRule[] = [];
-    
-    // Basic validation rules
-    const rules = [
-      {
-        id: 'session-id-present',
-        name: 'Session ID Present',
-        description: 'Context must have a valid session ID',
-        type: 'data-integrity' as const,
-        mandatory: true,
-        check: () => !!context.sessionId && context.sessionId.length > 0
-      },
-      {
-        id: 'metadata-present',
-        name: 'Metadata Present',
-        description: 'Context must have metadata',
-        type: 'data-integrity' as const,
-        mandatory: true,
-        check: () => !!context.metadata
-      },
-      {
-        id: 'shared-data-initialized',
-        name: 'Shared Data Initialized',
-        description: 'Shared data map must be initialized',
-        type: 'data-integrity' as const,
-        mandatory: true,
-        check: () => context.sharedData instanceof Map
-      }
-    ];
-    
-    // Apply validation rules
-    for (const rule of rules) {
-      const passed = rule.check();
-      const ruleResult: ValidationRule = {
-        ...rule,
-        result: passed ? 'passed' : 'failed'
-      };
-      rulesApplied.push(ruleResult);
-      
-      if (!passed && rule.mandatory) {
-        errors.push({
-          code: rule.id,
-          message: `Validation failed: ${rule.description}`,
-          component: 'AnalysisContextValidator',
-          severity: 'error'
-        });
-      }
-    }
-    
-    // Data flow validation
-    const dataFlowValidation = this.validateDataFlow(context);
-    
-    return {
-      isValid: errors.length === 0 && dataFlowValidation.isValid,
-      errors,
-      warnings,
-      rulesApplied,
-      dataFlowValidation
-    };
-  }
+export class ValidationError extends Error {
+  public readonly code?: string;
   
-  /**
-   * Validate data flow within the context
-   */
-  private static validateDataFlow(context: AnalysisContext): DataFlowValidation {
-    return {
-      isValid: true,
-      executionSequence: context.metadata.processedBy,
-      dependencies: [],
-      dataPropagation: [],
-      inheritanceValidation: []
-    };
+  constructor(message: string, public readonly component: string, code?: string) {
+    super(message);
+    this.name = 'ValidationError';
+    this.code = code;
   }
+}
+
+/**
+ * Validation warning type
+ */
+export class ValidationWarning extends Error {
+  public readonly code?: string;
   
+  constructor(message: string, public readonly component: string, code?: string) {
+    super(message);
+    this.name = 'ValidationWarning';
+    this.code = code;
+  }
+}
+
+/**
+ * Validation rule interface
+ */
+export interface ValidationRule {
+  id?: string;
+  name: string;
+  description: string;
+  mandatory?: boolean;
+  validate: (context: AnalysisContext) => ValidationIssue[];
+  result?: 'passed' | 'failed';
+}
+
+/**
+ * Analyzer dependency interface
+ */
+export interface AnalyzerDependency {
+  analyzer: string;
+  dataKeys: string[];
+  required: boolean;
+  satisfied?: boolean;
+  dependent?: string;
+}
+
+/**
+ * Data propagation check interface
+ */
+export interface DataPropagationCheck {
+  sourceAnalyzer: string;
+  targetAnalyzer: string;
+  dataKey: string;
+  propagated: boolean;
+  timestamp: Date;
+  successful?: boolean;
+  source?: string;
+}
+
+/**
+ * Inheritance validation interface
+ */
+export interface InheritanceValidation {
+  parentAnalyzer: string;
+  childAnalyzer: string;
+  inheritedKeys: string[];
+  isValid: boolean;
+  errors: string[];
+  successful?: boolean;
+  child?: string;
+  parent?: string;
+  inheritanceType?: string;
+  error?: string;
+}
+
+/**
+ * Context factory for creating analysis contexts
+ */
+export class AnalysisContextFactory {
   /**
-   * Merge two analysis contexts
+   * Create a new analysis context
    */
-  static merge(primary: AnalysisContext, secondary: AnalysisContext): AnalysisContext {
+  static create(
+    content: string,
+    config: Partial<ContextSharingConfig> = {},
+    sourcePath?: string
+  ): AnalysisContext {
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const contentHash = this.calculateContentHash(content);
+
     return {
-      sessionId: primary.sessionId,
-      languageContexts: [...primary.languageContexts, ...secondary.languageContexts],
-      sharedData: new Map([...primary.sharedData, ...secondary.sharedData]),
+      sessionId,
+      content,
+      languageContexts: [],
+      sharedData: new Map(),
       metadata: {
-        ...primary.metadata,
-        processedBy: [...new Set([...primary.metadata.processedBy, ...secondary.metadata.processedBy])],
-        endTime: secondary.metadata.endTime || primary.metadata.endTime
+        startTime: new Date(),
+        currentStage: 'initialization',
+        completedStages: [],
+        failedStages: [],
+        processedBy: [],
+        sourcePath,
+        contentHash
       },
-      validation: primary.validation, // Keep primary validation
-      inheritanceChain: [...primary.inheritanceChain, ...secondary.inheritanceChain]
+      validation: {
+        isValid: true,
+        dataFlow: [],
+        consistency: [],
+        issues: [],
+        validationScore: 1.0
+      },
+      performance: {
+        totalTime: 0,
+        analyzerTimes: new Map(),
+        memoryUsage: {
+          peak: 0,
+          current: 0,
+          byAnalyzer: new Map()
+        },
+        metrics: {
+          operationsPerSecond: 0,
+          averageAnalyzerTime: 0,
+          contextSwitchingTime: 0,
+          serializationTime: 0
+        }
+      }
     };
   }
-  
+
   /**
-   * Create a hash of the context for caching
+   * Calculate content hash for validation
    */
-  static hash(context: AnalysisContext): string {
-    const hashData = {
-      sessionId: context.sessionId,
-      languageContextsCount: context.languageContexts.length,
-      sharedDataKeys: Array.from(context.sharedData.keys()).sort(),
-      contentHash: context.metadata.sourceInfo.contentHash
+  private static calculateContentHash(content: string): string {
+    // Simple hash function - in production, use a proper hash library
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(36);
+  }
+
+  /**
+   * Validate context integrity
+   */
+  static validateContext(context: AnalysisContext): ContextValidation {
+    const issues: ValidationIssue[] = [];
+    const consistency: ConsistencyCheck[] = [];
+
+    // Check content hash
+    const currentHash = this.calculateContentHash(context.content);
+    if (currentHash !== context.metadata.contentHash) {
+      issues.push({
+        type: 'error',
+        severity: 'critical',
+        message: 'Content hash mismatch - context may be corrupted',
+        component: 'AnalysisContextFactory'
+      });
+    }
+
+    // Check language contexts consistency
+    const languageCheck: ConsistencyCheck = {
+      checkType: 'language-contexts',
+      passed: context.languageContexts.every(ctx => ctx.language && ctx.confidence >= 0),
+      description: 'Validate language contexts have valid data',
+      issues: [],
+      confidence: 1.0
     };
-    
-    return Buffer.from(JSON.stringify(hashData)).toString('base64');
+
+    context.languageContexts.forEach((ctx, index) => {
+      if (!ctx.language) {
+        languageCheck.issues.push(`Language context ${index} missing language`);
+        languageCheck.passed = false;
+      }
+      if (ctx.confidence < 0 || ctx.confidence > 1) {
+        languageCheck.issues.push(`Language context ${index} has invalid confidence: ${ctx.confidence}`);
+        languageCheck.passed = false;
+      }
+    });
+
+    consistency.push(languageCheck);
+
+    // Calculate validation score
+    const validationScore = issues.filter(i => i.type === 'error').length === 0 ? 1.0 : 0.5;
+
+    return {
+      isValid: issues.filter(i => i.type === 'error').length === 0,
+      dataFlow: context.validation.dataFlow,
+      consistency,
+      issues,
+      validationScore
+    };
   }
 }

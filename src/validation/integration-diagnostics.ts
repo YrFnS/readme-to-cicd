@@ -468,7 +468,7 @@ export class IntegrationDiagnostics {
     
     // Update health history
     const timestamp = new Date();
-    for (const [componentName, trend] of this.healthHistory) {
+    for (const [componentName, trend] of Array.from(this.healthHistory)) {
       const componentHealth = healthMetrics.componentHealth.find(c => c.componentName === componentName);
       if (componentHealth) {
         trend.healthScoreHistory.push({ timestamp, score: componentHealth.healthScore });
@@ -737,7 +737,7 @@ export class IntegrationDiagnostics {
     );
     keywords.push(...significantWords);
 
-    return [...new Set(keywords)]; // Remove duplicates
+    return Array.from(new Set(keywords)); // Remove duplicates
   }
 
   /**
@@ -806,7 +806,7 @@ export class IntegrationDiagnostics {
   private async captureComponentStates(): Promise<ComponentState[]> {
     const states: ComponentState[] = [];
 
-    for (const [componentName, state] of this.componentStates) {
+    for (const [componentName, state] of Array.from(this.componentStates)) {
       // Update state with current metrics (simplified for demo)
       const updatedState: ComponentState = {
         ...state,
@@ -832,7 +832,7 @@ export class IntegrationDiagnostics {
   private async captureDataFlowStates(): Promise<DataFlowState[]> {
     const states: DataFlowState[] = [];
 
-    for (const [flowId, state] of this.dataFlowStates) {
+    for (const [flowId, state] of Array.from(this.dataFlowStates)) {
       // Update state with current metrics (simplified for demo)
       const updatedState: DataFlowState = {
         ...state,
@@ -965,7 +965,7 @@ export class IntegrationDiagnostics {
   private async generateComponentHealthSummaries(): Promise<ComponentHealthSummary[]> {
     const summaries: ComponentHealthSummary[] = [];
 
-    for (const [componentName, state] of this.componentStates) {
+    for (const [componentName, state] of Array.from(this.componentStates)) {
       const healthScore = this.calculateComponentHealthScore(state);
       
       const summary: ComponentHealthSummary = {
@@ -995,7 +995,7 @@ export class IntegrationDiagnostics {
   private async generateDataFlowHealthSummaries(): Promise<DataFlowHealthSummary[]> {
     const summaries: DataFlowHealthSummary[] = [];
 
-    for (const [flowId, state] of this.dataFlowStates) {
+    for (const [flowId, state] of Array.from(this.dataFlowStates)) {
       const healthScore = this.calculateDataFlowHealthScore(state);
       
       summaries.push({

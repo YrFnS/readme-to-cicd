@@ -176,7 +176,7 @@ export class ComponentInterfaceValidator {
   public async validateAllInterfaces(): Promise<InterfaceValidationResult[]> {
     const results: InterfaceValidationResult[] = [];
     
-    for (const [component, contracts] of this.expectedContracts) {
+    for (const [component, contracts] of Array.from(this.expectedContracts)) {
       for (const contract of contracts) {
         const result = await this.validateInterface(component, contract);
         results.push(result);

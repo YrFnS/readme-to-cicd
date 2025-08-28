@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "out",
+    "lib": ["es2020", "dom"],
+    "types": ["mocha", "node", "sinon"],
+    "skipLibCheck": true,
+    "noEmit": false
+  },
+  "include": [
+    "test/**/*",
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    ".vscode-test",
+    "out",
+    "dist",
+    "webview-ui/**/*"
+  ]
+}

@@ -1,0 +1,1527 @@
+{
+  "timestamp": "2025-08-28T16:58:55.119Z",
+  "overallScore": 100,
+  "readinessLevel": "not-ready",
+  "healthReport": {
+    "overallScore": 100,
+    "status": "healthy",
+    "timestamp": "2025-08-28T16:58:49.856Z",
+    "components": [
+      {
+        "name": "readme-parser",
+        "status": "healthy",
+        "score": 100,
+        "lastCheck": "2025-08-28T16:58:49.855Z",
+        "metrics": {
+          "responseTime": 1,
+          "errorRate": 0.8537531969526095,
+          "throughput": 98.98398471973613,
+          "availability": 99.9,
+          "resourceUsage": {
+            "cpu": 14.048068858149101,
+            "memory": 115.06737359526949,
+            "disk": 5.930946481375663
+          }
+        },
+        "issues": [],
+        "dependencies": []
+      },
+      {
+        "name": "framework-detection",
+        "status": "healthy",
+        "score": 100,
+        "lastCheck": "2025-08-28T16:58:49.855Z",
+        "metrics": {
+          "responseTime": 1,
+          "errorRate": 0.9500119440536678,
+          "throughput": 71.21109478305056,
+          "availability": 99.9,
+          "resourceUsage": {
+            "cpu": 28.25132286258709,
+            "memory": 129.30371322358795,
+            "disk": 23.67907423147373
+          }
+        },
+        "issues": [],
+        "dependencies": []
+      },
+      {
+        "name": "yaml-generator",
+        "status": "healthy",
+        "score": 100,
+        "lastCheck": "2025-08-28T16:58:49.855Z",
+        "metrics": {
+          "responseTime": 1,
+          "errorRate": 0.2033437260887373,
+          "throughput": 108.35121167961051,
+          "availability": 99.9,
+          "resourceUsage": {
+            "cpu": 25.53535496677097,
+            "memory": 43.42600333236813,
+            "disk": 14.727942137082461
+          }
+        },
+        "issues": [],
+        "dependencies": []
+      },
+      {
+        "name": "integration-pipeline",
+        "status": "healthy",
+        "score": 100,
+        "lastCheck": "2025-08-28T16:58:49.855Z",
+        "metrics": {
+          "responseTime": 1,
+          "errorRate": 0.23992806108813736,
+          "throughput": 21.10675496189274,
+          "availability": 99.9,
+          "resourceUsage": {
+            "cpu": 40.225699564107174,
+            "memory": 293.21611544472387,
+            "disk": 39.369116309881974
+          }
+        },
+        "issues": [],
+        "dependencies": []
+      }
+    ],
+    "criticalIssues": [],
+    "recommendations": [],
+    "trends": []
+  },
+  "healthScoreBreakdown": {
+    "overallScore": 100,
+    "componentScores": [
+      {
+        "component": "readme-parser",
+        "score": 100,
+        "weight": 0.3,
+        "weightedScore": 30,
+        "status": "excellent",
+        "issues": [],
+        "improvements": []
+      },
+      {
+        "component": "framework-detection",
+        "score": 100,
+        "weight": 0.25,
+        "weightedScore": 25,
+        "status": "excellent",
+        "issues": [],
+        "improvements": []
+      },
+      {
+        "component": "yaml-generator",
+        "score": 100,
+        "weight": 0.25,
+        "weightedScore": 25,
+        "status": "excellent",
+        "issues": [],
+        "improvements": []
+      },
+      {
+        "component": "integration-pipeline",
+        "score": 100,
+        "weight": 0.2,
+        "weightedScore": 20,
+        "status": "excellent",
+        "issues": [],
+        "improvements": []
+      }
+    ],
+    "categoryScores": [
+      {
+        "category": "Component Health",
+        "score": 100,
+        "weight": 0.3,
+        "weightedScore": 30,
+        "components": [
+          "readme-parser",
+          "framework-detection",
+          "yaml-generator",
+          "integration-pipeline"
+        ],
+        "impact": "Overall system component reliability and functionality"
+      },
+      {
+        "category": "System Integration",
+        "score": 77.70833333333333,
+        "weight": 0.25,
+        "weightedScore": 19.427083333333332,
+        "components": [
+          "integration-pipeline",
+          "component-communication"
+        ],
+        "impact": "Cross-component communication and data flow integrity"
+      },
+      {
+        "category": "Performance",
+        "score": 100,
+        "weight": 0.2,
+        "weightedScore": 20,
+        "components": [
+          "parser",
+          "detection",
+          "generator"
+        ],
+        "impact": "System response time, throughput, and resource efficiency"
+      },
+      {
+        "category": "Reliability",
+        "score": 81.25,
+        "weight": 0.15,
+        "weightedScore": 12.1875,
+        "components": [
+          "readme-parser",
+          "framework-detection",
+          "yaml-generator",
+          "integration-pipeline"
+        ],
+        "impact": "System availability, error handling, and recovery capabilities"
+      }
+    ],
+    "penalties": [
+      {
+        "reason": "Validation failed: e2e-complete-workflow",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      },
+      {
+        "reason": "Validation failed: e2e-yaml-generation",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      },
+      {
+        "reason": "Validation failed: e2e-error-handling",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      },
+      {
+        "reason": "Validation failed: e2e-scalability",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      },
+      {
+        "reason": "Validation failed: e2e-data-integrity",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      },
+      {
+        "reason": "Validation failed: integration-error-propagation",
+        "penalty": 5,
+        "severity": "medium",
+        "impact": "System validation requirements not met"
+      }
+    ],
+    "bonuses": [
+      {
+        "reason": "All components are healthy",
+        "bonus": 5,
+        "category": "reliability",
+        "impact": "Excellent system reliability"
+      },
+      {
+        "reason": "No critical issues detected",
+        "bonus": 5,
+        "category": "reliability",
+        "impact": "Clean system with no critical problems"
+      },
+      {
+        "reason": "Excellent system availability (>99.9%)",
+        "bonus": 3,
+        "category": "reliability",
+        "impact": "Outstanding system uptime"
+      }
+    ],
+    "trends": [],
+    "recommendations": []
+  },
+  "endToEndResults": [
+    {
+      "testId": "e2e-complete-workflow",
+      "passed": false,
+      "score": 60,
+      "duration": 503,
+      "metrics": {
+        "performance": {
+          "responseTime": 502,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 45.33338735485456,
+            "memory": 164.11645340615883,
+            "disk": 62.62944845118206,
+            "network": 45.34193948868761
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 94.02638300163392,
+          "taskCompletionRate": 93.52943651299232,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:50.364Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-readme-parsing",
+      "passed": true,
+      "score": 100,
+      "duration": 468,
+      "metrics": {
+        "performance": {
+          "responseTime": 468,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 66.9249180795301,
+            "memory": 301.223111359605,
+            "disk": 77.322181986376,
+            "network": 33.73955935031664
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 91.6057287972351,
+          "taskCompletionRate": 92.8466136282886,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:50.833Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-framework-detection",
+      "passed": true,
+      "score": 100,
+      "duration": 539,
+      "metrics": {
+        "performance": {
+          "responseTime": 539,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 72.60344640034728,
+            "memory": 358.745742863758,
+            "disk": 56.48991491635991,
+            "network": 22.45957296927037
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 98.60275332639975,
+          "taskCompletionRate": 87.82099092070939,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:51.372Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-yaml-generation",
+      "passed": false,
+      "score": 0,
+      "duration": 503,
+      "metrics": {
+        "performance": {
+          "responseTime": 503,
+          "throughput": 1,
+          "resourceUsage": {
+            "cpu": 64.40978165507667,
+            "memory": 366.4129826384263,
+            "disk": 54.226382705263546,
+            "network": 28.199308073792363
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 94.35604227728345,
+          "taskCompletionRate": 86.5816839229861,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "yaml",
+          "name": "generated-workflow.yml",
+          "path": "tests\\output\\generated-workflow.yml",
+          "description": "Generated yaml output",
+          "timestamp": "2025-08-28T16:58:51.877Z"
+        },
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:51.877Z"
+        }
+      ],
+      "recommendations": [
+        "Fix output validation issues"
+      ]
+    },
+    {
+      "testId": "e2e-multi-component",
+      "passed": true,
+      "score": 100,
+      "duration": 532,
+      "metrics": {
+        "performance": {
+          "responseTime": 532,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 71.87220070061856,
+            "memory": 148.45000288067433,
+            "disk": 7.8839890487443665,
+            "network": 24.87528036712928
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 94.25985050911015,
+          "taskCompletionRate": 85.70380206349606,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:52.409Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-error-handling",
+      "passed": false,
+      "score": 100,
+      "duration": 598,
+      "metrics": {
+        "performance": {
+          "responseTime": 598,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 60.866644022631036,
+            "memory": 290.77784602923964,
+            "disk": 23.908938854762972,
+            "network": 0.6305845844588931
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 94.82977109371505,
+          "taskCompletionRate": 90.3015579293649,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:53.008Z"
+        }
+      ],
+      "recommendations": [
+        "Review and fix workflow execution errors"
+      ]
+    },
+    {
+      "testId": "e2e-performance",
+      "passed": true,
+      "score": 100,
+      "duration": 522,
+      "metrics": {
+        "performance": {
+          "responseTime": 522,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 63.57397298930613,
+            "memory": 348.7172465200102,
+            "disk": 98.59746571763273,
+            "network": 9.370381173956888
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 97.51225967561544,
+          "taskCompletionRate": 87.70305784189756,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:53.531Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-scalability",
+      "passed": false,
+      "score": 60,
+      "duration": 598,
+      "metrics": {
+        "performance": {
+          "responseTime": 598,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 73.24790168662352,
+            "memory": 292.68075014685377,
+            "disk": 16.777592587878498,
+            "network": 22.05535576432922
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 91.72338677432525,
+          "taskCompletionRate": 93.11762349955983,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:54.129Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-data-integrity",
+      "passed": false,
+      "score": 0,
+      "duration": 478,
+      "metrics": {
+        "performance": {
+          "responseTime": 478,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 41.998531436029154,
+            "memory": 232.62019023929128,
+            "disk": 26.572638543472692,
+            "network": 1.261306309222432
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 99.40356748003302,
+          "taskCompletionRate": 88.857417438796,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:54.607Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "e2e-concurrency",
+      "passed": true,
+      "score": 100,
+      "duration": 505,
+      "metrics": {
+        "performance": {
+          "responseTime": 505,
+          "throughput": 0,
+          "resourceUsage": {
+            "cpu": 30.333672632920738,
+            "memory": 313.1704565018706,
+            "disk": 24.49339166468898,
+            "network": 23.03425856102126
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 75,
+            "elasticity": 70,
+            "degradationPoint": 1000
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 5,
+          "complianceScore": 95,
+          "authenticationStrength": 90,
+          "dataProtectionLevel": 95,
+          "auditCoverage": 85
+        },
+        "reliability": {
+          "availability": 99.9,
+          "mtbf": 720,
+          "mttr": 0.5,
+          "errorRate": 0.1,
+          "resilience": 90
+        },
+        "usability": {
+          "userSatisfaction": 99.42213871530546,
+          "taskCompletionRate": 93.79517468974745,
+          "errorRecovery": 85,
+          "learnability": 80,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [
+        {
+          "type": "metric",
+          "name": "workflow-metrics.json",
+          "path": "tests\\output\\workflow-metrics.json",
+          "description": "Workflow execution metrics",
+          "timestamp": "2025-08-28T16:58:55.113Z"
+        }
+      ],
+      "recommendations": [
+        "Workflow execution is optimal"
+      ]
+    },
+    {
+      "testId": "integration-parser-detection",
+      "passed": true,
+      "score": 95,
+      "duration": 152,
+      "metrics": {
+        "performance": {
+          "responseTime": 152,
+          "throughput": 9.5,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 95,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 0.5,
+          "resilience": 95
+        },
+        "usability": {
+          "userSatisfaction": 95,
+          "taskCompletionRate": 95,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": []
+    },
+    {
+      "testId": "integration-detection-generator",
+      "passed": true,
+      "score": 95,
+      "duration": 214,
+      "metrics": {
+        "performance": {
+          "responseTime": 214,
+          "throughput": 9.5,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 95,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 0.5,
+          "resilience": 95
+        },
+        "usability": {
+          "userSatisfaction": 95,
+          "taskCompletionRate": 95,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": []
+    },
+    {
+      "testId": "integration-end-to-end-flow",
+      "passed": true,
+      "score": 100,
+      "duration": 469,
+      "metrics": {
+        "performance": {
+          "responseTime": 469,
+          "throughput": 10,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 100,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 0,
+          "resilience": 100
+        },
+        "usability": {
+          "userSatisfaction": 100,
+          "taskCompletionRate": 100,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": []
+    },
+    {
+      "testId": "integration-component-communication",
+      "passed": true,
+      "score": 100,
+      "duration": 369,
+      "metrics": {
+        "performance": {
+          "responseTime": 369,
+          "throughput": 10,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 100,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 0,
+          "resilience": 100
+        },
+        "usability": {
+          "userSatisfaction": 100,
+          "taskCompletionRate": 100,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": []
+    },
+    {
+      "testId": "integration-error-propagation",
+      "passed": false,
+      "score": 33.33333333333333,
+      "duration": 323,
+      "metrics": {
+        "performance": {
+          "responseTime": 323,
+          "throughput": 3.333333333333333,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 33.33333333333333,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 6.666666666666667,
+          "resilience": 33.33333333333333
+        },
+        "usability": {
+          "userSatisfaction": 33.33333333333333,
+          "taskCompletionRate": 33.33333333333333,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [
+        {
+          "code": "ERROR_PROPAGATION_FAILURE",
+          "message": "Error propagation validation failed",
+          "severity": "medium",
+          "category": "error-handling",
+          "impact": "Errors may not be properly handled across components"
+        }
+      ],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": [
+        "Review error handling mechanisms across components",
+        "Implement proper error propagation and recovery"
+      ]
+    },
+    {
+      "testId": "integration-concurrent-processing",
+      "passed": true,
+      "score": 100,
+      "duration": 456,
+      "metrics": {
+        "performance": {
+          "responseTime": 456,
+          "throughput": 10,
+          "resourceUsage": {
+            "cpu": 20,
+            "memory": 100,
+            "disk": 10,
+            "network": 5
+          },
+          "scalability": {
+            "horizontalScaling": 80,
+            "verticalScaling": 70,
+            "elasticity": 75,
+            "degradationPoint": 90
+          },
+          "loadCapacity": {
+            "maxConcurrentUsers": 100,
+            "maxRequestsPerSecond": 50,
+            "breakingPoint": 200,
+            "recoveryTime": 30
+          }
+        },
+        "security": {
+          "vulnerabilityScore": 95,
+          "complianceScore": 90,
+          "authenticationStrength": 85,
+          "dataProtectionLevel": 90,
+          "auditCoverage": 80
+        },
+        "reliability": {
+          "availability": 100,
+          "mtbf": 1000,
+          "mttr": 5,
+          "errorRate": 0,
+          "resilience": 100
+        },
+        "usability": {
+          "userSatisfaction": 100,
+          "taskCompletionRate": 100,
+          "errorRecovery": 80,
+          "learnability": 85,
+          "accessibility": 90
+        },
+        "compliance": {
+          "regulatoryCompliance": 95,
+          "policyCompliance": 90,
+          "auditReadiness": 85,
+          "documentationCoverage": 80
+        }
+      },
+      "errors": [],
+      "warnings": [],
+      "evidence": [],
+      "recommendations": []
+    }
+  ],
+  "performanceBenchmarks": [
+    {
+      "component": "parsing",
+      "metric": "responseTime",
+      "value": 759.2746424290747,
+      "threshold": 1000,
+      "passed": true,
+      "percentile95": 911.1295709148895,
+      "percentile99": 1138.9119636436121
+    },
+    {
+      "component": "parsing",
+      "metric": "memoryUsage",
+      "value": 260.51434619685875,
+      "threshold": 256,
+      "passed": false,
+      "percentile95": 286.56578081654465,
+      "percentile99": 325.6429327460734
+    },
+    {
+      "component": "detection",
+      "metric": "responseTime",
+      "value": 773.9242482656001,
+      "threshold": 2000,
+      "passed": true,
+      "percentile95": 928.7090979187201,
+      "percentile99": 1160.8863723984002
+    },
+    {
+      "component": "detection",
+      "metric": "memoryUsage",
+      "value": 330.50952431633647,
+      "threshold": 512,
+      "passed": true,
+      "percentile95": 363.56047674797014,
+      "percentile99": 413.13690539542057
+    },
+    {
+      "component": "generation",
+      "metric": "responseTime",
+      "value": 1239.3607255981078,
+      "threshold": 1500,
+      "passed": true,
+      "percentile95": 1487.2328707177294,
+      "percentile99": 1859.0410883971617
+    },
+    {
+      "component": "generation",
+      "metric": "memoryUsage",
+      "value": 469.7415992011772,
+      "threshold": 384,
+      "passed": false,
+      "percentile95": 516.715759121295,
+      "percentile99": 587.1769990014716
+    },
+    {
+      "component": "endToEnd",
+      "metric": "responseTime",
+      "value": 3031.6231584157335,
+      "threshold": 5000,
+      "passed": true,
+      "percentile95": 3637.94779009888,
+      "percentile99": 4547.4347376236
+    },
+    {
+      "component": "endToEnd",
+      "metric": "memoryUsage",
+      "value": 158.89953564925688,
+      "threshold": 1024,
+      "passed": true,
+      "percentile95": 174.78948921418257,
+      "percentile99": 198.6244195615711
+    }
+  ],
+  "systemReadiness": {
+    "ready": false,
+    "score": 80,
+    "componentReadiness": [
+      {
+        "component": "readme-parser",
+        "ready": true,
+        "score": 100,
+        "issues": []
+      },
+      {
+        "component": "framework-detection",
+        "ready": true,
+        "score": 100,
+        "issues": []
+      },
+      {
+        "component": "yaml-generator",
+        "ready": true,
+        "score": 100,
+        "issues": []
+      },
+      {
+        "component": "integration-pipeline",
+        "ready": true,
+        "score": 100,
+        "issues": []
+      }
+    ],
+    "missingRequirements": [],
+    "blockers": [
+      "Critical test failed: e2e-complete-workflow",
+      "Critical test failed: e2e-yaml-generation"
+    ]
+  },
+  "recommendations": [
+    {
+      "id": "performance-optimization",
+      "category": "performance",
+      "priority": "high",
+      "title": "Optimize Performance",
+      "description": "2 performance benchmarks failed",
+      "impact": "Poor performance may affect user satisfaction and system scalability",
+      "effort": "high",
+      "timeline": "2-4 weeks"
+    },
+    {
+      "id": "test-fixes",
+      "category": "reliability",
+      "priority": "critical",
+      "title": "Fix Failed Tests",
+      "description": "6 end-to-end tests are failing",
+      "impact": "System functionality may be compromised",
+      "effort": "medium",
+      "timeline": "1 week"
+    },
+    {
+      "id": "resolve-blockers",
+      "category": "reliability",
+      "priority": "critical",
+      "title": "Resolve System Blockers",
+      "description": "2 critical blockers prevent system readiness",
+      "impact": "System cannot be considered ready for production",
+      "effort": "high",
+      "timeline": "1-2 weeks"
+    }
+  ],
+  "actionItems": [
+    {
+      "id": "action-performance-optimization",
+      "title": "Optimize Performance",
+      "description": "2 performance benchmarks failed",
+      "priority": "high",
+      "category": "performance",
+      "estimatedEffort": "high",
+      "dueDate": "2025-09-18T16:58:55.119Z"
+    },
+    {
+      "id": "action-test-fixes",
+      "title": "Fix Failed Tests",
+      "description": "6 end-to-end tests are failing",
+      "priority": "critical",
+      "category": "reliability",
+      "estimatedEffort": "medium",
+      "dueDate": "2025-09-04T16:58:55.119Z"
+    },
+    {
+      "id": "action-resolve-blockers",
+      "title": "Resolve System Blockers",
+      "description": "2 critical blockers prevent system readiness",
+      "priority": "critical",
+      "category": "reliability",
+      "estimatedEffort": "high",
+      "dueDate": "2025-09-07T16:58:55.119Z"
+    },
+    {
+      "id": "blocker-1756400335119-xoaczcs9r",
+      "title": "Resolve Blocker: Critical test failed: e2e-complete-workflow",
+      "description": "Critical test failed: e2e-complete-workflow",
+      "priority": "critical",
+      "category": "blocker",
+      "estimatedEffort": "medium",
+      "dueDate": "2025-09-04T16:58:55.119Z"
+    },
+    {
+      "id": "blocker-1756400335119-2xro2drkq",
+      "title": "Resolve Blocker: Critical test failed: e2e-yaml-generation",
+      "description": "Critical test failed: e2e-yaml-generation",
+      "priority": "critical",
+      "category": "blocker",
+      "estimatedEffort": "medium",
+      "dueDate": "2025-09-04T16:58:55.119Z"
+    }
+  ]
+}

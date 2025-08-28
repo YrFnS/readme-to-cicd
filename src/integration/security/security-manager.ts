@@ -29,7 +29,7 @@ export class SecurityManager implements ISecurityManager {
   private initialized: boolean = false;
   private authProviders: Map<string, any> = new Map();
   private encryptionKeys: Map<string, any> = new Map();
-  private auditLog: AuditEvent[] = [];
+  private auditEvents: AuditEvent[] = [];
 
   constructor() {
   }
@@ -287,7 +287,7 @@ export class SecurityManager implements ISecurityManager {
       };
 
       // Store audit entry
-      this.auditLog.push(auditEntry);
+      this.auditEvents.push(auditEntry);
       
       // Check if audit storage is full and needs rotation
       if (this.auditLog.length > 10000) {
@@ -430,7 +430,7 @@ export class SecurityManager implements ISecurityManager {
   }
 
   private getAuthProvider(type: string): any {
-    for (const [name, provider] of this.authProviders) {
+    for (const [, provider] of this.authProviders) {
       if (provider.type === type) {
         return provider;
       }
@@ -489,11 +489,12 @@ export class SecurityManager implements ISecurityManager {
     const crypto = require('crypto');
     
     switch (algorithm) {
-      case 'AES-256-GCM':
+      case 'AES-256-GCM': {
         const cipher = crypto.createCipher('aes-256-gcm', key);
         let encrypted = cipher.update(data, 'utf8', 'hex');
         encrypted += cipher.final('hex');
         return encrypted;
+      }
       
       default:
         throw new Error(`Unsupported encryption algorithm: ${algorithm}`);
@@ -506,11 +507,12 @@ export class SecurityManager implements ISecurityManager {
     const crypto = require('crypto');
     
     switch (algorithm) {
-      case 'AES-256-GCM':
+      case 'AES-256-GCM': {
         const decipher = crypto.createDecipher('aes-256-gcm', key);
         let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;
+      }
       
       default:
         throw new Error(`Unsupported decryption algorithm: ${algorithm}`);
@@ -682,11 +684,11 @@ export class SecurityManager implements ISecurityManager {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  private async storeSession(token: string, user: User, expiresAt: Date): Promise<void> {
+  private async storeSession(_token: string, _user: User, _expiresAt: Date): Promise<void> {
     // Store session information in secure storage
   }
 
-  private async evaluatePolicy(policy: any, user: User, resource: Resource, action: Action): Promise<any> {
+  private async evaluatePolicy(_policy: any, _user: User, _resource: Resource, _action: Action): Promise<any> {
     // Evaluate authorization policy
     return { effect: 'allow' };
   }
@@ -703,11 +705,11 @@ export class SecurityManager implements ISecurityManager {
     // Implement audit log rotation
   }
 
-  private async sendToExternalAuditSystems(auditEntry: any): Promise<void> {
+  private async sendToExternalAuditSystems(_auditEntry: any): Promise<void> {
     // Send audit entry to external systems
   }
 
-  private async checkAuditAlerts(auditEntry: any): Promise<void> {
+  private async checkAuditAlerts(_auditEntry: any): Promise<void> {
     // Check if audit entry triggers any alerts
   }
 

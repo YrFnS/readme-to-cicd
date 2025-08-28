@@ -1,4 +1,5 @@
 import { WorkflowSystem, WorkflowItem, IntegrationCredentials } from '../types.js';
+import { logger } from '../../shared/logging/central-logger';
 
 /**
  * Jira workflow system provider
@@ -38,7 +39,7 @@ export class JiraProvider {
         connected: true
       };
 
-      console.log(`Jira client initialized for project ${config.configuration.projectKey}`);
+      logger.info('Jira client initialized', { projectKey: config.configuration.projectKey });
     } catch (error) {
       throw new Error(`Failed to initialize Jira client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -51,7 +52,7 @@ export class JiraProvider {
     if (this.client) {
       this.client.connected = false;
       this.client = null;
-      console.log('Jira client cleaned up');
+      logger.info('Jira client cleaned up');
     }
   }
 
@@ -67,10 +68,12 @@ export class JiraProvider {
       // In a real implementation, this would call Jira API health endpoint
       return true;
     } catch (error) {
-      console.error('Jira health check failed:', error);
+      logger.error('Jira health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return false;
     }
-  }  /**
+  }
+
+  /**
    * Get workflow items from Jira
    */
   async getWorkflowItems(): Promise<WorkflowItem[]> {
@@ -138,7 +141,7 @@ export class JiraProvider {
         customFields: item.customFields || {}
       };
 
-      console.log(`Created Jira issue: ${newIssue.id}`);
+      logger.info('Created Jira issue', { issueId: newIssue.id });
       return newIssue;
     } catch (error) {
       throw new Error(`Failed to create Jira issue: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -166,7 +169,7 @@ export class JiraProvider {
         customFields: updates.customFields || {}
       };
 
-      console.log(`Updated Jira issue: ${itemId}`);
+      logger.info('Updated Jira issue', { itemId });
       return updatedIssue;
     } catch (error) {
       throw new Error(`Failed to update Jira issue: ${error instanceof Error ? error.message : 'Unknown error'}`);

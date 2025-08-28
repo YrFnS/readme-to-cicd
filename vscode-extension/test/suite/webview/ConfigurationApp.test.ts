@@ -1,17 +1,12 @@
 import * as assert from 'assert';
 import { describe, it, beforeEach, afterEach } from 'mocha';
 import { JSDOM } from 'jsdom';
-
-// Mock VS Code API
-const mockVSCodeAPI = {
-  postMessage: (message: any) => {},
-  setState: (state: any) => {},
-  getState: () => ({})
-};
+import { createMockWebviewAPI, createMockAJV } from '../../setup/vscode-mock';
 
 // Setup DOM environment for React testing
 let dom: JSDOM;
 let window: any;
+let mockVSCodeAPI: any;
 
 describe('ConfigurationApp Component', () => {
   beforeEach(() => {
@@ -28,11 +23,21 @@ describe('ConfigurationApp Component', () => {
     global.navigator = window.navigator;
     
     // Mock VS Code API
+    mockVSCodeAPI = createMockWebviewAPI();
     (global as any).acquireVsCodeApi = () => mockVSCodeAPI;
+    
+    // Mock AJV for validation
+    const mockAJV = createMockAJV();
+    (global as any).Ajv = () => mockAJV;
   });
 
   afterEach(() => {
     dom.window.close();
+    delete (global as any).window;
+    delete (global as any).document;
+    delete (global as any).navigator;
+    delete (global as any).acquireVsCodeApi;
+    delete (global as any).Ajv;
   });
 
   describe('Component Initialization', () => {

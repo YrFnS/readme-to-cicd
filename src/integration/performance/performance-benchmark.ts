@@ -265,7 +265,7 @@ export class PerformanceBenchmark extends EventEmitter implements IPerformanceBe
     }
   }
 
-  private async executeRequest(request: LoadTestRequest): Promise<void> {
+  private async executeRequest(_request: LoadTestRequest): Promise<void> {
     // Simulate HTTP request execution
     const delay = Math.random() * 1000 + 100; // 100-1100ms
     await new Promise(resolve => setTimeout(resolve, delay));

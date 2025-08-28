@@ -654,7 +654,7 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private async executeComponentStep(step: WorkflowStep, context: WorkflowExecutionContext): Promise<any> {
+  private async executeComponentStep(step: WorkflowStep, _context: WorkflowExecutionContext): Promise<any> {
     this.logger.debug('Executing component step', {
       component: step.component,
       action: step.action
@@ -675,7 +675,7 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private async executeDeploymentStep(step: WorkflowStep, context: WorkflowExecutionContext): Promise<any> {
+  private async executeDeploymentStep(step: WorkflowStep, _context: WorkflowExecutionContext): Promise<any> {
     this.logger.debug('Executing deployment step', {
       action: step.action,
       parameters: step.parameters
@@ -694,7 +694,7 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private async executeValidationStep(step: WorkflowStep, context: WorkflowExecutionContext): Promise<any> {
+  private async executeValidationStep(step: WorkflowStep, _context: WorkflowExecutionContext): Promise<any> {
     this.logger.debug('Executing validation step', {
       action: step.action,
       parameters: step.parameters
@@ -704,7 +704,7 @@ export class WorkflowOrchestrator {
     return { status: 'validated', results: step.parameters };
   }
 
-  private async executeNotificationStep(step: WorkflowStep, context: WorkflowExecutionContext): Promise<any> {
+  private async executeNotificationStep(step: WorkflowStep, _context: WorkflowExecutionContext): Promise<any> {
     this.logger.debug('Executing notification step', {
       action: step.action,
       parameters: step.parameters
@@ -714,7 +714,7 @@ export class WorkflowOrchestrator {
     return { status: 'sent', recipients: step.parameters.recipients };
   }
 
-  private async executeCustomStep(step: WorkflowStep, context: WorkflowExecutionContext): Promise<any> {
+  private async executeCustomStep(step: WorkflowStep, _context: WorkflowExecutionContext): Promise<any> {
     this.logger.debug('Executing custom step', {
       action: step.action,
       parameters: step.parameters
@@ -788,17 +788,17 @@ export class WorkflowOrchestrator {
     return true;
   }
 
-  private evaluateExpression(expression: string, context: WorkflowExecutionContext): boolean {
+  private evaluateExpression(_expression: string, _context: WorkflowExecutionContext): boolean {
     // Simple expression evaluation - in production, use a proper expression parser
     return true; // Simplified for now
   }
 
-  private evaluateComponentStatus(condition: string, context: WorkflowExecutionContext): boolean {
+  private evaluateComponentStatus(_condition: string, _context: WorkflowExecutionContext): boolean {
     // Component status evaluation
     return true; // Simplified for now
   }
 
-  private evaluateMetricThreshold(condition: string, context: WorkflowExecutionContext): boolean {
+  private evaluateMetricThreshold(_condition: string, _context: WorkflowExecutionContext): boolean {
     // Metric threshold evaluation
     return true; // Simplified for now
   }
@@ -836,7 +836,7 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private async handleWorkflowError(workflow: WorkflowDefinition, context: WorkflowExecutionContext, error: unknown): Promise<void> {
+  private async handleWorkflowError(workflow: WorkflowDefinition, context: WorkflowExecutionContext, _error: unknown): Promise<void> {
     this.logger.error('Handling workflow error', {
       workflowId: workflow.id,
       executionId: context.executionId,

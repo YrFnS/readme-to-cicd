@@ -578,7 +578,7 @@ export class IncidentResponse implements IIncidentResponse {
     }
   }
 
-  private async executePlaybookStep(step: any, incident: any): Promise<{ success: boolean; output: string; error?: string }> {
+  private async executePlaybookStep(step: any, _incident: any): Promise<{ success: boolean; output: string; error?: string }> {
     try {
       logger.info('Executing playbook step', {
         stepId: step.id,
@@ -787,7 +787,7 @@ export class IncidentResponse implements IIncidentResponse {
     return Math.max(0, baseEffectiveness - (severityPenalty[incident.severity as keyof typeof severityPenalty] || 0));
   }
 
-  private identifyImprovements(incident: any): string[] {
+  private identifyImprovements(_incident: any): string[] {
     return [
       'Faster initial response time',
       'Better communication coordination',

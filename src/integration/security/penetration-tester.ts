@@ -23,6 +23,7 @@ export class PenetrationTester implements IPenetrationTester {
   private testPlans: Map<string, PenTestPlan> = new Map();
   private testResults: Map<string, PenTestResult> = new Map();
   private reports: Map<string, PenTestReport> = new Map();
+  private logger = logger;
 
   constructor() {
     // Using central logger instance

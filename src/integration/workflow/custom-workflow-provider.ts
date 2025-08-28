@@ -1,4 +1,5 @@
 import { WorkflowSystem, WorkflowItem, IntegrationCredentials } from '../types.js';
+import { logger } from '../../shared/logging/central-logger';
 
 /**
  * Custom workflow system provider for generic workflow engines
@@ -42,7 +43,7 @@ export class CustomWorkflowProvider {
         connected: true
       };
 
-      console.log(`Custom workflow client initialized for ${config.baseUrl}`);
+      logger.info('Custom workflow client initialized', { baseUrl: config.baseUrl });
     } catch (error) {
       throw new Error(`Failed to initialize custom workflow client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -55,7 +56,7 @@ export class CustomWorkflowProvider {
     if (this.client) {
       this.client.connected = false;
       this.client = null;
-      console.log('Custom workflow client cleaned up');
+      logger.info('Custom workflow client cleaned up');
     }
   }
 
@@ -71,10 +72,12 @@ export class CustomWorkflowProvider {
       // Generic health check - could ping the base URL
       return true;
     } catch (error) {
-      console.error('Custom workflow health check failed:', error);
+      logger.error('Custom workflow health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return false;
     }
-  }  /**
+  }
+
+  /**
    * Get workflow items from custom system
    */
   async getWorkflowItems(): Promise<WorkflowItem[]> {
@@ -144,7 +147,7 @@ export class CustomWorkflowProvider {
         customFields: item.customFields || {}
       };
 
-      console.log(`Created custom workflow item: ${newItem.id}`);
+      logger.info('Created custom workflow item', { itemId: newItem.id });
       return newItem;
     } catch (error) {
       throw new Error(`Failed to create custom workflow item: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -172,7 +175,7 @@ export class CustomWorkflowProvider {
         customFields: updates.customFields || {}
       };
 
-      console.log(`Updated custom workflow item: ${itemId}`);
+      logger.info('Updated custom workflow item', { itemId });
       return updatedItem;
     } catch (error) {
       throw new Error(`Failed to update custom workflow item: ${error instanceof Error ? error.message : 'Unknown error'}`);

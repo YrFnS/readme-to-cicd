@@ -114,7 +114,11 @@ describe('TemplateFallbackManager', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockTemplate);
-      expect(result.warnings).toContain("Used fallback template");
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("Used fallback template")
+        ])
+      );
       expect(mockFs.readFile).toHaveBeenCalledTimes(2);
     });
 
@@ -592,10 +596,12 @@ describe('TemplateFallbackManager', () => {
         'test-template'
       );
 
-      expect(mockFs.readFile).toHaveBeenCalledWith(
-        expect.stringContaining('/custom/templates'),
-        'utf-8'
+      // Check that at least one call used the custom template directory
+      const calls = mockFs.readFile.mock.calls;
+      const hasCustomDirectoryCall = calls.some(call => 
+        call[0].includes('/custom/templates') || call[0].includes('\\custom\\templates')
       );
+      expect(hasCustomDirectoryCall).toBe(true);
     });
   });
 

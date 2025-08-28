@@ -17,7 +17,7 @@ import {
   PolicyRule
 } from './types';
 import { logger } from '../../shared/logging/central-logger';
-import { Result } from '../../shared/result';
+
 
 export class PolicyEngine implements IPolicyEngine {
   private config: PolicyConfig;
@@ -425,13 +425,6 @@ export class PolicyEngine implements IPolicyEngine {
   private async evaluateCondition(condition: string, context: PolicyContext): Promise<{ result: boolean; reason?: string }> {
     try {
       // Simple condition evaluation (in production, use a proper expression evaluator)
-      const evaluationContext = {
-        user: context.user,
-        resource: context.resource,
-        action: context.action,
-        environment: context.environment
-      };
-
       // Mock condition evaluation
       if (condition.includes('user.authenticated == true')) {
         return { result: !!context.user.id };
@@ -465,7 +458,7 @@ export class PolicyEngine implements IPolicyEngine {
           reason: 'Advisory mode - policy violations logged but not blocked'
         };
 
-      case 'enforcing':
+      case 'enforcing': {
         // Check for policy violations
         const hasViolation = await this.checkPolicyViolation(policy, resource);
         if (hasViolation) {
@@ -483,8 +476,9 @@ export class PolicyEngine implements IPolicyEngine {
           result: 'allowed',
           reason: 'No policy violations detected'
         };
+      }
 
-      case 'blocking':
+      case 'blocking': {
         // Check for policy violations
         const hasBlockingViolation = await this.checkPolicyViolation(policy, resource);
         if (hasBlockingViolation) {
@@ -502,6 +496,7 @@ export class PolicyEngine implements IPolicyEngine {
           result: 'allowed',
           reason: 'No policy violations detected'
         };
+      }
 
       default:
         return {
@@ -597,7 +592,7 @@ export class PolicyEngine implements IPolicyEngine {
     return Math.random() < 0.1; // 10% chance of violation
   }
 
-  private async recordViolation(policy: string, resource: string): Promise<void> {
+  private async recordViolation(_policy: string, _resource: string): Promise<void> {
     const violation = {
       policy,
       resource,

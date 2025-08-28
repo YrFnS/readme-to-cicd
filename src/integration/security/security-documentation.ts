@@ -18,6 +18,7 @@ export class SecurityDocumentation implements ISecurityDocumentation {
   private initialized: boolean = false;
   private documents: Map<string, any> = new Map();
   private templates: Map<string, string> = new Map();
+  private logger = logger;
 
   constructor() {
     // Using central logger instance

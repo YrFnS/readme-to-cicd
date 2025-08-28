@@ -10,9 +10,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
-import { CompilationValidator } from './compilation-validator.js';
-import { ComponentInterfaceValidator } from './interface-validator.js';
-import { IntegrationDiagnostics } from './integration-diagnostics.js';
+import { CompilationValidator } from './compilation-validator';
+import { ComponentInterfaceValidator } from './interface-validator';
+import { IntegrationDiagnostics } from './integration-diagnostics';
 
 const execAsync = promisify(exec);
 

@@ -6,7 +6,7 @@
  */
 
 import { ContentAnalyzer, AnalysisResult, MarkdownAST, ParseError } from '../types';
-import { AnalysisContext, AnalysisContextUtils } from '../../shared/types/analysis-context';
+import { AnalysisContext, AnalysisContextUtils, ValidationError } from '../../shared/types/analysis-context';
 import { LanguageContext } from '../../shared/types/language-context';
 
 /**
@@ -108,7 +108,11 @@ export abstract class ContextAwareAnalyzer implements ContentAnalyzer {
     
     // Add any errors to context validation
     if (result.errors && result.errors.length > 0) {
-      context.validation.errors.push(...result.errors);
+      // Convert ParseError to ValidationError
+      const validationErrors = result.errors.map(error => 
+        new ValidationError(error.message, this.name, error.code)
+      );
+      context.validation.errors.push(...validationErrors);
     }
   }
   
@@ -128,12 +132,11 @@ export abstract class ContextAwareAnalyzer implements ContentAnalyzer {
     context.metadata.performance.totalProcessingTime += processingTime;
     
     // Add error to validation
-    context.validation.errors.push({
-      code: 'ANALYZER_EXECUTION_ERROR',
-      message: error instanceof Error ? error.message : 'Unknown analyzer error',
-      component: this.name,
-      severity: 'error'
-    });
+    context.validation.errors.push(new ValidationError(
+      `Analyzer ${this.name} execution failed: ${error instanceof Error ? error.message : 'Unknown analyzer error'}`,
+      this.name,
+      'ANALYZER_EXECUTION_ERROR'
+    ));
     
     // Mark context as invalid
     context.validation.isValid = false;
@@ -160,6 +163,7 @@ export abstract class ContextAwareAnalyzer implements ContentAnalyzer {
       average,
       minimum,
       maximum,
+      variance,
       standardDeviation,
       byAnalyzer: context.metadata.quality.confidenceDistribution.byAnalyzer
     };

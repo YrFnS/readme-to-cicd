@@ -92,7 +92,7 @@ suite('CommandManager Tests', () => {
         // Mock VS Code window methods
         sinon.stub(vscode.window, 'showErrorMessage').resolves();
         sinon.stub(vscode.window, 'showInformationMessage').resolves();
-        sinon.stub(vscode.window, 'withProgress').callsFake(async (options, task) => {
+        sinon.stub(vscode.window, 'withProgress').callsFake(async (_options, task) => {
             const progress = {
                 report: sinon.stub()
             };
@@ -126,10 +126,9 @@ suite('CommandManager Tests', () => {
         await commandManager.dispose();
         // Verify dispose was called on all registered commands
         mockContext.subscriptions.forEach(subscription => {
-            if (subscription.dispose) {
-                // In real scenario, dispose would be called, but we can't easily verify this in tests
-                // The important thing is that the array is cleared
-            }
+            // In real scenario, dispose would be called, but we can't easily verify this in tests
+            // The important thing is that the array is cleared
+            assert.ok(subscription.dispose, 'Subscription should have dispose method');
         });
     });
     test('CommandManager should return list of registered commands', async () => {
@@ -206,8 +205,7 @@ suite('CommandManager Tests', () => {
         // Verify success message was shown
         assert.ok(vscode.window.showInformationMessage.called, 'Should show success message');
     });
-    te;
-    st('CommandManager should handle Generate Workflow command with no workspace', async () => {
+    test('CommandManager should handle Generate Workflow command with no workspace', async () => {
         mockWorkspaceManager.getActiveWorkspaceFolder = sinon.stub().returns(undefined);
         commandManager = new CommandManager_1.CommandManager(mockContext, mockWorkspaceManager, mockSettingsManager);
         await commandManager.initialize();

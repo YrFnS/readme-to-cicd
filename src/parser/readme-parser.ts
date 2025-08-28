@@ -9,9 +9,9 @@ import {
   ProjectInfo, 
   ParseError,
   ContentAnalyzer,
-  ConfidenceScores,
   AnalysisResult
 } from './types';
+import { logger } from '../shared/logging/central-logger';
 import { AnalyzerRegistry } from './analyzers/analyzer-registry';
 import { FileReader } from './utils/file-reader';
 import { MarkdownParser } from './utils/markdown-parser';
@@ -20,9 +20,9 @@ import {
   LanguageDetectorAdapter,
   DependencyExtractorAdapter,
   CommandExtractorAdapter,
-  TestingDetectorAdapter
+  TestingDetectorAdapter,
+  MetadataExtractorAdapter
 } from './analyzers/analyzer-adapters';
-import { MetadataExtractor } from './analyzers/metadata-extractor';
 import { ASTCache, globalASTCache } from './utils/ast-cache';
 import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
 import { StreamingFileReader } from './utils/streaming-file-reader';
@@ -89,7 +89,7 @@ export class ReadmeParserImpl implements ReadmeParser {
     if (integrationPipeline) {
       this.integrationPipeline = integrationPipeline;
       this.useIntegrationPipeline = true;
-      console.log('✅ Using provided IntegrationPipeline instance');
+      logger.info('Using provided IntegrationPipeline instance');
     } else {
       // Determine if we should use IntegrationPipeline
       this.useIntegrationPipeline = options?.useIntegrationPipeline !== false; // Default to true unless explicitly disabled
@@ -118,9 +118,9 @@ export class ReadmeParserImpl implements ReadmeParser {
     try {
       // Use the imported IntegrationPipeline class directly
       this.integrationPipeline = new IntegrationPipeline();
-      console.log('IntegrationPipeline initialized successfully in constructor');
+      logger.info('IntegrationPipeline initialized successfully in constructor');
     } catch (error) {
-      console.warn('Failed to initialize IntegrationPipeline during construction:', error);
+      logger.warn('Failed to initialize IntegrationPipeline during construction', { error: error instanceof Error ? error.message : 'Unknown error' });
       this.integrationPipeline = null;
       throw error; // Re-throw to be caught by constructor
     }
@@ -133,9 +133,9 @@ export class ReadmeParserImpl implements ReadmeParser {
     try {
       // Use the imported IntegrationPipeline class directly
       this.integrationPipeline = new IntegrationPipeline();
-      console.log('IntegrationPipeline initialized successfully');
+      logger.info('IntegrationPipeline initialized successfully');
     } catch (error) {
-      console.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers:', error);
+      logger.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers', { error: error instanceof Error ? error.message : 'Unknown error' });
       this.useIntegrationPipeline = false;
       throw error; // Re-throw to handle in calling code
     }
@@ -150,7 +150,7 @@ export class ReadmeParserImpl implements ReadmeParser {
       new DependencyExtractorAdapter(),
       new CommandExtractorAdapter(),
       new TestingDetectorAdapter(),
-      new MetadataExtractor()
+      new MetadataExtractorAdapter()
     ];
 
     if (this.integrationPipeline) {
@@ -158,9 +158,9 @@ export class ReadmeParserImpl implements ReadmeParser {
       Promise.all(analyzers.map(async (analyzer) => {
         try {
           await this.integrationPipeline!.registerAnalyzer(analyzer as any);
-          console.log(`✅ Registered ${analyzer.name} through IntegrationPipeline`);
+          logger.info('Registered analyzer through IntegrationPipeline', { analyzerName: analyzer.name });
         } catch (error) {
-          console.warn(`⚠️ Failed to register ${analyzer.name} through pipeline, using fallback:`, error);
+          logger.warn('Failed to register analyzer through pipeline, using fallback', { analyzerName: analyzer.name, error: error instanceof Error ? error.message : 'Unknown error' });
           this.analyzerRegistry.register(analyzer);
         }
       })).catch(error => {
@@ -171,7 +171,7 @@ export class ReadmeParserImpl implements ReadmeParser {
       analyzers.forEach(analyzer => {
         this.analyzerRegistry.register(analyzer);
       });
-      console.log('📝 Registered analyzers through fallback registry');
+      logger.info('Registered analyzers through fallback registry');
     }
   }
 

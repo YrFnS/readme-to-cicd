@@ -1,4 +1,5 @@
 import { WorkflowSystem, WorkflowItem, IntegrationCredentials } from '../types.js';
+import { logger } from '../../shared/logging/central-logger';
 
 /**
  * ServiceNow workflow system provider
@@ -38,7 +39,7 @@ export class ServiceNowProvider {
         connected: true
       };
 
-      console.log(`ServiceNow client initialized for instance ${config.configuration.instanceUrl}`);
+      logger.info('ServiceNow client initialized', { instanceUrl: config.configuration.instanceUrl });
     } catch (error) {
       throw new Error(`Failed to initialize ServiceNow client: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -51,7 +52,7 @@ export class ServiceNowProvider {
     if (this.client) {
       this.client.connected = false;
       this.client = null;
-      console.log('ServiceNow client cleaned up');
+      logger.info('ServiceNow client cleaned up');
     }
   }
 
@@ -67,10 +68,12 @@ export class ServiceNowProvider {
       // In a real implementation, this would call ServiceNow API health endpoint
       return true;
     } catch (error) {
-      console.error('ServiceNow health check failed:', error);
+      logger.error('ServiceNow health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
       return false;
     }
-  }  /**
+  }
+
+  /**
    * Get workflow items from ServiceNow
    */
   async getWorkflowItems(): Promise<WorkflowItem[]> {
@@ -142,7 +145,7 @@ export class ServiceNowProvider {
         customFields: item.customFields || {}
       };
 
-      console.log(`Created ServiceNow item: ${newItem.id}`);
+      logger.info('Created ServiceNow item', { itemId: newItem.id });
       return newItem;
     } catch (error) {
       throw new Error(`Failed to create ServiceNow item: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -170,7 +173,7 @@ export class ServiceNowProvider {
         customFields: updates.customFields || {}
       };
 
-      console.log(`Updated ServiceNow item: ${itemId}`);
+      logger.info('Updated ServiceNow item', { itemId });
       return updatedItem;
     } catch (error) {
       throw new Error(`Failed to update ServiceNow item: ${error instanceof Error ? error.message : 'Unknown error'}`);

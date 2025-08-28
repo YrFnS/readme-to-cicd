@@ -14,9 +14,8 @@ import { MonitoringSystem } from '../monitoring/monitoring-system';
 import { HealthManager } from './health-manager';
 import { WorkflowOrchestrator } from './workflow-orchestrator';
 import { Result, success, failure } from '../../shared/types/result';
-import { CLIOptions, CLIResult } from '../../cli/lib/types';
+import { CLIOptions } from '../../cli/lib/types';
 import { IntegrationPipeline } from '../integration-pipeline';
-import { WebhookManager } from '../webhooks/webhook-manager';
 import type { WebhookConfig } from '../webhooks/types';
 
 /**
@@ -572,19 +571,6 @@ export class OrchestrationEngine {
         throw new Error(`Failed to access README file: ${readmePath}`);
       }
     }
-
-    // Convert to CLI options format
-    const cliOptions: CLIOptions = {
-      command: 'generate',
-      readmePath,
-      outputDir,
-      workflowType: options?.workflowType,
-      dryRun: options?.dryRun || false,
-      interactive: options?.interactive || false,
-      verbose: false,
-      debug: false,
-      quiet: false
-    };
 
     // Use integration pipeline for execution
     return await this.integrationPipeline.execute(

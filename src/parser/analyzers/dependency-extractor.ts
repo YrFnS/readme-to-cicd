@@ -30,11 +30,25 @@ export class DependencyExtractor extends BaseAnalyzer<DependencyInfo> {
     { pattern: /([a-zA-Z0-9-_]+)\s*=\s*"([^"]+)"/g, type: 'cargo' }
   ];
 
-  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<DependencyInfo>> {
+  async analyze(ast: MarkdownAST, content: string, context?: import('../../shared/types/analysis-context').AnalysisContext): Promise<AnalyzerResult<DependencyInfo>> {
     try {
+      // Set analysis context if provided
+      if (context) {
+        this.setAnalysisContext(context);
+      }
+
       const sources: string[] = [];
       const dependencyInfo = this.extractDependencies(ast, content, sources);
       const confidence = this.calculateDependencyConfidence(dependencyInfo);
+      
+      // Share dependency information with other analyzers
+      if (context) {
+        this.updateSharedData('dependencyInfo', dependencyInfo);
+        this.updateSharedData('packageFiles', dependencyInfo.packageFiles);
+        
+        // Validate data flow to potential consumers
+        this.validateDataFlow('YamlGenerator', ['dependencyInfo', 'packageFiles']);
+      }
       
       return this.createSuccessResult(dependencyInfo, confidence, sources);
     } catch (error) {

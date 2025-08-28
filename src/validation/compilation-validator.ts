@@ -180,7 +180,7 @@ export class CompilationValidator {
     if (!validationResult.success) {
       return {
         success: false,
-        error: [new Error('Compilation validation failed: ' + validationResult.error.message) as any]
+        error: [new Error('Compilation validation failed') as any]
       };
     }
 

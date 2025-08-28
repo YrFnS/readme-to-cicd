@@ -6,16 +6,17 @@
 import { ContentAnalyzer, AnalysisResult, MarkdownAST } from '../types';
 import { AnalysisContext } from '../../shared/types/analysis-context';
 import { LanguageContext } from '../../shared/types/language-context';
-import { ContextAwareAnalyzer } from './context-aware-analyzer';
+import { ContextAwareAnalyzer as LocalContextAwareAnalyzer } from './context-aware-analyzer';
 import { LanguageDetector } from './language-detector';
 import { DependencyExtractor } from './dependency-extractor';
 import { CommandExtractor } from './command-extractor';
 import { TestingDetector } from './testing-detector';
+import { MetadataExtractor } from './metadata-extractor';
 
 /**
  * Base adapter class with context awareness
  */
-abstract class AnalyzerAdapter extends ContextAwareAnalyzer {
+abstract class AnalyzerAdapter extends LocalContextAwareAnalyzer implements ContentAnalyzer {
   abstract readonly name: string;
   
   /**
@@ -68,6 +69,10 @@ abstract class AnalyzerAdapter extends ContextAwareAnalyzer {
 export class LanguageDetectorAdapter extends AnalyzerAdapter {
   readonly name = 'LanguageDetector';
   public detector = new LanguageDetector(); // Make public for context access
+  
+  protected getAnalyzerName(): string {
+    return this.name;
+  }
   
   protected async legacyAnalyze(
     ast: MarkdownAST, 
@@ -150,6 +155,10 @@ export class LanguageDetectorAdapter extends AnalyzerAdapter {
 export class DependencyExtractorAdapter extends AnalyzerAdapter {
   readonly name = 'DependencyExtractor';
   private extractor = new DependencyExtractor();
+  
+  protected getAnalyzerName(): string {
+    return this.name;
+  }
   
   protected async legacyAnalyze(
     ast: MarkdownAST, 
@@ -260,6 +269,10 @@ export class DependencyExtractorAdapter extends AnalyzerAdapter {
 export class CommandExtractorAdapter extends AnalyzerAdapter {
   readonly name = 'CommandExtractor';
   public extractor = new CommandExtractor(); // Make public for context setting
+  
+  protected getAnalyzerName(): string {
+    return this.name;
+  }
   
   protected async legacyAnalyze(
     ast: MarkdownAST, 
@@ -377,6 +390,10 @@ export class CommandExtractorAdapter extends AnalyzerAdapter {
 export class TestingDetectorAdapter extends AnalyzerAdapter {
   readonly name = 'TestingDetector';
   private detector = new TestingDetector();
+
+  getAnalyzerName(): string {
+    return this.name;
+  }
   
   protected async legacyAnalyze(
     ast: MarkdownAST, 
@@ -507,5 +524,62 @@ export class TestingDetectorAdapter extends AnalyzerAdapter {
     }
     
     return [];
+  }
+}
+
+/**
+ * Metadata extractor adapter with context sharing
+ */
+export class MetadataExtractorAdapter extends AnalyzerAdapter {
+  readonly name = 'MetadataExtractor';
+  private extractor = new MetadataExtractor();
+
+  getAnalyzerName(): string {
+    return this.name;
+  }
+  
+  protected async legacyAnalyze(
+    ast: MarkdownAST, 
+    rawContent: string, 
+    context?: AnalysisContext
+  ): Promise<any> {
+    // Analysis context is handled by the base class
+    
+    // Perform metadata extraction
+    const result = await this.extractor.analyze(ast, rawContent, context);
+    
+    // Share metadata results with context
+    if (context && result.success && result.data) {
+      this.shareMetadataResults(context, result.data);
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Share metadata extraction results with analysis context
+   */
+  private shareMetadataResults(context: AnalysisContext, metadataData: any): void {
+    try {
+      // Store metadata results in shared data
+      this.setSharedData(context, 'extracted_metadata', metadataData);
+      
+      // Create project summary for other analyzers
+      const projectSummary = {
+        name: metadataData.name,
+        description: metadataData.description,
+        hasStructure: !!(metadataData.structure && metadataData.structure.length > 0),
+        hasEnvironmentVars: !!(metadataData.environment && metadataData.environment.length > 0),
+        structureCount: metadataData.structure?.length || 0,
+        envVarCount: metadataData.environment?.length || 0
+      };
+      
+      this.setSharedData(context, 'project_summary', projectSummary);
+      
+      console.log(`✅ [${this.name}] Shared metadata results for project: ${metadataData.name}`);
+      
+    } catch (error) {
+      console.warn(`⚠️ [${this.name}] Failed to share metadata results:`, error);
+    }
   }
 }

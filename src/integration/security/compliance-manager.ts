@@ -248,7 +248,7 @@ export class ComplianceManager implements IComplianceManager {
       let totalScore = 0;
       let frameworkCount = 0;
 
-      for (const [name, framework] of this.frameworks) {
+      for (const [, framework] of this.frameworks) {
         if (framework.enabled) {
           const status = await this.getFrameworkStatus(framework);
           frameworkStatuses.push(status);
@@ -489,7 +489,7 @@ export class ComplianceManager implements IComplianceManager {
     }
   }
 
-  private async collectAuditEvents(timeRange: TimeRange): Promise<any[]> {
+  private async collectAuditEvents(_timeRange: TimeRange): Promise<any[]> {
     // Collect audit events from the specified time range
     // This would integrate with the audit logging system
     return [];

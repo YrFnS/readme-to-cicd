@@ -5,17 +5,29 @@
 import { MarkdownAST } from '../../shared/markdown-parser';
 import { AnalyzerResult, ParseError } from '../types';
 import { Analyzer } from './registry';
+import { AnalysisContext, ContextAwareAnalyzer } from '../../shared/types/analysis-context';
 
 /**
- * Abstract base class for all analyzers
+ * Abstract base class for all analyzers with context sharing support
  */
-export abstract class BaseAnalyzer<T> implements Analyzer<T> {
+export abstract class BaseAnalyzer<T> extends ContextAwareAnalyzer implements Analyzer<T> {
   abstract readonly name: string;
+
+  constructor(config?: Partial<import('../../shared/types/analysis-context').ContextSharingConfig>) {
+    super(config);
+  }
 
   /**
    * Main analysis method that subclasses must implement
    */
-  abstract analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<T>>;
+  abstract analyze(ast: MarkdownAST, content: string, context?: AnalysisContext): Promise<AnalyzerResult<T>>;
+
+  /**
+   * Get the analyzer name for context tracking
+   */
+  protected getAnalyzerName(): string {
+    return this.name;
+  }
 
   /**
    * Create a successful result

@@ -50,6 +50,8 @@ export interface PipelineContext {
   languageContexts?: LanguageContext[];
   /** Command extraction results */
   commandResults?: CommandExtractionResult;
+  /** Analysis context for proper context sharing */
+  analysisContext?: import('../shared/types/analysis-context').AnalysisContext;
   /** Performance monitoring data */
   performanceData?: any;
   /** Pipeline execution metadata */
@@ -358,11 +360,27 @@ export class IntegrationPipeline {
       throw new Error('AST not available for language detection');
     }
 
+    // Create analysis context for proper context sharing
+    const { AnalysisContextFactory } = await import('../shared/types/analysis-context');
+    const analysisContext = AnalysisContextFactory.create(context.content);
+
     const languageDetector = this.dependencies.languageDetector;
+    
+    // Run language detection with analysis context
+    const analyzerResult = await languageDetector.analyze(context.ast!, context.content, analysisContext);
+    
+    if (!analyzerResult.success) {
+      throw new Error('Language detection failed');
+    }
+
+    // Get enhanced detection result for context information
     const detectionResult = languageDetector.detectWithContext(context.ast!, context.content);
 
     // Store language contexts for next stages
     context.languageContexts = detectionResult.contexts;
+
+    // Store analysis context for other stages
+    context.analysisContext = analysisContext;
 
     this.logger.info('IntegrationPipeline', `Detected ${detectionResult.contexts.length} language contexts`);
 
@@ -405,7 +423,18 @@ export class IntegrationPipeline {
     const contextsToUse = context.languageContexts || [];
     commandExtractor.setLanguageContexts(contextsToUse);
 
-    // Always use context-aware extraction (works with or without contexts)
+    // Use analysis context for proper context sharing
+    const analyzerResult = await commandExtractor.analyze(
+      context.ast,
+      context.content,
+      context.analysisContext
+    );
+
+    if (!analyzerResult.success) {
+      throw new Error('Command extraction failed');
+    }
+
+    // Also get the enhanced extraction result for compatibility
     context.commandResults = commandExtractor.extractWithContext(
       context.ast,
       context.content
@@ -480,24 +509,24 @@ export class IntegrationPipeline {
         analyzerWarnings.push('No command results available from extraction stage');
       }
 
-      // Run other analyzers with error isolation
+      // Run other analyzers with error isolation and context sharing
       await this.runAnalyzerWithErrorHandling(
         'DependencyExtractor',
-        () => this.dependencies.dependencyExtractor.analyze(context.ast, context.content),
+        () => this.dependencies.dependencyExtractor.analyze(context.ast, context.content, context.analysisContext),
         analyzerResults,
         analyzerErrors
       );
 
       await this.runAnalyzerWithErrorHandling(
         'TestingDetector',
-        () => this.dependencies.testingDetector.analyze(context.ast, context.content),
+        () => this.dependencies.testingDetector.analyze(context.ast, context.content, context.analysisContext),
         analyzerResults,
         analyzerErrors
       );
 
       await this.runAnalyzerWithErrorHandling(
         'MetadataExtractor',
-        () => this.dependencies.metadataExtractor.analyze(context.ast, context.content),
+        () => this.dependencies.metadataExtractor.analyze(context.ast, context.content, context.analysisContext),
         analyzerResults,
         analyzerErrors
       );

@@ -1,11 +1,12 @@
 import { AnalyzerResult, TestingInfo, TestingToolType } from '../types';
 import { MarkdownAST, MarkdownNode, MarkdownUtils } from '../../shared/markdown-parser';
 import { Analyzer } from './registry';
+import { BaseAnalyzer } from './base-analyzer';
 
 /**
  * Detects testing frameworks and configurations from README content
  */
-export class TestingDetector implements Analyzer<TestingInfo> {
+export class TestingDetector extends BaseAnalyzer<TestingInfo> {
   readonly name = 'TestingDetector';
 
   private testingFrameworks = [
@@ -128,10 +129,24 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     { name: 'Karma', type: 'runner', keywords: ['karma', 'karma.conf'] }
   ];
 
-  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<TestingInfo>> {
+  async analyze(ast: MarkdownAST, content: string, context?: import('../../shared/types/analysis-context').AnalysisContext): Promise<AnalyzerResult<TestingInfo>> {
     try {
+      // Set analysis context if provided
+      if (context) {
+        this.setAnalysisContext(context);
+      }
+
       const testingInfo = this.extractTestingInfo(ast, content);
-      const confidence = this.calculateConfidence(testingInfo);
+      const confidence = this.calculateTestingConfidence(testingInfo);
+      
+      // Share testing information with other analyzers
+      if (context) {
+        this.updateSharedData('testingInfo', testingInfo);
+        this.updateSharedData('testingFrameworks', testingInfo.frameworks);
+        
+        // Validate data flow to potential consumers
+        this.validateDataFlow('YamlGenerator', ['testingInfo', 'testingFrameworks']);
+      }
       
       return {
         success: true,
@@ -187,7 +202,7 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     this.extractTestCommands(ast, content, testingInfo);
 
     // Calculate and set confidence on the testingInfo object
-    testingInfo.confidence = this.calculateConfidence(testingInfo);
+    testingInfo.confidence = this.calculateTestingConfidence(testingInfo);
 
     return testingInfo;
   }
@@ -665,7 +680,7 @@ export class TestingDetector implements Analyzer<TestingInfo> {
     }
   }
 
-  private calculateConfidence(testingInfo: TestingInfo): number {
+  private calculateTestingConfidence(testingInfo: TestingInfo): number {
     let confidence = 0;
     
     // Frameworks detected

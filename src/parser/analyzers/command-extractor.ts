@@ -2,6 +2,7 @@ import { AnalyzerResult, CommandInfo, Command, AssociatedCommand, CommandExtract
 import { MarkdownAST, MarkdownNode, MarkdownUtils } from '../../shared/markdown-parser';
 import { BaseAnalyzer } from './base-analyzer';
 import { LanguageContext, SourceRange } from '../../shared/types/language-context';
+import { AnalysisContext } from '../../shared/types/analysis-context';
 
 /**
  * CommandExtractor analyzes README content to extract build, test, run, and install commands
@@ -133,8 +134,19 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
   /**
    * Main analysis method
    */
-  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<CommandInfo>> {
+  async analyze(ast: MarkdownAST, content: string, context?: AnalysisContext): Promise<AnalyzerResult<CommandInfo>> {
     try {
+      // Set analysis context if provided
+      if (context) {
+        this.setAnalysisContext(context);
+        
+        // Get language contexts from shared data
+        const sharedLanguageContexts = this.getSharedData<LanguageContext[]>('languageContexts');
+        if (sharedLanguageContexts && sharedLanguageContexts.length > 0) {
+          this.setLanguageContexts(sharedLanguageContexts);
+        }
+      }
+
       this.rawContent = content;
 
       // Extract the actual AST array from the wrapper object
@@ -173,6 +185,18 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
         // Store result for getCommandsForLanguage method
         this.lastAnalysisResult = commandInfo;
 
+        // Share command extraction results with other analyzers
+        if (context) {
+          this.updateSharedData('commandExtractionResult', {
+            commands: associatedCommands,
+            commandInfo,
+            confidence: finalConfidence
+          });
+          
+          // Validate data flow to potential consumers
+          this.validateDataFlow('YamlGenerator', ['commandExtractionResult', 'languageContexts']);
+        }
+
         return {
           success: true,
           data: commandInfo,
@@ -190,6 +214,15 @@ export class CommandExtractor extends BaseAnalyzer<CommandInfo> {
       // Calculate confidence based on commands found
       const totalCommands = basicCommands.length;
       const confidence = totalCommands > 0 ? 0.85 : 0; // Increased fallback confidence
+
+      // Share basic command results even without context
+      if (context) {
+        this.updateSharedData('commandExtractionResult', {
+          commands: basicCommands,
+          commandInfo,
+          confidence
+        });
+      }
 
       return {
         success: true,
