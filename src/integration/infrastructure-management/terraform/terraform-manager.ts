@@ -98,7 +98,7 @@ export class TerraformManagerImpl implements TerraformManager {
       
       return {
         success: true,
-        deploymentId: this.generateDeploymentId(),
+        deploymentId: config.backend?.key?.replace('.tfstate', '') || this.generateDeploymentId(),
         resources: result.resources,
         outputs: result.outputs,
         duration

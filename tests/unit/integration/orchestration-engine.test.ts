@@ -5,8 +5,9 @@ import { WorkflowRequest, ComponentOperation, SystemEvent } from '../../../src/i
 describe('OrchestrationEngine', () => {
   let orchestrationEngine: OrchestrationEngine;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     orchestrationEngine = new OrchestrationEngine();
+    await orchestrationEngine.initialize();
   });
 
   afterEach(async () => {

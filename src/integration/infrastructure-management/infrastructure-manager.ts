@@ -125,7 +125,7 @@ export class InfrastructureManagerImpl implements InfrastructureManager {
 
     // Store deployment information
     const deployment: InfrastructureDeployment = {
-      id: config.id,
+      id: result.deploymentId,
       config,
       status: 'active',
       createdAt: new Date(),
@@ -134,7 +134,7 @@ export class InfrastructureManagerImpl implements InfrastructureManager {
       regions: config.region,
       resources: result.resources
     };
-    this.deployments.set(config.id, deployment);
+    this.deployments.set(result.deploymentId, deployment);
 
     // Start monitoring
     await this.monitor.startMonitoring(config.id, config);

@@ -121,6 +121,10 @@ export class TemplateFallbackManager {
         const result = await this.loadTemplate(templateName);
         if (!result.success) {
           const error = (result as { success: false; error: any }).error;
+          // Preserve the original error type instead of converting to generic Error
+          if (error instanceof GenerationError) {
+            throw error;
+          }
           const errorMessage = error instanceof Error ? error.message : String(error);
           throw new Error(errorMessage);
         }
