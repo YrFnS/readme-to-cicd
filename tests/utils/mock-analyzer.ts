@@ -6,13 +6,15 @@
  */
 
 import { Analyzer } from '../../src/parser/analyzers/registry';
+import { AnalyzerInterface, AnalyzerCapabilities } from '../../src/parser/analyzers/enhanced-analyzer-registry';
 import { MarkdownAST } from '../../src/shared/markdown-parser';
 import { AnalyzerResult } from '../../src/parser/types';
+import { AnalysisContext } from '../../src/shared/types/analysis-context';
 
 /**
- * Mock analyzer for testing purposes
+ * Mock analyzer for testing purposes - implements both old and new interfaces
  */
-export class MockAnalyzer implements Analyzer<any> {
+export class MockAnalyzer implements Analyzer<any>, AnalyzerInterface<any> {
   readonly name = 'MockAnalyzer';
   private initialized = false;
   private cleanedUp = false;
@@ -20,16 +22,44 @@ export class MockAnalyzer implements Analyzer<any> {
   /**
    * Mock analyze method that returns predictable test data
    */
-  async analyze(ast: MarkdownAST, content: string): Promise<AnalyzerResult<any>> {
+  async analyze(ast: MarkdownAST, content: string, context?: AnalysisContext): Promise<AnalyzerResult<any>> {
     return {
       success: true,
       data: { 
         mock: true,
         content: content.substring(0, 50), // First 50 chars for testing
-        astNodes: Array.isArray(ast) ? ast.length : (ast as any)?.ast?.length || 0
+        astNodes: Array.isArray(ast) ? ast.length : (ast as any)?.ast?.length || 0,
+        hasContext: !!context
       },
       confidence: 0.5
     };
+  }
+
+  /**
+   * Get analyzer capabilities (required by AnalyzerInterface)
+   */
+  getCapabilities(): AnalyzerCapabilities {
+    return {
+      supportedContentTypes: ['markdown', 'text'],
+      requiresContext: false,
+      canProcessLargeFiles: true,
+      estimatedProcessingTime: 100, // 100ms
+      dependencies: []
+    };
+  }
+
+  /**
+   * Validate interface implementation (required by AnalyzerInterface)
+   */
+  validateInterface(): boolean {
+    // Check if all required methods exist
+    return (
+      typeof this.analyze === 'function' &&
+      typeof this.getCapabilities === 'function' &&
+      typeof this.validateInterface === 'function' &&
+      typeof this.name === 'string' &&
+      this.name.length > 0
+    );
   }
 
   /**

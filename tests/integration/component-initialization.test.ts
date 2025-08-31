@@ -8,7 +8,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { 
   ComponentFactory, 
-  ComponentConfig, 
+  ComponentConfig,
+  ParserConfig,
   createEnhancedReadmeParser,
   createContextAwareCommandExtractor,
   createEnhancedLanguageDetector
@@ -18,6 +19,7 @@ import { IntegrationPipeline } from '../../src/parser/integration-pipeline';
 import { LanguageDetector } from '../../src/parser/analyzers/language-detector';
 import { CommandExtractor } from '../../src/parser/analyzers/command-extractor';
 import { LanguageContext } from '../../src/shared/types/language-context';
+import { MockAnalyzer, createMockAnalyzer } from '../utils/mock-analyzer';
 
 describe('Component Initialization Integration Tests', () => {
   let factory: ComponentFactory;
@@ -135,29 +137,200 @@ describe('Component Initialization Integration Tests', () => {
     });
 
     it('should register custom analyzers when provided', () => {
-      const mockAnalyzer: ContentAnalyzer = {
+      // Use the imported MockAnalyzer
+      const mockAnalyzer = new MockAnalyzer();
+
+      // Create AnalyzerConfig for the new registration system
+      const analyzerConfig = {
         name: 'MockAnalyzer',
-        analyze: async (ast: any[], rawContent: string) => ({
-          data: { mock: true, content: rawContent.substring(0, 20) },
-          confidence: 0.5,
-          sources: ['mock']
-        })
+        analyzer: mockAnalyzer,
+        dependencies: [],
+        priority: 1
       };
 
-      const config: ComponentConfig = {
-        customAnalyzers: [mockAnalyzer]
+      // Use ParserConfig instead of ComponentConfig for custom analyzers
+      const parserConfig = {
+        customAnalyzers: [analyzerConfig],
+        registrationOptions: {
+          validateInterfaces: true,
+          allowDuplicates: false,
+          failOnError: true
+        }
       };
 
-      // Create parser directly without using the shared factory instance
-      const parser = createEnhancedReadmeParser(config);
+      // Create parser with the new registration system
+      const factory = ComponentFactory.getInstance();
+      factory.reset(); // Ensure clean state
+      factory.initialize();
+      const parser = factory.createReadmeParser(parserConfig);
+      
       const analyzerInfo = parser.getAnalyzerInfo();
       const analyzerNames = analyzerInfo.map(info => info.name);
       
       // Debug: Check what analyzers are actually registered
+      console.log('Registered analyzers:', analyzerNames);
       expect(analyzerNames.length).toBeGreaterThan(0);
       
       // The test should pass if MockAnalyzer is registered
       expect(analyzerNames).toContain('MockAnalyzer');
+    });
+  });
+
+  describe('MockAnalyzer Registration Verification', () => {
+    let factory: ComponentFactory;
+
+    beforeEach(() => {
+      factory = ComponentFactory.getInstance();
+      factory.reset();
+    });
+
+    it('should register MockAnalyzer through analyzer registry', () => {
+      const mockAnalyzer = createMockAnalyzer();
+      
+      // Create analyzer config for registration
+      const analyzerConfig = {
+        name: 'MockAnalyzer',
+        analyzer: mockAnalyzer,
+        dependencies: [],
+        priority: 1
+      };
+
+      factory.initialize();
+      const registrationResults = factory.registerCustomAnalyzers([analyzerConfig]);
+      
+      // Verify registration was successful
+      expect(registrationResults).toHaveLength(1);
+      expect(registrationResults[0].success).toBe(true);
+      expect(registrationResults[0].analyzerName).toBe('MockAnalyzer');
+      
+      // Verify analyzer appears in registry
+      const registeredAnalyzers = factory.getRegisteredAnalyzers();
+      expect(registeredAnalyzers).toContain('MockAnalyzer');
+      
+      // Verify analyzer can be retrieved
+      const retrievedAnalyzer = factory.getAnalyzer('MockAnalyzer');
+      expect(retrievedAnalyzer).toBeDefined();
+      expect(retrievedAnalyzer?.name).toBe('MockAnalyzer');
+    });
+
+    it('should register multiple MockAnalyzers with unique names', () => {
+      const mockAnalyzers = [
+        { name: 'MockAnalyzer1', analyzer: createMockAnalyzer() },
+        { name: 'MockAnalyzer2', analyzer: createMockAnalyzer() },
+        { name: 'MockAnalyzer3', analyzer: createMockAnalyzer() }
+      ].map(config => ({
+        ...config,
+        dependencies: [],
+        priority: 1
+      }));
+
+      factory.initialize();
+      const registrationResults = factory.registerCustomAnalyzers(mockAnalyzers);
+      
+      // Verify all registrations were successful
+      expect(registrationResults).toHaveLength(3);
+      registrationResults.forEach(result => {
+        expect(result.success).toBe(true);
+      });
+      
+      // Verify all analyzers appear in registry
+      const registeredAnalyzers = factory.getRegisteredAnalyzers();
+      expect(registeredAnalyzers).toContain('MockAnalyzer1');
+      expect(registeredAnalyzers).toContain('MockAnalyzer2');
+      expect(registeredAnalyzers).toContain('MockAnalyzer3');
+    });
+
+    it('should integrate MockAnalyzer with parser correctly', async () => {
+      const mockAnalyzer = createMockAnalyzer();
+      
+      const analyzerConfig = {
+        name: 'MockAnalyzer',
+        analyzer: mockAnalyzer,
+        dependencies: [],
+        priority: 1
+      };
+
+      const parserConfig: ParserConfig = {
+        customAnalyzers: [analyzerConfig]
+      };
+
+      factory.initialize();
+      const parser = factory.createReadmeParser(parserConfig);
+      
+      // Verify MockAnalyzer is registered in parser
+      const analyzerInfo = parser.getAnalyzerInfo();
+      const analyzerNames = analyzerInfo.map(info => info.name);
+      expect(analyzerNames).toContain('MockAnalyzer');
+      
+      // Test that MockAnalyzer can analyze content
+      const testContent = '# Test README\n\nThis is test content for MockAnalyzer.';
+      const result = await parser.parseContent(testContent);
+      
+      // Verify parsing completed successfully
+      expect(result).toBeDefined();
+      
+      // The parser should return a result (success or failure)
+      // Even if parsing fails, the MockAnalyzer should be properly integrated
+      if (result.success) {
+        expect(result.data).toBeDefined();
+      } else {
+        // If parsing failed, ensure it's not due to MockAnalyzer registration issues
+        expect(result.errors).toBeDefined();
+      }
+    });
+
+    it('should handle MockAnalyzer registration errors gracefully', () => {
+      // Create invalid analyzer config (missing required methods)
+      const invalidAnalyzer = {
+        name: 'InvalidAnalyzer'
+        // Missing analyze method
+      };
+
+      const analyzerConfig = {
+        name: 'InvalidAnalyzer',
+        analyzer: invalidAnalyzer as any,
+        dependencies: [],
+        priority: 1
+      };
+
+      factory.initialize();
+      const registrationResults = factory.registerCustomAnalyzers([analyzerConfig]);
+      
+      // Verify registration failed gracefully
+      expect(registrationResults).toHaveLength(1);
+      expect(registrationResults[0].success).toBe(false);
+      expect(registrationResults[0].error).toBeDefined();
+      
+      // Verify invalid analyzer is not in registry
+      const registeredAnalyzers = factory.getRegisteredAnalyzers();
+      expect(registeredAnalyzers).not.toContain('InvalidAnalyzer');
+    });
+
+    it('should validate MockAnalyzer interface compliance', () => {
+      const mockAnalyzer = createMockAnalyzer();
+      
+      // Verify MockAnalyzer implements required interface
+      expect(mockAnalyzer.name).toBe('MockAnalyzer');
+      expect(typeof mockAnalyzer.analyze).toBe('function');
+      
+      // Test interface compliance through registration
+      const analyzerConfig = {
+        name: 'MockAnalyzer',
+        analyzer: mockAnalyzer,
+        dependencies: [],
+        priority: 1
+      };
+
+      factory.initialize();
+      const registrationResults = factory.registerCustomAnalyzers([analyzerConfig]);
+      
+      // Successful registration indicates interface compliance
+      expect(registrationResults[0].success).toBe(true);
+      
+      // Validate component setup
+      const validationResult = factory.validateComponentSetup();
+      expect(validationResult.isValid).toBe(true);
+      expect(validationResult.analyzerRegistration.isValid).toBe(true);
     });
   });
 

@@ -444,6 +444,9 @@ export class OrchestrationEngine {
       severity: event.severity
     });
 
+    // Emit event to listeners and add to history
+    this.emit('systemEvent', event);
+
     try {
       // Route event based on type and severity
       switch (event.severity) {
@@ -696,4 +699,200 @@ export class OrchestrationEngine {
       this.componentStates.set(component, 'running');
     });
   }
+
+  // Event management and history tracking
+  private eventHistory: SystemEvent[] = [];
+  private eventListeners: Map<string, Function[]> = new Map();
+
+  /**
+   * Get event history for monitoring and debugging
+   */
+  getEventHistory(): SystemEvent[] {
+    return [...this.eventHistory];
+  }
+
+  /**
+   * Add event listener for system events
+   */
+  on(eventType: string, callback: Function): void {
+    if (!this.eventListeners.has(eventType)) {
+      this.eventListeners.set(eventType, []);
+    }
+    this.eventListeners.get(eventType)!.push(callback);
+  }
+
+  /**
+   * Remove event listener
+   */
+  off(eventType: string, callback: Function): void {
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      const index = listeners.indexOf(callback);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+    }
+  }
+
+  /**
+   * Emit system event to listeners
+   */
+  private emit(eventType: string, event: SystemEvent): void {
+    // Add to history
+    this.eventHistory.push(event);
+    
+    // Keep history size manageable
+    if (this.eventHistory.length > 1000) {
+      this.eventHistory = this.eventHistory.slice(-500);
+    }
+
+    // Notify listeners
+    const listeners = this.eventListeners.get(eventType);
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(event);
+        } catch (error) {
+          this.logger.error('Event listener error', { error, eventType });
+        }
+      });
+    }
+  }
+
+  // Circuit breaker management
+  private circuitBreakers: Map<string, CircuitBreakerStatus> = new Map();
+
+  /**
+   * Get circuit breaker status for all components
+   */
+  getCircuitBreakerStatus(): Record<string, CircuitBreakerStatus> {
+    const status: Record<string, CircuitBreakerStatus> = {};
+    
+    // Initialize circuit breakers for core components if not exists
+    const components = ['readmeParser', 'frameworkDetector', 'yamlGenerator', 'cliTool'];
+    components.forEach(component => {
+      if (!this.circuitBreakers.has(component)) {
+        this.circuitBreakers.set(component, {
+          state: 'closed',
+          failureCount: 0,
+          lastFailureTime: null,
+          nextAttemptTime: null
+        });
+      }
+      status[component] = this.circuitBreakers.get(component)!;
+    });
+
+    return status;
+  }
+
+  /**
+   * Update circuit breaker status
+   */
+  private updateCircuitBreaker(component: string, failed: boolean): void {
+    let status = this.circuitBreakers.get(component);
+    if (!status) {
+      status = {
+        state: 'closed',
+        failureCount: 0,
+        lastFailureTime: null,
+        nextAttemptTime: null
+      };
+      this.circuitBreakers.set(component, status);
+    }
+
+    if (failed) {
+      status.failureCount++;
+      status.lastFailureTime = new Date();
+      
+      if (status.failureCount >= 5) {
+        status.state = 'open';
+        status.nextAttemptTime = new Date(Date.now() + 60000); // 1 minute
+      }
+    } else {
+      status.failureCount = 0;
+      status.state = 'closed';
+      status.lastFailureTime = null;
+      status.nextAttemptTime = null;
+    }
+  }
+
+  // Queue management
+  private workflowQueue: WorkflowRequest[] = [];
+  private processingQueue: WorkflowRequest[] = [];
+
+  /**
+   * Get current queue status
+   */
+  getQueueStatus(): QueueStatus {
+    return {
+      pending: this.workflowQueue.length,
+      processing: this.processingQueue.length,
+      completed: this.eventHistory.filter(e => e.type === 'workflow.completed').length,
+      failed: this.eventHistory.filter(e => e.type === 'workflow.failed').length,
+      totalProcessed: this.eventHistory.filter(e => 
+        e.type === 'workflow.completed' || e.type === 'workflow.failed'
+      ).length
+    };
+  }
+
+  /**
+   * Add workflow to queue
+   */
+  private enqueueWorkflow(request: WorkflowRequest): void {
+    // Insert based on priority
+    const priorityOrder = { 'critical': 0, 'high': 1, 'normal': 2, 'low': 3 };
+    const insertIndex = this.workflowQueue.findIndex(
+      req => priorityOrder[req.priority] > priorityOrder[request.priority]
+    );
+    
+    if (insertIndex === -1) {
+      this.workflowQueue.push(request);
+    } else {
+      this.workflowQueue.splice(insertIndex, 0, request);
+    }
+  }
+
+  /**
+   * Process next workflow from queue
+   */
+  private async processNextWorkflow(): Promise<void> {
+    if (this.workflowQueue.length === 0 || this.processingQueue.length >= this.config.maxConcurrentWorkflows) {
+      return;
+    }
+
+    const request = this.workflowQueue.shift();
+    if (request) {
+      this.processingQueue.push(request);
+      
+      try {
+        await this.processWorkflow(request);
+      } finally {
+        const index = this.processingQueue.indexOf(request);
+        if (index > -1) {
+          this.processingQueue.splice(index, 1);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Circuit breaker status interface
+ */
+interface CircuitBreakerStatus {
+  state: 'open' | 'closed' | 'half-open';
+  failureCount: number;
+  lastFailureTime: Date | null;
+  nextAttemptTime: Date | null;
+}
+
+/**
+ * Queue status interface
+ */
+interface QueueStatus {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+  totalProcessed: number;
 }
