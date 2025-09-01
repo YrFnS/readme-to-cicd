@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-09-01T18:47:07.058Z",
+  "stats": {
+    "filesAnalyzed": 181,
+    "largeFilesFound": 93,
+    "filesReplaced": 1,
+    "testsUpdated": 1,
+    "spaceSaved": 16408
+  },
+  "migratedFiles": [
+    {
+      "original": "tests\\integration\\readme-parser-integration.test.ts",
+      "generator": "tests\\integration\\readme-parser-integration.test.streaming.js",
+      "placeholder": "tests\\integration\\readme-parser-integration.test.ts.migrated",
+      "sizeSaved": 16408
+    }
+  ],
+  "updatedTests": [
+    "tests\\integration\\comprehensive-parsing.test.ts"
+  ],
+  "errors": [],
+  "recommendations": [
+    "Some large files were not replaced. Review them manually for streaming data opportunities.",
+    "Update CI/CD scripts to ensure streaming data generators work in all environments.",
+    "Run the full test suite to verify all migrations work correctly."
+  ]
+}

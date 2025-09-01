@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 
 /**
- * Generator for large README files to test parser performance
+ * Streaming generator for large README files to test parser performance
+ * Replaces static large fixtures with on-demand streaming data generation
  * Usage: node large-readme-generator.js [size] [output-file]
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Configuration
+// Import streaming data factory
+const { StreamingDataFactory } = require('../../../src/shared/streaming-test-data');
+
+// Configuration for backward compatibility
 const DEFAULT_SIZE = 'medium'; // small, medium, large, xlarge
 const DEFAULT_OUTPUT = 'large-readme.md';
 
+// Legacy size configuration (now handled by StreamingDataFactory)
 const SIZES = {
   small: { sections: 50, codeBlocks: 100, lines: 1000 },
   medium: { sections: 200, codeBlocks: 500, lines: 5000 },
@@ -155,7 +160,57 @@ function generateSection(index, config) {
   return content;
 }
 
-function generateLargeReadme(size) {
+/**
+ * Generate large README using streaming data (new implementation)
+ * @param {string} size - Size category: 'small', 'medium', 'large', 'xlarge'
+ * @returns {Promise<string>} Generated README content
+ */
+async function generateLargeReadme(size) {
+  try {
+    const config = {
+      type: 'readme',
+      size: size || DEFAULT_SIZE,
+      maxMemoryUsage: getMemoryLimitForSize(size || DEFAULT_SIZE)
+    };
+
+    const { content, metrics } = await StreamingDataFactory.generateString(config);
+    
+    // Log performance metrics for backward compatibility
+    console.log(`Generated ${size} README:`);
+    console.log(`  Content size: ${(metrics.bytesGenerated / 1024).toFixed(1)}KB`);
+    console.log(`  Generation time: ${metrics.generationTime}ms`);
+    console.log(`  Peak memory: ${(metrics.peakMemoryUsage / 1024).toFixed(1)}KB`);
+    console.log(`  Chunks: ${metrics.chunksGenerated}`);
+    
+    return content;
+  } catch (error) {
+    console.error('Failed to generate streaming README:', error.message);
+    // Fallback to legacy generation for compatibility
+    return generateLargeReadmeLegacy(size);
+  }
+}
+
+/**
+ * Get memory limit for size category
+ * @param {string} size - Size category
+ * @returns {number} Memory limit in bytes
+ */
+function getMemoryLimitForSize(size) {
+  const limits = {
+    small: 2 * 1024 * 1024,      // 2MB
+    medium: 10 * 1024 * 1024,    // 10MB
+    large: 50 * 1024 * 1024,     // 50MB
+    xlarge: 100 * 1024 * 1024    // 100MB
+  };
+  return limits[size] || limits.medium;
+}
+
+/**
+ * Legacy README generation (fallback)
+ * @param {string} size - Size category
+ * @returns {string} Generated README content
+ */
+function generateLargeReadmeLegacy(size) {
   const config = SIZES[size];
   let content = '';
   
@@ -222,7 +277,10 @@ function generateLargeReadme(size) {
   return content;
 }
 
-function main() {
+/**
+ * Main function for CLI usage
+ */
+async function main() {
   const args = process.argv.slice(2);
   const size = args[0] || DEFAULT_SIZE;
   const outputFile = args[1] || DEFAULT_OUTPUT;
@@ -232,25 +290,44 @@ function main() {
     process.exit(1);
   }
   
-  console.log(`Generating ${size} README file...`);
+  console.log(`Generating ${size} README file using streaming data...`);
   const startTime = Date.now();
   
-  const content = generateLargeReadme(size);
-  const outputPath = path.join(__dirname, outputFile);
-  
-  fs.writeFileSync(outputPath, content, 'utf8');
-  
-  const endTime = Date.now();
-  const fileSize = fs.statSync(outputPath).size;
-  
-  console.log(`✅ Generated ${outputFile}`);
-  console.log(`📊 File size: ${Math.round(fileSize / 1024)}KB`);
-  console.log(`⏱️  Generation time: ${endTime - startTime}ms`);
-  console.log(`📝 Lines: ${content.split('\n').length}`);
+  try {
+    const content = await generateLargeReadme(size);
+    const outputPath = path.join(__dirname, outputFile);
+    
+    fs.writeFileSync(outputPath, content, 'utf8');
+    
+    const endTime = Date.now();
+    const fileSize = fs.statSync(outputPath).size;
+    
+    console.log(`✅ Generated ${outputFile}`);
+    console.log(`📊 File size: ${Math.round(fileSize / 1024)}KB`);
+    console.log(`⏱️  Generation time: ${endTime - startTime}ms`);
+    console.log(`📝 Lines: ${content.split('\n').length}`);
+  } catch (error) {
+    console.error('❌ Generation failed:', error.message);
+    process.exit(1);
+  }
 }
 
 if (require.main === module) {
   main();
 }
 
-module.exports = { generateLargeReadme, SIZES };
+// Export both streaming and legacy functions for compatibility
+module.exports = { 
+  generateLargeReadme, 
+  generateLargeReadmeLegacy,
+  SIZES,
+  
+  // Convenience functions for different sizes
+  generateSmallReadme: () => generateLargeReadme('small'),
+  generateMediumReadme: () => generateLargeReadme('medium'),
+  generateLargeReadmeContent: () => generateLargeReadme('large'),
+  generateXLargeReadme: () => generateLargeReadme('xlarge'),
+  
+  // Streaming data factory access
+  StreamingDataFactory
+};

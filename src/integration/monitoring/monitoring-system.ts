@@ -135,6 +135,7 @@ export class MonitoringSystem {
   private dashboards: Map<string, Dashboard> = new Map();
   private healthChecks: Map<string, ComponentHealth> = new Map();
   private isInitialized = false;
+  private isLazyInitialized = false;
   private metricsServer?: any;
   private healthCheckInterval?: NodeJS.Timeout;
 
@@ -151,9 +152,11 @@ export class MonitoringSystem {
   }
 
   /**
-   * Get the singleton instance of MonitoringSystem
+   * Get the singleton instance of MonitoringSystem with lazy initialization
+   * Implements initialization on first use pattern to prevent premature instantiation
    */
   public static getInstance(logger?: Logger, config?: Partial<MonitoringConfig>): MonitoringSystem {
+    // Lazy initialization - only create instance when first requested
     if (MonitoringSystem.instance === null) {
       if (MonitoringSystem.isCreating) {
         throw new Error('MonitoringSystem is already being created. Circular dependency detected.');
@@ -165,14 +168,36 @@ export class MonitoringSystem {
         if (!logger) {
           // Create a default logger if none provided
           logger = {
-            info: (message: string, meta?: any) => console.log(`[INFO] ${message}`, meta || ''),
-            error: (message: string, meta?: any) => console.error(`[ERROR] ${message}`, meta || ''),
-            warn: (message: string, meta?: any) => console.warn(`[WARN] ${message}`, meta || ''),
-            debug: (message: string, meta?: any) => console.debug(`[DEBUG] ${message}`, meta || '')
+            info: (message: string, meta?: any) => {
+              if (process.env.NODE_ENV !== 'test') {
+                console.log(`[INFO] ${message}`, meta || '');
+              }
+            },
+            error: (message: string, meta?: any) => {
+              if (process.env.NODE_ENV !== 'test') {
+                console.error(`[ERROR] ${message}`, meta || '');
+              }
+            },
+            warn: (message: string, meta?: any) => {
+              if (process.env.NODE_ENV !== 'test') {
+                console.warn(`[WARN] ${message}`, meta || '');
+              }
+            },
+            debug: (message: string, meta?: any) => {
+              if (process.env.NODE_ENV === 'development') {
+                console.debug(`[DEBUG] ${message}`, meta || '');
+              }
+            }
           } as Logger;
         }
 
+        // Create instance but don't initialize it yet - lazy initialization
         MonitoringSystem.instance = new MonitoringSystem(logger, config);
+        
+        // Log lazy initialization (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          logger.debug('MonitoringSystem instance created with lazy initialization');
+        }
       } finally {
         MonitoringSystem.isCreating = false;
       }
@@ -183,9 +208,13 @@ export class MonitoringSystem {
 
   /**
    * Reset the singleton instance (primarily for testing)
+   * Properly handles lazy initialization state
    */
   public static resetInstance(): void {
     if (MonitoringSystem.instance) {
+      // Reset lazy initialization flag
+      MonitoringSystem.instance.isLazyInitialized = false;
+      
       // Shutdown the existing instance if it's initialized
       MonitoringSystem.instance.shutdown().catch(error => {
         console.error('Error shutting down MonitoringSystem during reset:', error);
@@ -203,17 +232,35 @@ export class MonitoringSystem {
   }
 
   /**
-   * Initialize the monitoring system
+   * Ensure lazy initialization is performed before first use
+   * This method is called automatically by other methods that need initialization
    */
-  async initialize(): Promise<Result<void>> {
-    try {
-      this.logger.info('Initializing MonitoringSystem...');
+  private async ensureLazyInitialization(): Promise<void> {
+    if (!this.isLazyInitialized) {
+      this.isLazyInitialized = true;
+      
+      if (process.env.NODE_ENV === 'development') {
+        this.logger.debug('Performing lazy initialization of MonitoringSystem');
+      }
 
       // Initialize default dashboards
       this.initializeDefaultDashboards();
 
       // Initialize default alerts
       this.initializeDefaultAlerts();
+    }
+  }
+
+  /**
+   * Initialize the monitoring system
+   * Now supports both explicit initialization and lazy initialization
+   */
+  async initialize(): Promise<Result<void>> {
+    try {
+      this.logger.info('Initializing MonitoringSystem...');
+
+      // Ensure lazy initialization is done first
+      await this.ensureLazyInitialization();
 
       // Start metrics server if enabled
       if (this.config.enableMetrics) {
@@ -242,10 +289,17 @@ export class MonitoringSystem {
 
   /**
    * Record a metric
+   * Automatically performs lazy initialization on first use
    */
   async recordMetric(name: string, value: number, labels: Record<string, string> = {}): Promise<void> {
+    // Ensure lazy initialization before first use
+    await this.ensureLazyInitialization();
+
     if (!this.isInitialized) {
-      throw new Error('MonitoringSystem not initialized');
+      // Allow recording metrics even if not fully initialized (lazy initialization pattern)
+      if (process.env.NODE_ENV === 'development') {
+        this.logger.debug('Recording metric before full initialization (lazy pattern)');
+      }
     }
 
     try {
@@ -263,8 +317,10 @@ export class MonitoringSystem {
       }
       this.metrics.get(name)!.push(metric);
 
-      // Check alerts for this metric
-      await this.checkAlerts(metric);
+      // Check alerts for this metric (only if fully initialized)
+      if (this.isInitialized) {
+        await this.checkAlerts(metric);
+      }
 
       this.logger.debug('Metric recorded', { name, value, labels });
 
@@ -280,11 +336,11 @@ export class MonitoringSystem {
 
   /**
    * Query metrics
+   * Automatically performs lazy initialization on first use
    */
   async queryMetrics(query: string, timeRange?: TimeRange): Promise<Metric[]> {
-    if (!this.isInitialized) {
-      throw new Error('MonitoringSystem not initialized');
-    }
+    // Ensure lazy initialization before first use
+    await this.ensureLazyInitialization();
 
     try {
       // Simple query implementation - in production, this would use a proper query engine
@@ -428,11 +484,11 @@ export class MonitoringSystem {
 
   /**
    * Get system health status
+   * Automatically performs lazy initialization on first use
    */
   async getSystemHealth(): Promise<HealthStatus> {
-    if (!this.isInitialized) {
-      throw new Error('MonitoringSystem not initialized');
-    }
+    // Ensure lazy initialization before first use
+    await this.ensureLazyInitialization();
 
     try {
       const components = Array.from(this.healthChecks.values());
@@ -492,11 +548,11 @@ export class MonitoringSystem {
 
   /**
    * Get system metrics
+   * Automatically performs lazy initialization on first use
    */
   async getSystemMetrics(): Promise<Record<string, any>> {
-    if (!this.isInitialized) {
-      throw new Error('MonitoringSystem not initialized');
-    }
+    // Ensure lazy initialization before first use
+    await this.ensureLazyInitialization();
 
     try {
       const metrics: Record<string, any> = {};

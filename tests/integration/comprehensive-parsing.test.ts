@@ -1,4 +1,4 @@
-/**
+import { StreamingDataFactory } from '../../../src/shared/streaming-test-data';\n/**
  * Comprehensive integration tests for README parser with realistic expectations
  */
 
@@ -209,7 +209,7 @@ describe('Comprehensive README Parser Integration Tests', () => {
       ];
       
       for (const test of performanceTests) {
-        const content = generateLargeReadme(test.size);
+        const content = await generateLargeReadme(test.size);
         
         const { result, metrics } = await measurePerformance(
           () => parser.parseContent(content),

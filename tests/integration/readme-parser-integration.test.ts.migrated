@@ -1,0 +1,37 @@
+# Migrated to Streaming Data
+
+This fixture has been migrated to use streaming data generation.
+
+## Original File
+- **Path**: tests\integration\readme-parser-integration.test.ts
+- **Size**: 16.0KB
+- **Type**: readme
+
+## New Generator
+- **Path**: tests\integration\readme-parser-integration.test.streaming.js
+- **Type**: Streaming data generator
+- **Memory Usage**: On-demand generation
+
+## Usage
+
+Instead of loading this static fixture, use the streaming generator:
+
+```javascript
+const generator = require('readme-parser-integration.test.streaming.js');
+
+// Get content
+const { content, metrics } = await generator.generatereadmeData('medium');
+
+// Or use legacy compatibility
+const content = await generator.getContent();
+```
+
+## Benefits
+
+- ✅ Reduced memory usage
+- ✅ Faster test execution
+- ✅ Configurable content size
+- ✅ No large files in repository
+
+## Migration Date
+2025-09-01T18:47:06.925Z

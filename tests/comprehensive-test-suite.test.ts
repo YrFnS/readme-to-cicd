@@ -17,6 +17,17 @@ import {
   createTestCase,
   PerformanceMetrics
 } from './utils/test-helpers';
+import {
+  initializeMemoryAssertions,
+  assertMemoryWithinThresholds,
+  assertNoMemoryRegression,
+  setMemoryBaseline,
+  cleanupMemoryAssertions,
+  generateMemoryReport,
+  type MemoryThreshold,
+  type MemoryRegressionCheck
+} from '../src/shared/memory-usage-assertions';
+import { getTestWorkerMemoryMonitor } from '../src/shared/test-worker-memory-monitor';
 
 interface TestSuiteResults {
   realWorldTests: Map<string, any>;
@@ -38,6 +49,16 @@ describe('Comprehensive README Parser Test Suite', () => {
 
   beforeAll(async () => {
     parser = new ReadmeParserImpl();
+    
+    // Initialize memory assertions for comprehensive test suite
+    const memoryMonitor = getTestWorkerMemoryMonitor({
+      maxMemoryBytes: 400 * 1024 * 1024, // 400MB limit for comprehensive tests
+      warningThreshold: 0.7,
+      criticalThreshold: 0.85,
+      enableDetailedLogging: true
+    });
+    initializeMemoryAssertions(memoryMonitor);
+    
     testResults = {
       realWorldTests: new Map(),
       edgeCaseTests: new Map(),
@@ -55,6 +76,15 @@ describe('Comprehensive README Parser Test Suite', () => {
 
   afterAll(() => {
     generateComprehensiveReport(testResults);
+    
+    // Generate final memory report for comprehensive test suite
+    console.log('\n' + '='.repeat(80));
+    console.log('🧠 COMPREHENSIVE TEST SUITE MEMORY REPORT');
+    console.log('='.repeat(80));
+    console.log(generateMemoryReport());
+    
+    // Cleanup memory assertions
+    cleanupMemoryAssertions();
   });
 
   describe('Real-World Sample Validation', () => {
@@ -222,16 +252,27 @@ describe('Comprehensive README Parser Test Suite', () => {
       const { generateLargeReadme } = require('./fixtures/performance/large-readme-generator.js');
       
       const performanceTests = [
-        { name: 'Small File (1K lines)', size: 'small', maxTime: 100 },
-        { name: 'Medium File (5K lines)', size: 'medium', maxTime: 300 },
-        { name: 'Large File (10K lines)', size: 'large', maxTime: 600 }
+        { name: 'Small File (1K lines)', size: 'small', maxTime: 100, maxMemory: 30 * 1024 * 1024 },
+        { name: 'Medium File (5K lines)', size: 'medium', maxTime: 300, maxMemory: 60 * 1024 * 1024 },
+        { name: 'Large File (10K lines)', size: 'large', maxTime: 600, maxMemory: 120 * 1024 * 1024 }
       ];
 
       let totalParseTime = 0;
       let totalFiles = 0;
 
       for (const test of performanceTests) {
-        const content = generateLargeReadme(test.size);
+        const content = await generateLargeReadme(test.size);
+        
+        // Set memory baseline for each performance test
+        setMemoryBaseline(`performance-${test.size}`);
+        
+        // Define memory thresholds for performance tests
+        const performanceMemoryThresholds: MemoryThreshold = {
+          maxMemoryBytes: test.maxMemory,
+          maxGrowthBytes: test.maxMemory * 0.8, // 80% of max as growth limit
+          maxUsagePercentage: 80, // 80% usage limit
+          minEfficiencyScore: 70 // Good efficiency required
+        };
         
         const { result, metrics } = await measurePerformance(
           () => parser.parseContent(content),
@@ -250,7 +291,22 @@ describe('Comprehensive README Parser Test Suite', () => {
         expect(metrics.parseTime).toBeLessThan(test.maxTime);
         expect(metrics.memoryUsage).toBeLessThan(100 * 1024 * 1024); // Under 100MB
 
+        // CRITICAL: Memory assertions for performance regression prevention
+        const memoryResult = assertMemoryWithinThresholds(performanceMemoryThresholds);
+        expect(memoryResult.passed).toBe(true);
+        
+        // Memory regression check against expected baseline
+        const regressionCheck: MemoryRegressionCheck = {
+          testName: `performance-${test.size}`,
+          expectedMemoryUsage: test.maxMemory * 0.6, // Expect 60% of max
+          allowedVariance: 0.3 // Allow 30% variance
+        };
+        const regressionResult = assertNoMemoryRegression(regressionCheck);
+        expect(regressionResult.passed).toBe(true);
+
         console.log(generatePerformanceReport(test.name, metrics));
+        console.log(`   🛡️  Memory: ${memoryResult.passed ? '✅' : '❌'} Usage: ${(memoryResult.currentUsage.usagePercentage).toFixed(1)}%`);
+        console.log(`   📊 Regression: ${regressionResult.passed ? '✅' : '❌'} Growth: ${regressionResult.memoryGrowth ? (regressionResult.memoryGrowth / 1024 / 1024).toFixed(1) + 'MB' : 'N/A'}`);
       }
 
       testResults.overallStats.averageParseTime = totalParseTime / totalFiles;
@@ -264,7 +320,7 @@ describe('Comprehensive README Parser Test Suite', () => {
       const throughputs: number[] = [];
 
       for (const size of throughputTests) {
-        const content = generateLargeReadme(size);
+        const content = await generateLargeReadme(size);
         
         const { metrics } = await measurePerformance(
           () => parser.parseContent(content),

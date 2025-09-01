@@ -48,6 +48,7 @@ export class MonitoringSystem {
   private currentTraceId?: string;
 
   private isRunning: boolean;
+  private isLazyInitialized: boolean;
   private metricsInterval?: NodeJS.Timeout;
   private alertInterval?: NodeJS.Timeout;
   private healthCheckInterval?: NodeJS.Timeout;
@@ -70,14 +71,12 @@ export class MonitoringSystem {
     this.logs = [];
     this.traces = new Map();
     this.isRunning = false;
-
-    this.initializeDefaultMetrics();
-    this.initializeDefaultAlertRules();
-    this.initializeDefaultHealthChecks();
+    this.isLazyInitialized = false;
   }
 
   /**
-   * Get the singleton instance of MonitoringSystem
+   * Get the singleton instance of MonitoringSystem with lazy initialization
+   * Implements initialization on first use pattern to prevent premature instantiation
    */
   public static getInstance(
     config?: MonitoringConfig,
@@ -85,6 +84,7 @@ export class MonitoringSystem {
     performanceMonitor?: PerformanceMonitor,
     notificationSystem?: NotificationSystem
   ): MonitoringSystem {
+    // Lazy initialization - only create instance when first requested
     if (MonitoringSystem.instance === null) {
       if (MonitoringSystem.isCreating) {
         throw new Error('MonitoringSystem is already being created. Circular dependency detected.');
@@ -97,12 +97,18 @@ export class MonitoringSystem {
           throw new Error('MonitoringSystem requires all dependencies: config, errorHandler, performanceMonitor, notificationSystem');
         }
 
+        // Create instance but don't start it yet - lazy initialization
         MonitoringSystem.instance = new MonitoringSystem(
           config,
           errorHandler,
           performanceMonitor,
           notificationSystem
         );
+        
+        // Log lazy initialization (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[DEBUG] MonitoringSystem instance created with lazy initialization');
+        }
       } finally {
         MonitoringSystem.isCreating = false;
       }
@@ -113,9 +119,13 @@ export class MonitoringSystem {
 
   /**
    * Reset the singleton instance (primarily for testing)
+   * Properly handles lazy initialization state
    */
   public static resetInstance(): void {
     if (MonitoringSystem.instance) {
+      // Reset lazy initialization flag
+      MonitoringSystem.instance.isLazyInitialized = false;
+      
       // Stop the existing instance if it's running
       MonitoringSystem.instance.stop().catch(error => {
         console.error('Error stopping MonitoringSystem during reset:', error);
@@ -132,12 +142,33 @@ export class MonitoringSystem {
     return MonitoringSystem.instance !== null;
   }
 
+  /**
+   * Ensure lazy initialization is performed before first use
+   * This method is called automatically by other methods that need initialization
+   */
+  private async ensureLazyInitialization(): Promise<void> {
+    if (!this.isLazyInitialized) {
+      this.isLazyInitialized = true;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[DEBUG] Performing lazy initialization of MonitoringSystem');
+      }
+
+      this.initializeDefaultMetrics();
+      this.initializeDefaultAlertRules();
+      this.initializeDefaultHealthChecks();
+    }
+  }
+
   async start(): Promise<void> {
     if (this.isRunning) {
       return;
     }
 
     try {
+      // Ensure lazy initialization is done first
+      await this.ensureLazyInitialization();
+
       this.isRunning = true;
 
       if (this.config.metrics.enabled) {
@@ -195,6 +226,11 @@ export class MonitoringSystem {
     labels: Record<string, string> = {},
     type: MetricType = MetricType.GAUGE
   ): void {
+    // Ensure lazy initialization before first use
+    this.ensureLazyInitialization().catch(error => {
+      console.error('Failed to perform lazy initialization:', error);
+    });
+
     const metricKey = this.generateMetricKey(name, labels);
     const metric: MetricValue = {
       name,
@@ -211,6 +247,11 @@ export class MonitoringSystem {
     name: string,
     labels: Record<string, string> = {}
   ): MetricValue | undefined {
+    // Ensure lazy initialization before first use
+    this.ensureLazyInitialization().catch(error => {
+      console.error('Failed to perform lazy initialization:', error);
+    });
+
     const metricKey = this.generateMetricKey(name, labels);
     return this.metrics.get(metricKey);
   }
@@ -284,6 +325,9 @@ export class MonitoringSystem {
   }
 
   async getSystemHealth(): Promise<SystemHealth> {
+    // Ensure lazy initialization before first use
+    await this.ensureLazyInitialization();
+
     const checkResults = await Promise.all(
       Array.from(this.healthChecks.values())
         .filter(check => check.enabled)

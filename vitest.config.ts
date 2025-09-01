@@ -5,10 +5,14 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: [
+      './tests/setup/heap-size-setup.ts',
       './tests/setup/vitest-setup.ts',
       './tests/setup/memory-setup.ts',
       './tests/setup/monitoring-system-setup.ts',
-      './tests/setup/test-configuration.ts'
+      './tests/setup/test-configuration.ts',
+      './tests/setup/test-worker-memory-setup.ts',
+      './tests/setup/automatic-gc-setup.ts',
+      './tests/setup/test-data-cleanup-hooks.ts'
     ],
     
     // Memory-optimized pool configuration
