@@ -31,6 +31,9 @@ import { NotificationSystem } from '../notifications/notification-system';
 import { NotificationType, NotificationPriority, NotificationChannel } from '../types/notifications';
 
 export class MonitoringSystem {
+  private static instance: MonitoringSystem | null = null;
+  private static isCreating = false;
+
   private config: MonitoringConfig;
   private errorHandler: ErrorHandler;
   private performanceMonitor: PerformanceMonitor;
@@ -49,7 +52,7 @@ export class MonitoringSystem {
   private alertInterval?: NodeJS.Timeout;
   private healthCheckInterval?: NodeJS.Timeout;
 
-  constructor(
+  private constructor(
     config: MonitoringConfig,
     errorHandler: ErrorHandler,
     performanceMonitor: PerformanceMonitor,
@@ -71,6 +74,62 @@ export class MonitoringSystem {
     this.initializeDefaultMetrics();
     this.initializeDefaultAlertRules();
     this.initializeDefaultHealthChecks();
+  }
+
+  /**
+   * Get the singleton instance of MonitoringSystem
+   */
+  public static getInstance(
+    config?: MonitoringConfig,
+    errorHandler?: ErrorHandler,
+    performanceMonitor?: PerformanceMonitor,
+    notificationSystem?: NotificationSystem
+  ): MonitoringSystem {
+    if (MonitoringSystem.instance === null) {
+      if (MonitoringSystem.isCreating) {
+        throw new Error('MonitoringSystem is already being created. Circular dependency detected.');
+      }
+
+      MonitoringSystem.isCreating = true;
+
+      try {
+        if (!config || !errorHandler || !performanceMonitor || !notificationSystem) {
+          throw new Error('MonitoringSystem requires all dependencies: config, errorHandler, performanceMonitor, notificationSystem');
+        }
+
+        MonitoringSystem.instance = new MonitoringSystem(
+          config,
+          errorHandler,
+          performanceMonitor,
+          notificationSystem
+        );
+      } finally {
+        MonitoringSystem.isCreating = false;
+      }
+    }
+
+    return MonitoringSystem.instance;
+  }
+
+  /**
+   * Reset the singleton instance (primarily for testing)
+   */
+  public static resetInstance(): void {
+    if (MonitoringSystem.instance) {
+      // Stop the existing instance if it's running
+      MonitoringSystem.instance.stop().catch(error => {
+        console.error('Error stopping MonitoringSystem during reset:', error);
+      });
+    }
+    MonitoringSystem.instance = null;
+    MonitoringSystem.isCreating = false;
+  }
+
+  /**
+   * Check if the singleton instance exists
+   */
+  public static hasInstance(): boolean {
+    return MonitoringSystem.instance !== null;
   }
 
   async start(): Promise<void> {

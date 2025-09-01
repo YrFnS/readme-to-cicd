@@ -14,6 +14,7 @@ import { MonitoringSystem } from '../monitoring/monitoring-system';
 import { HealthManager } from './health-manager';
 import { WorkflowOrchestrator } from './workflow-orchestrator';
 import { Result, success, failure } from '../../shared/types/result';
+import { SystemEvent, CircuitBreakerStatus, QueueStatus } from '../../shared/types';
 import { CLIOptions } from '../../cli/lib/types';
 import { IntegrationPipeline } from '../integration-pipeline';
 import type { WebhookConfig } from '../webhooks/types';
@@ -87,17 +88,7 @@ export interface OperationResult {
   timestamp: Date;
 }
 
-/**
- * System event for handling
- */
-export interface SystemEvent {
-  id: string;
-  type: string;
-  source: string;
-  timestamp: Date;
-  data: any;
-  severity: 'info' | 'warning' | 'error' | 'critical';
-}
+
 
 /**
  * Orchestration configuration
@@ -446,6 +437,7 @@ export class OrchestrationEngine {
 
     // Emit event to listeners and add to history
     this.emit('systemEvent', event);
+    this.emit(event.type, event);
 
     try {
       // Route event based on type and severity
@@ -738,12 +730,14 @@ export class OrchestrationEngine {
    * Emit system event to listeners
    */
   private emit(eventType: string, event: SystemEvent): void {
-    // Add to history
-    this.eventHistory.push(event);
-    
-    // Keep history size manageable
-    if (this.eventHistory.length > 1000) {
-      this.eventHistory = this.eventHistory.slice(-500);
+    // Add to history only once (for 'systemEvent' type)
+    if (eventType === 'systemEvent') {
+      this.eventHistory.push(event);
+      
+      // Keep history size manageable
+      if (this.eventHistory.length > 1000) {
+        this.eventHistory = this.eventHistory.slice(-500);
+      }
     }
 
     // Notify listeners
@@ -775,8 +769,7 @@ export class OrchestrationEngine {
         this.circuitBreakers.set(component, {
           state: 'closed',
           failureCount: 0,
-          lastFailureTime: null,
-          nextAttemptTime: null
+          lastFailure: null
         });
       }
       status[component] = this.circuitBreakers.get(component)!;
@@ -794,15 +787,14 @@ export class OrchestrationEngine {
       status = {
         state: 'closed',
         failureCount: 0,
-        lastFailureTime: null,
-        nextAttemptTime: null
+        lastFailure: null
       };
       this.circuitBreakers.set(component, status);
     }
 
     if (failed) {
       status.failureCount++;
-      status.lastFailureTime = new Date();
+      status.lastFailure = new Date();
       
       if (status.failureCount >= 5) {
         status.state = 'open';
@@ -811,8 +803,7 @@ export class OrchestrationEngine {
     } else {
       status.failureCount = 0;
       status.state = 'closed';
-      status.lastFailureTime = null;
-      status.nextAttemptTime = null;
+      status.lastFailure = null;
     }
   }
 
@@ -876,23 +867,3 @@ export class OrchestrationEngine {
   }
 }
 
-/**
- * Circuit breaker status interface
- */
-interface CircuitBreakerStatus {
-  state: 'open' | 'closed' | 'half-open';
-  failureCount: number;
-  lastFailureTime: Date | null;
-  nextAttemptTime: Date | null;
-}
-
-/**
- * Queue status interface
- */
-interface QueueStatus {
-  pending: number;
-  processing: number;
-  completed: number;
-  failed: number;
-  totalProcessed: number;
-}

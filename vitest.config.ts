@@ -6,7 +6,9 @@ export default defineConfig({
     environment: 'node',
     setupFiles: [
       './tests/setup/vitest-setup.ts',
-      './tests/setup/memory-setup.ts'
+      './tests/setup/memory-setup.ts',
+      './tests/setup/monitoring-system-setup.ts',
+      './tests/setup/test-configuration.ts'
     ],
     
     // Memory-optimized pool configuration

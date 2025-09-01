@@ -13,6 +13,11 @@ import {
   SLADefinition,
   Metric
 } from '../../../src/integration/monitoring/index.js'
+import {
+  ensureMonitoringSystemInitialized,
+  validateMonitoringSystemForTest,
+  createTestSafeMonitoringSystem
+} from '../../setup/monitoring-system-initialization-checks.js'
 
 describe('Performance Monitoring', () => {
   let monitoringSystem: ComprehensiveMonitoringSystem
@@ -29,10 +34,21 @@ describe('Performance Monitoring', () => {
       }
     }
 
-    monitoringSystem = new ComprehensiveMonitoringSystem(config)
-    await monitoringSystem.initialize()
+    // Create MonitoringSystem with initialization checks
+    monitoringSystem = await createTestSafeMonitoringSystem(
+      async () => {
+        const system = new ComprehensiveMonitoringSystem(config);
+        await system.initialize();
+        return system;
+      },
+      'performance-monitoring-system',
+      { strictMode: false }
+    );
 
     performanceMonitor = PerformanceMonitor.getInstance()
+    
+    // Ensure system is initialized before setting it
+    await ensureMonitoringSystemInitialized(monitoringSystem, 'performance-monitor-setup');
     performanceMonitor.setMonitoringSystem(monitoringSystem)
 
     slaMonitor = new SLAMonitor()

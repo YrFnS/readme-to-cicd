@@ -14,6 +14,11 @@ import {
   ReportDefinition,
   DEFAULT_MONITORING_CONFIG
 } from '../../../src/integration/monitoring/index.js'
+import {
+  ensureMonitoringSystemInitialized,
+  validateMonitoringSystemForTest,
+  createTestSafeMonitoringSystem
+} from '../../setup/monitoring-system-initialization-checks.js'
 
 describe('ComprehensiveMonitoringSystem', () => {
   let monitoringSystem: ComprehensiveMonitoringSystem
@@ -53,7 +58,16 @@ describe('ComprehensiveMonitoringSystem', () => {
       }
     }
 
-    monitoringSystem = new ComprehensiveMonitoringSystem(config)
+    // Create MonitoringSystem with initialization checks
+    monitoringSystem = await createTestSafeMonitoringSystem(
+      async () => {
+        const system = new ComprehensiveMonitoringSystem(config);
+        await system.initialize();
+        return system;
+      },
+      'comprehensive-monitoring-system',
+      { strictMode: false } // Allow some flexibility for integration tests
+    );
   })
 
   afterEach(async () => {
@@ -64,6 +78,10 @@ describe('ComprehensiveMonitoringSystem', () => {
 
   describe('Initialization', () => {
     it('should initialize successfully with valid config', async () => {
+      // Validate system is already initialized from beforeEach
+      await validateMonitoringSystemForTest(monitoringSystem, 'initialization-test');
+      
+      // System should already be initialized, so this should not throw
       await expect(monitoringSystem.initialize()).resolves.not.toThrow()
     })
 
@@ -71,19 +89,23 @@ describe('ComprehensiveMonitoringSystem', () => {
       const invalidConfig = { ...config }
       delete (invalidConfig as any).prometheus
       
+      // Create system without initialization checks to test error handling
       const invalidSystem = new ComprehensiveMonitoringSystem(invalidConfig as any)
       await expect(invalidSystem.initialize()).rejects.toThrow()
     })
 
     it('should not initialize twice', async () => {
-      await monitoringSystem.initialize()
+      // Validate system is initialized
+      await ensureMonitoringSystemInitialized(monitoringSystem, 'double-init-test');
+      
       await expect(monitoringSystem.initialize()).resolves.not.toThrow()
     })
   })
 
   describe('Metrics Collection', () => {
     beforeEach(async () => {
-      await monitoringSystem.initialize()
+      // Ensure system is initialized before each test
+      await ensureMonitoringSystemInitialized(monitoringSystem, 'metrics-collection');
     })
 
     it('should collect metrics successfully', async () => {

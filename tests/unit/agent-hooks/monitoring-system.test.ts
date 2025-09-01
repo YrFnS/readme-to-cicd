@@ -9,6 +9,11 @@ import {
 import { ErrorHandler } from '../../../src/agent-hooks/errors/error-handler';
 import { PerformanceMonitor } from '../../../src/agent-hooks/performance/performance-monitor';
 import { NotificationSystem } from '../../../src/agent-hooks/notifications/notification-system';
+import {
+  ensureMonitoringSystemInitialized,
+  validateMonitoringSystemForTest,
+  createTestSafeMonitoringSystem
+} from '../../setup/monitoring-system-initialization-checks.js';
 
 describe('MonitoringSystem', () => {
   let monitoringSystem: MonitoringSystem;
@@ -55,7 +60,7 @@ describe('MonitoringSystem', () => {
     }
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockErrorHandler = new ErrorHandler();
     mockPerformanceMonitor = new PerformanceMonitor();
     mockNotificationSystem = new NotificationSystem(
@@ -78,16 +83,28 @@ describe('MonitoringSystem', () => {
       mockPerformanceMonitor
     );
 
-    monitoringSystem = new MonitoringSystem(
-      mockConfig,
-      mockErrorHandler,
-      mockPerformanceMonitor,
-      mockNotificationSystem
+    // Create MonitoringSystem with initialization checks
+    monitoringSystem = await createTestSafeMonitoringSystem(
+      () => {
+        const system = new MonitoringSystem(
+          mockConfig,
+          mockErrorHandler,
+          mockPerformanceMonitor,
+          mockNotificationSystem
+        );
+        // Start the system to ensure it's initialized
+        return system.start().then(() => system);
+      },
+      'agent-hooks-monitoring-system',
+      { strictMode: false } // Allow partial initialization for agent-hooks system
     );
   });
 
   describe('start/stop', () => {
     it('should start and stop the monitoring system', async () => {
+      // Validate system is initialized before testing
+      await validateMonitoringSystemForTest(monitoringSystem, 'start-stop-test');
+      
       await monitoringSystem.start();
       expect(monitoringSystem).toBeDefined();
 
@@ -95,6 +112,9 @@ describe('MonitoringSystem', () => {
     });
 
     it('should handle multiple start/stop cycles', async () => {
+      // Validate system is initialized before testing
+      await validateMonitoringSystemForTest(monitoringSystem, 'multiple-cycles-test');
+      
       await monitoringSystem.start();
       await monitoringSystem.stop();
       await monitoringSystem.start();
@@ -103,7 +123,10 @@ describe('MonitoringSystem', () => {
   });
 
   describe('metrics collection', () => {
-    it('should record and retrieve metrics', () => {
+    it('should record and retrieve metrics', async () => {
+      // Ensure system is initialized before recording metrics
+      await ensureMonitoringSystemInitialized(monitoringSystem, 'metrics-collection-test');
+      
       monitoringSystem.recordMetric('test_metric', 42.0, { label1: 'value1' });
 
       const metric = monitoringSystem.getMetric('test_metric', { label1: 'value1' });

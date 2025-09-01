@@ -225,3 +225,7 @@ export interface BatchResult<T = any> {
   successCount: number;
   errorCount: number;
 }
+
+// Re-export orchestration types for backward compatibility
+export { SystemEvent, CircuitBreakerStatus, QueueStatus } from '../shared/types/orchestration';
+export { WorkflowRequest } from './orchestration/orchestration-engine';

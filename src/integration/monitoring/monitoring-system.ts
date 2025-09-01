@@ -7,6 +7,11 @@
 
 import { Logger } from '../../cli/lib/logger';
 import { Result, success, failure } from '../../shared/types/result';
+import { 
+  MonitoringConfigValidator, 
+  validateMonitoringConfig,
+  getDefaultMonitoringConfig 
+} from './monitoring-config-validator';
 
 /**
  * Metric data structure
@@ -120,6 +125,9 @@ export interface MonitoringConfig {
  * Comprehensive monitoring and observability system
  */
 export class MonitoringSystem {
+  private static instance: MonitoringSystem | null = null;
+  private static isCreating = false;
+
   private logger: Logger;
   private config: MonitoringConfig;
   private metrics: Map<string, Metric[]> = new Map();
@@ -130,18 +138,68 @@ export class MonitoringSystem {
   private metricsServer?: any;
   private healthCheckInterval?: NodeJS.Timeout;
 
-  constructor(logger: Logger, config: Partial<MonitoringConfig> = {}) {
+  private constructor(logger: Logger, config: Partial<MonitoringConfig> = {}) {
     this.logger = logger;
-    this.config = {
-      enableMetrics: true,
-      enableHealthChecks: true,
-      metricsPort: 9090,
-      metricsPath: '/metrics',
-      healthCheckInterval: 60000,
-      alertingEnabled: true,
-      retentionPeriod: 7 * 24 * 60 * 60 * 1000, // 7 days
-      ...config
-    };
+    
+    // Validate and normalize configuration
+    const configValidationResult = validateMonitoringConfig(config);
+    if (!configValidationResult.success) {
+      throw new Error(`Invalid MonitoringSystem configuration: ${configValidationResult.error.message}`);
+    }
+    
+    this.config = configValidationResult.data;
+  }
+
+  /**
+   * Get the singleton instance of MonitoringSystem
+   */
+  public static getInstance(logger?: Logger, config?: Partial<MonitoringConfig>): MonitoringSystem {
+    if (MonitoringSystem.instance === null) {
+      if (MonitoringSystem.isCreating) {
+        throw new Error('MonitoringSystem is already being created. Circular dependency detected.');
+      }
+
+      MonitoringSystem.isCreating = true;
+
+      try {
+        if (!logger) {
+          // Create a default logger if none provided
+          logger = {
+            info: (message: string, meta?: any) => console.log(`[INFO] ${message}`, meta || ''),
+            error: (message: string, meta?: any) => console.error(`[ERROR] ${message}`, meta || ''),
+            warn: (message: string, meta?: any) => console.warn(`[WARN] ${message}`, meta || ''),
+            debug: (message: string, meta?: any) => console.debug(`[DEBUG] ${message}`, meta || '')
+          } as Logger;
+        }
+
+        MonitoringSystem.instance = new MonitoringSystem(logger, config);
+      } finally {
+        MonitoringSystem.isCreating = false;
+      }
+    }
+
+    return MonitoringSystem.instance;
+  }
+
+  /**
+   * Reset the singleton instance (primarily for testing)
+   */
+  public static resetInstance(): void {
+    if (MonitoringSystem.instance) {
+      // Shutdown the existing instance if it's initialized
+      MonitoringSystem.instance.shutdown().catch(error => {
+        console.error('Error shutting down MonitoringSystem during reset:', error);
+      });
+    }
+    MonitoringSystem.instance = null;
+    MonitoringSystem.isCreating = false;
+  }
+
+  /**
+   * Check if the singleton instance exists
+   */
+  public static hasInstance(): boolean {
+    return MonitoringSystem.instance !== null;
   }
 
   /**
@@ -537,6 +595,101 @@ export class MonitoringSystem {
       alertsCount: this.alerts.size,
       dashboardsCount: this.dashboards.size
     };
+  }
+
+  /**
+   * Validate configuration without applying it
+   */
+  static validateConfiguration(config: Partial<MonitoringConfig>): Result<MonitoringConfig> {
+    return validateMonitoringConfig(config);
+  }
+
+  /**
+   * Update configuration with validation
+   */
+  async updateConfiguration(newConfig: Partial<MonitoringConfig>): Promise<Result<void>> {
+    try {
+      if (!this.isInitialized) {
+        return failure(new Error('MonitoringSystem must be initialized before updating configuration'));
+      }
+
+      // Validate the new configuration
+      const mergedConfig = { ...this.config, ...newConfig };
+      const validationResult = validateMonitoringConfig(mergedConfig);
+      
+      if (!validationResult.success) {
+        return failure(new Error(`Configuration validation failed: ${validationResult.error.message}`));
+      }
+
+      // Store old configuration for rollback
+      const oldConfig = { ...this.config };
+
+      try {
+        // Apply new configuration
+        this.config = validationResult.data;
+
+        // Restart components if necessary
+        if (newConfig.enableMetrics !== undefined && newConfig.enableMetrics !== oldConfig.enableMetrics) {
+          if (newConfig.enableMetrics) {
+            await this.startMetricsServer();
+          } else if (this.metricsServer) {
+            this.metricsServer.close();
+            this.metricsServer = undefined;
+          }
+        }
+
+        if (newConfig.enableHealthChecks !== undefined && newConfig.enableHealthChecks !== oldConfig.enableHealthChecks) {
+          if (newConfig.enableHealthChecks) {
+            this.startHealthChecks();
+          } else if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = undefined;
+          }
+        }
+
+        // Update health check interval if changed
+        if (newConfig.healthCheckInterval !== undefined && 
+            newConfig.healthCheckInterval !== oldConfig.healthCheckInterval &&
+            this.config.enableHealthChecks) {
+          if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+          }
+          this.startHealthChecks();
+        }
+
+        this.logger.info('MonitoringSystem configuration updated successfully', {
+          oldConfig: oldConfig,
+          newConfig: this.config
+        });
+
+        return success(undefined);
+
+      } catch (error) {
+        // Rollback configuration on error
+        this.config = oldConfig;
+        this.logger.error('Failed to apply configuration update, rolled back to previous configuration', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return failure(new Error(`Failed to apply configuration update: ${error instanceof Error ? error.message : String(error)}`));
+      }
+
+    } catch (error) {
+      return failure(new Error(`Configuration update failed: ${error instanceof Error ? error.message : String(error)}`));
+    }
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfiguration(): MonitoringConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Get default configuration
+   */
+  static getDefaultConfiguration(): MonitoringConfig {
+    return getDefaultMonitoringConfig();
   }
 
   /**
