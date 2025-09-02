@@ -85,4 +85,6 @@ docs/generated/
 .kiro/logs/
 .kiro/cache/
 
+# Reports and temporary files
+reports/
 draft.md
