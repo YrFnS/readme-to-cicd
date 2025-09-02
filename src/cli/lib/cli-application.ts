@@ -7,6 +7,7 @@ import { BatchProcessor } from './batch-processor';
 import { ConfigExporter, ImportOptions } from './config-exporter';
 import { CIEnvironmentDetector, MachineOutputFormatter, CIExitCodeManager } from './ci-environment';
 import { InitCommand, InitCommandOptions } from './init-command';
+import { ReadmeCommandHandler, ReadmeCommandOptions } from './readme-command-handler';
 
 /**
  * Main CLI Application class
@@ -20,6 +21,7 @@ export class CLIApplication {
   private batchProcessor: BatchProcessor;
   private configExporter: ConfigExporter;
   private initCommand: InitCommand;
+  private readmeCommandHandler: ReadmeCommandHandler;
   private ciEnvironment: CIEnvironmentDetector;
   private machineOutputFormatter: MachineOutputFormatter;
 
@@ -55,6 +57,7 @@ export class CLIApplication {
     );
     this.configExporter = new ConfigExporter();
     this.initCommand = new InitCommand(this.logger, this.errorHandler);
+    this.readmeCommandHandler = new ReadmeCommandHandler(this.logger, this.errorHandler);
   }
 
   /**
@@ -132,6 +135,12 @@ export class CLIApplication {
         return this.executeExportCommand(options);
       case 'import':
         return this.executeImportCommand(options);
+      case 'parse':
+        return this.executeParseCommand(options);
+      case 'analyze':
+        return this.executeAnalyzeCommand(options);
+      case 'readme-validate':
+        return this.executeReadmeValidateCommand(options);
       default:
         throw new Error(`Unknown command: ${options.command}`);
     }
@@ -597,6 +606,75 @@ export class CLIApplication {
       
     } catch (error) {
       this.logger.error('Import command failed', { error });
+      return this.errorHandler.handleCLIError(error as Error);
+    }
+  }
+
+  /**
+   * Execute parse command using ReadmeCommandHandler
+   */
+  private async executeParseCommand(options: CLIOptions): Promise<CLIResult> {
+    this.logger.info('Executing parse command', { options });
+    
+    try {
+      const readmeOptions: ReadmeCommandOptions = {
+        readmePath: options.readmePath,
+        outputFormat: options.format,
+        verbose: options.verbose,
+        debug: options.debug,
+        includeMetadata: options.includeMetadata,
+        includeConfidence: options.includeConfidence
+      };
+      
+      return await this.readmeCommandHandler.handleParseCommand(readmeOptions);
+      
+    } catch (error) {
+      this.logger.error('Parse command failed', { error });
+      return this.errorHandler.handleCLIError(error as Error);
+    }
+  }
+
+  /**
+   * Execute analyze command using ReadmeCommandHandler
+   */
+  private async executeAnalyzeCommand(options: CLIOptions): Promise<CLIResult> {
+    this.logger.info('Executing analyze command', { options });
+    
+    try {
+      const readmeOptions: ReadmeCommandOptions = {
+        readmePath: options.readmePath,
+        outputFormat: options.format,
+        verbose: options.verbose,
+        debug: options.debug,
+        includeMetadata: options.includeMetadata,
+        includeConfidence: options.includeConfidence
+      };
+      
+      return await this.readmeCommandHandler.handleAnalyzeCommand(readmeOptions);
+      
+    } catch (error) {
+      this.logger.error('Analyze command failed', { error });
+      return this.errorHandler.handleCLIError(error as Error);
+    }
+  }
+
+  /**
+   * Execute readme-validate command using ReadmeCommandHandler
+   */
+  private async executeReadmeValidateCommand(options: CLIOptions): Promise<CLIResult> {
+    this.logger.info('Executing readme-validate command', { options });
+    
+    try {
+      const readmeOptions: ReadmeCommandOptions = {
+        readmePath: options.readmePath,
+        verbose: options.verbose,
+        debug: options.debug
+      };
+      
+      return await this.readmeCommandHandler.handleValidateCommand(readmeOptions);
+      
+    } catch (error) {
+      this.logger.error('README validate command failed', { error });
       return this.errorHandler.handleCLIError(error as Error);
     }
   }

@@ -275,37 +275,56 @@
   - Write tests for mock response validation
   - _Requirements: 1.5_
 
-- [ ] 25. Create shared mock utilities for common behaviors
+- [x] 25. Create shared mock utilities for common behaviors
+
+
+
+
   - Implement shared mock utilities for common component behaviors
   - Add reusable mock patterns for standard operations
   - Write tests for shared mock utility functions
   - _Requirements: 1.5_
 
-- [ ] 26. Implement VSCode API mocking for extension tests
+- [x] 26. Implement VSCode API mocking for extension tests
+
+
+
+
+
   - Add proper VSCode API mocking for extension tests
   - Create mock implementations for VSCode workspace API
   - Write tests for VSCode API mock functionality
   - _Requirements: 1.6_
 
-- [ ] 27. Add VSCode window API mock configuration
+- [x] 27. Add VSCode window API mock configuration
+
+
+
+
   - Implement mock configuration for VSCode window APIs
   - Add mock implementations for window.showInformationMessage, etc.
   - Write tests for VSCode window API mocks
   - _Requirements: 1.6_
 
-- [ ] 28. Create VSCode extension test utilities
+- [x] 28. Create VSCode extension test utilities
+
+
+
+
   - Implement test utilities for VSCode extension testing
   - Add helper functions for extension test setup
   - Write tests for VSCode extension test utilities
   - _Requirements: 1.6_
 
-- [ ] 29. Fix VSCode command registration mock setup
+- [x] 29. Fix VSCode command registration mock setup
+
+
   - Implement proper mock setup for VSCode command registration and execution
   - Add mock implementations for command palette integration
   - Write tests for VSCode command registration mocks
   - _Requirements: 1.6_
 
-- [ ] 30. Implement CLI command handlers for README parser
+- [x] 30. Implement CLI command handlers for README parser
   - Create CLI command handlers that use ReadmeParserImpl
   - Add command-line argument parsing for README file paths
   - Write integration tests for CLI-parser command handling

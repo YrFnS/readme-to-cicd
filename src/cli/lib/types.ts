@@ -23,7 +23,7 @@ export interface CLIResult {
 }
 
 export interface CLIOptions {
-  command: 'generate' | 'validate' | 'init' | 'export' | 'import';
+  command: 'generate' | 'validate' | 'init' | 'export' | 'import' | 'parse' | 'analyze' | 'readme-validate';
   readmePath?: string;
   outputDir?: string;
   workflowType?: WorkflowType[];
@@ -52,6 +52,13 @@ export interface CLIOptions {
   continueOnError?: boolean;
   projectPattern?: string;
   excludePatterns?: string[];
+  
+  // README command specific options
+  format?: 'json' | 'yaml' | 'text';
+  includeMetadata?: boolean;
+  includeConfidence?: boolean;
+  includeRecommendations?: boolean;
+  includeDiagnostics?: boolean;
 }
 
 export interface CLIConfig {

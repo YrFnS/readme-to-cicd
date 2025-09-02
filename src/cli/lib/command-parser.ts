@@ -110,6 +110,7 @@ export class CommandParser {
     this.setupInitCommand();
     this.setupExportCommand();
     this.setupImportCommand();
+    this.setupReadmeCommands();
   }
 
   /**
@@ -249,7 +250,7 @@ export class CommandParser {
    */
   private buildCLIOptions(command: string, options: any): CLIOptions {
     // Validate command
-    const validCommands = ['generate', 'validate', 'init', 'export', 'import'];
+    const validCommands = ['generate', 'validate', 'init', 'export', 'import', 'parse', 'analyze', 'readme-validate'];
     if (!validCommands.includes(command)) {
       throw new Error(`Invalid command: ${command}. Valid commands are: ${validCommands.join(', ')}`);
     }
@@ -294,7 +295,14 @@ export class CommandParser {
       maxConcurrency: options.maxConcurrency,
       continueOnError: Boolean(options.continueOnError),
       projectPattern: options.projectPattern,
-      excludePatterns: options.excludePatterns
+      excludePatterns: options.excludePatterns,
+      
+      // README command specific options
+      format: options.format,
+      includeMetadata: Boolean(options.includeMetadata),
+      includeConfidence: Boolean(options.includeConfidence),
+      includeRecommendations: Boolean(options.includeRecommendations),
+      includeDiagnostics: Boolean(options.includeDiagnostics)
     };
   }
 
@@ -521,6 +529,76 @@ Examples:
   }
 
   /**
+   * Setup README-specific commands
+   */
+  private setupReadmeCommands(): void {
+    // Parse command - basic README parsing
+    const parseCommand = this.program
+      .command('parse [readme-path]')
+      .description('Parse README file and extract project information')
+      .argument('[readme-path]', 'Path to README file (defaults to ./README.md)')
+      .addOption(new Option('--format <format>', 'Output format')
+        .choices(['json', 'yaml', 'text'])
+        .default('text'))
+      .addOption(new Option('--include-metadata', 'Include processing metadata in output')
+        .default(false))
+      .addOption(new Option('--include-confidence', 'Include confidence scores in output')
+        .default(false))
+      .addHelpText('after', this.getParseExamples());
+
+    parseCommand.action((readmePath, options, command) => {
+      const globalOptions = this.program.opts();
+      const commandOptions = parseCommand.opts();
+      this.parsedOptions = this.buildCLIOptions('parse', {
+        ...globalOptions,
+        ...commandOptions,
+        readmePath
+      });
+    });
+
+    // Analyze command - detailed README analysis
+    const analyzeCommand = this.program
+      .command('analyze [readme-path]')
+      .description('Perform detailed analysis of README file with recommendations')
+      .argument('[readme-path]', 'Path to README file (defaults to ./README.md)')
+      .addOption(new Option('--format <format>', 'Output format')
+        .choices(['json', 'yaml', 'text'])
+        .default('json'))
+      .addOption(new Option('--include-recommendations', 'Include improvement recommendations')
+        .default(true))
+      .addOption(new Option('--include-diagnostics', 'Include diagnostic information')
+        .default(true))
+      .addHelpText('after', this.getAnalyzeExamples());
+
+    analyzeCommand.action((readmePath, options, command) => {
+      const globalOptions = this.program.opts();
+      const commandOptions = analyzeCommand.opts();
+      this.parsedOptions = this.buildCLIOptions('analyze', {
+        ...globalOptions,
+        ...commandOptions,
+        readmePath
+      });
+    });
+
+    // README validate command - validation only
+    const readmeValidateCommand = this.program
+      .command('readme-validate [readme-path]')
+      .description('Validate README file structure and content quality')
+      .argument('[readme-path]', 'Path to README file (defaults to ./README.md)')
+      .addHelpText('after', this.getReadmeValidateExamples());
+
+    readmeValidateCommand.action((readmePath, options, command) => {
+      const globalOptions = this.program.opts();
+      const commandOptions = readmeValidateCommand.opts();
+      this.parsedOptions = this.buildCLIOptions('readme-validate', {
+        ...globalOptions,
+        ...commandOptions,
+        readmePath
+      });
+    });
+  }
+
+  /**
    * Extract command from arguments array
    */
   private extractCommandFromArgs(args: string[]): string | null {
@@ -532,6 +610,47 @@ Examples:
       }
     }
     return null;
+  }
+
+  /**
+   * Get parse command examples
+   */
+  private getParseExamples(): string {
+    return `
+Examples:
+  $ readme-to-cicd parse                           # Parse ./README.md with text output
+  $ readme-to-cicd parse ./docs/README.md         # Parse specific README file
+  $ readme-to-cicd parse --format json            # Output as JSON
+  $ readme-to-cicd parse --format yaml            # Output as YAML
+  $ readme-to-cicd parse --include-confidence     # Include confidence scores
+  $ readme-to-cicd parse --include-metadata       # Include processing metadata
+`;
+  }
+
+  /**
+   * Get analyze command examples
+   */
+  private getAnalyzeExamples(): string {
+    return `
+Examples:
+  $ readme-to-cicd analyze                         # Detailed analysis with recommendations
+  $ readme-to-cicd analyze ./README.md            # Analyze specific README file
+  $ readme-to-cicd analyze --format text          # Human-readable analysis report
+  $ readme-to-cicd analyze --no-recommendations   # Skip recommendations
+  $ readme-to-cicd analyze --no-diagnostics       # Skip diagnostic information
+`;
+  }
+
+  /**
+   * Get readme-validate command examples
+   */
+  private getReadmeValidateExamples(): string {
+    return `
+Examples:
+  $ readme-to-cicd readme-validate                 # Validate ./README.md
+  $ readme-to-cicd readme-validate ./docs/README.md # Validate specific file
+  $ readme-to-cicd readme-validate --verbose       # Detailed validation output
+`;
   }
 
   /**
