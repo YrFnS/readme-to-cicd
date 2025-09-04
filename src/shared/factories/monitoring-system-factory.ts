@@ -58,26 +58,41 @@ export type MonitoringSystemInstance = AgentHooksMonitoringSystem | IntegrationM
  */
 export class MonitoringSystemFactory {
   private static readonly DEFAULT_AGENT_HOOKS_CONFIG: MonitoringConfig = {
+    enabled: true,
     metrics: {
       enabled: true,
       collectInterval: 60000,
-      retentionPeriod: '7d'
+      retention: '7d',
+      exporters: []
     },
     alerts: {
       enabled: true,
-      evaluationInterval: 30000
+      rules: [],
+      evaluationInterval: 30000,
+      resolveTimeout: '5m'
     },
     healthChecks: {
       enabled: true,
-      interval: 60000
+      checks: [],
+      globalTimeout: 30000
+    },
+    logging: {
+      enabled: true,
+      level: 'info',
+      format: 'json',
+      outputs: [],
+      retention: '7d'
     },
     tracing: {
       enabled: false,
-      sampleRate: 0.1
+      sampleRate: 0.1,
+      exporters: [],
+      retention: '7d'
     },
-    logging: {
-      level: 'info',
-      format: 'json'
+    dashboards: {
+      enabled: false,
+      refreshInterval: 30000,
+      panels: []
     }
   };
 
@@ -99,7 +114,7 @@ export class MonitoringSystemFactory {
       // Validate configuration
       const validationResult = this.validateConfig(factoryConfig);
       if (!validationResult.success) {
-        return validationResult;
+        return validationResult as Result<MonitoringSystemInstance, Error>;
       }
 
       let instance: MonitoringSystemInstance;
@@ -131,14 +146,8 @@ export class MonitoringSystemFactory {
       logger: this.createDefaultLogger(),
       config: type === 'agent-hooks' ? {
         ...this.DEFAULT_AGENT_HOOKS_CONFIG,
-        metrics: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.metrics,
-          collectInterval: 30000 // More frequent collection for development
-        },
-        logging: {
-          level: 'debug',
-          format: 'json'
-        }
+        healthCheckInterval: 30000, // More frequent health checks for development
+        metricsPort: 9091 // Different port to avoid conflicts
       } : {
         ...this.DEFAULT_INTEGRATION_CONFIG,
         healthCheckInterval: 30000, // More frequent health checks for development
@@ -158,22 +167,12 @@ export class MonitoringSystemFactory {
       logger: this.createDefaultLogger(),
       config: type === 'agent-hooks' ? {
         ...this.DEFAULT_AGENT_HOOKS_CONFIG,
-        metrics: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.metrics,
-          collectInterval: 60000 // Standard collection interval
-        },
-        alerts: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.alerts,
-          enabled: true // Ensure alerts are enabled in production
-        },
-        logging: {
-          level: 'info',
-          format: 'json'
-        }
+        alertingEnabled: true, // Ensure alerting is enabled in production
+        retentionPeriod: 30 // 30 days retention for production
       } : {
         ...this.DEFAULT_INTEGRATION_CONFIG,
         alertingEnabled: true, // Ensure alerting is enabled in production
-        retentionPeriod: 30 * 24 * 60 * 60 * 1000 // 30 days retention for production
+        retentionPeriod: 30 // 30 days retention for production
       }
     };
 
@@ -189,27 +188,11 @@ export class MonitoringSystemFactory {
       logger: this.createTestLogger(),
       config: type === 'agent-hooks' ? {
         ...this.DEFAULT_AGENT_HOOKS_CONFIG,
-        metrics: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.metrics,
-          collectInterval: 1000, // Very frequent for testing
-          retentionPeriod: '1h' // Short retention for testing
-        },
-        alerts: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.alerts,
-          evaluationInterval: 1000 // Frequent evaluation for testing
-        },
-        healthChecks: {
-          ...this.DEFAULT_AGENT_HOOKS_CONFIG.healthChecks,
-          interval: 5000 // Frequent health checks for testing
-        },
-        tracing: {
-          enabled: false, // Disable tracing in tests
-          sampleRate: 0
-        },
-        logging: {
-          level: 'error', // Minimal logging in tests
-          format: 'json'
-        }
+        ...this.DEFAULT_AGENT_HOOKS_CONFIG,
+        metricsPort: 0, // Use random port for testing
+        healthCheckInterval: 5000, // Frequent health checks for testing
+        alertingEnabled: false, // Disable alerting in tests
+        retentionPeriod: 1 // 1 day retention for testing
       } : {
         ...this.DEFAULT_INTEGRATION_CONFIG,
         enableMetrics: true,
@@ -367,7 +350,7 @@ export class MonitoringSystemFactory {
       error: () => {}, // Silent in tests
       warn: () => {}, // Silent in tests
       debug: () => {} // Silent in tests
-    } as Logger;
+    } as unknown as Logger;
   }
 
   private static createDefaultErrorHandler(logger: Logger): ErrorHandler {
@@ -379,7 +362,7 @@ export class MonitoringSystemFactory {
           context
         });
       }
-    } as ErrorHandler;
+    } as unknown as ErrorHandler;
   }
 
   private static createDefaultPerformanceMonitor(logger: Logger): PerformanceMonitor {
@@ -400,7 +383,7 @@ export class MonitoringSystemFactory {
       recordMetric: (name: string, value: number, labels?: Record<string, string>) => {
         logger.debug('Performance metric recorded', { name, value, labels });
       }
-    } as PerformanceMonitor;
+    } as unknown as PerformanceMonitor;
   }
 
   private static createDefaultNotificationSystem(logger: Logger): NotificationSystem {
@@ -408,6 +391,6 @@ export class MonitoringSystemFactory {
       sendNotification: async (type: any, priority: any, title: string, message: string, channels: any[]) => {
         logger.info('Notification sent', { type, priority, title, message, channels: channels.length });
       }
-    } as NotificationSystem;
+    } as unknown as NotificationSystem;
   }
 }

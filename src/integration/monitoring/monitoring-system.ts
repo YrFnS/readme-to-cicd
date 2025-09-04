@@ -6,7 +6,7 @@
  */
 
 import { Logger } from '../../cli/lib/logger';
-import { Result, success, failure } from '../../shared/types/result';
+import { Result, success, failure, isFailure } from '../../shared/types/result';
 import { 
   MonitoringConfigValidator, 
   validateMonitoringConfig,
@@ -144,7 +144,7 @@ export class MonitoringSystem {
     
     // Validate and normalize configuration
     const configValidationResult = validateMonitoringConfig(config);
-    if (!configValidationResult.success) {
+    if (isFailure(configValidationResult)) {
       throw new Error(`Invalid MonitoringSystem configuration: ${configValidationResult.error.message}`);
     }
     
@@ -673,7 +673,7 @@ export class MonitoringSystem {
       const mergedConfig = { ...this.config, ...newConfig };
       const validationResult = validateMonitoringConfig(mergedConfig);
       
-      if (!validationResult.success) {
+      if (isFailure(validationResult)) {
         return failure(new Error(`Configuration validation failed: ${validationResult.error.message}`));
       }
 

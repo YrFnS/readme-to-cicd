@@ -5,7 +5,7 @@
  * Provides command handlers for parsing README files and extracting project information.
  */
 
-import { CLIOptions, CLIResult } from './types';
+import { CLIOptions, CLIResult, CLIError } from './types';
 import { Logger } from './logger';
 import { ErrorHandler } from './error-handler';
 import { ReadmeParserImpl, createReadmeParserWithPipeline } from '../../parser';
@@ -223,7 +223,19 @@ export class ReadmeCommandHandler {
       return {
         success: false,
         generatedFiles: [],
-        errors: parseResult.errors?.map(e => e.message) || ['Parse failed'],
+        errors: parseResult.errors?.map(e => ({
+          code: 'PARSE_ERROR',
+          message: e.message,
+          category: 'processing' as const,
+          severity: 'error' as const,
+          suggestions: []
+        })) || [{
+          code: 'PARSE_FAILED',
+          message: 'Parse failed',
+          category: 'processing' as const,
+          severity: 'error' as const,
+          suggestions: []
+        }],
         warnings: [],
         summary: {
           totalTime: 0,
@@ -279,7 +291,19 @@ export class ReadmeCommandHandler {
       return {
         success: false,
         generatedFiles: [],
-        errors: parseResult.errors?.map(e => e.message) || ['Analysis failed'],
+        errors: parseResult.errors?.map(e => ({
+          code: 'ANALYSIS_ERROR',
+          message: e.message,
+          category: 'processing' as const,
+          severity: 'error' as const,
+          suggestions: []
+        })) || [{
+          code: 'ANALYSIS_FAILED',
+          message: 'Analysis failed',
+          category: 'processing' as const,
+          severity: 'error' as const,
+          suggestions: []
+        }],
         warnings: [],
         summary: {
           totalTime: 0,
@@ -330,11 +354,23 @@ export class ReadmeCommandHandler {
     options: ReadmeCommandOptions, 
     filePath: string
   ): Promise<CLIResult> {
-    const validationErrors: string[] = [];
+    const validationErrors: CLIError[] = [];
     const validationWarnings: string[] = [];
 
     if (!parseResult.success) {
-      validationErrors.push(...(parseResult.errors?.map(e => e.message) || ['Validation failed']));
+      validationErrors.push(...(parseResult.errors?.map(e => ({
+        code: 'VALIDATION_ERROR',
+        message: e.message,
+        category: 'processing' as const,
+        severity: 'error' as const,
+        suggestions: []
+      })) || [{
+        code: 'VALIDATION_FAILED',
+        message: 'Validation failed',
+        category: 'processing' as const,
+        severity: 'error' as const,
+        suggestions: []
+      }]));
     } else {
       const projectInfo = parseResult.data!;
       
@@ -543,7 +579,7 @@ export class ReadmeCommandHandler {
    */
   private validateProjectInfo(
     projectInfo: any, 
-    errors: string[], 
+    errors: CLIError[], 
     warnings: string[]
   ): void {
     // Check for critical missing information
@@ -561,7 +597,13 @@ export class ReadmeCommandHandler {
 
     // Check confidence levels
     if (projectInfo.confidence?.overall < 0.3) {
-      errors.push('Analysis confidence too low - README may be incomplete or malformed');
+      errors.push({
+        code: 'LOW_CONFIDENCE',
+        message: 'Analysis confidence too low - README may be incomplete or malformed',
+        category: 'processing',
+        severity: 'error',
+        suggestions: ['Add more technical details to your README', 'Include installation instructions', 'Add usage examples']
+      });
     } else if (projectInfo.confidence?.overall < 0.6) {
       warnings.push('Analysis confidence is moderate - consider adding more technical details');
     }

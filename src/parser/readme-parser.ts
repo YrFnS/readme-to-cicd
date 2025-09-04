@@ -313,7 +313,10 @@ export class ReadmeParserImpl implements ReadmeParser {
             // The integration pipeline expects a file path, but we have content
             // For now, we'll use the manual analysis with pipeline-registered analyzers
             console.log('🔄 Using pipeline-registered analyzers for content analysis');
-            return await this.executePipelineAnalysis(content);
+            console.log('📞 About to call executePipelineAnalysis');
+            const result = await this.executePipelineAnalysis(content);
+            console.log('✅ executePipelineAnalysis completed successfully');
+            return result;
           } catch (pipelineError) {
             console.warn('IntegrationPipeline execution error, using fallback:', pipelineError);
             // Continue to fallback processing
@@ -336,8 +339,12 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Execute pipeline-based analysis using registered analyzers with context sharing
    */
   private async executePipelineAnalysis(content: string): Promise<ParseResult> {
+    console.log('🚀 executePipelineAnalysis method called');
     try {
+      console.log('🔍 Starting executePipelineAnalysis try block');
+      
       // Parse content first
+      console.log('📄 Checking AST cache');
       const cachedEntry = this.astCache.get(content);
       let ast: Token[];
       let rawContent: string;
@@ -383,7 +390,15 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
 
       // Create shared analysis context
-      const analysisContext = this.createAnalysisContext(content, rawContent);
+      let analysisContext;
+      try {
+        analysisContext = this.createAnalysisContext(content, rawContent);
+        console.log('✅ Analysis context created successfully');
+      } catch (contextError) {
+        const errorMessage = contextError instanceof Error ? contextError.message : String(contextError);
+        console.log('❌ Failed to create analysis context:', errorMessage);
+        throw new Error(`Analysis context creation failed: ${errorMessage}`);
+      }
       
       // Execute analyzers through pipeline coordination with context sharing
       const analysisPromises = registeredAnalyzers.map(async analyzer => {
@@ -513,7 +528,9 @@ export class ReadmeParserImpl implements ReadmeParser {
       return result;
       
     } catch (error) {
+      console.log('💥 Error caught in executePipelineAnalysis:', error);
       if (error instanceof Error) {
+        console.log('📍 Error stack:', error.stack);
         return this.createErrorResult('PIPELINE_ANALYSIS_ERROR', `Pipeline analysis failed: ${error.message}`);
       }
       return this.createErrorResult('UNKNOWN_PIPELINE_ERROR', 'An unknown error occurred during pipeline analysis');
@@ -556,20 +573,19 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Create analysis context for sharing data between analyzers
    */
   private createAnalysisContext(content: string, rawContent: string): import('../shared/types/analysis-context').AnalysisContext {
-    const { AnalysisContextBuilder } = require('../shared/types/analysis-context');
+    // Import at the top level instead of using require
+    const { AnalysisContextFactory } = require('../shared/types/analysis-context');
     
-    // Calculate content hash for caching
-    const crypto = require('crypto');
-    const contentHash = crypto.createHash('md5').update(content).digest('hex');
+    if (!AnalysisContextFactory) {
+      throw new Error('AnalysisContextFactory is undefined in require result');
+    }
     
-    return AnalysisContextBuilder.create()
-      .withSourceInfo({
-        contentLength: content.length,
-        lineCount: rawContent.split('\n').length,
-        contentHash,
-        contentType: 'markdown' as const
-      })
-      .build();
+    if (typeof AnalysisContextFactory.create !== 'function') {
+      throw new Error(`AnalysisContextFactory.create is not a function: ${typeof AnalysisContextFactory.create}`);
+    }
+    
+    // Create analysis context using the factory
+    return AnalysisContextFactory.create(content);
   }
 
   /**

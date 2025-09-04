@@ -100,7 +100,7 @@ export class PerformanceMonitor {
    */
   startMonitoring(): void {
     this.isCollecting = true;
-    logger.info('performance', 'Performance monitoring started');
+    logger.info('Performance monitoring started', { component: 'performance' });
   }
 
   /**
@@ -108,7 +108,7 @@ export class PerformanceMonitor {
    */
   stopMonitoring(): void {
     this.isCollecting = false;
-    logger.info('performance', 'Performance monitoring stopped');
+    logger.info('Performance monitoring stopped', { component: 'performance' });
   }
 
   /**
@@ -455,7 +455,7 @@ export class PerformanceMonitor {
     };
 
     this.alerts.push(alert);
-    logger.warn('performance', `Performance Alert [${severity.toUpperCase()}]: ${message}`);
+    logger.warn(`Performance Alert [${severity.toUpperCase()}]: ${message}`, { component: 'performance' });
   }
 
   /**

@@ -19,6 +19,8 @@ import {
   AnalyzerResult
 } from './types';
 import { LanguageContext } from '../shared/types/language-context';
+import { AnalysisContextFactory } from '../shared/types/analysis-context';
+import { MarkdownParser } from './utils/markdown-parser';
 import { PerformanceMonitor } from './utils/performance-monitor';
 import { Logger, LogLevel, logger } from './utils/logger';
 
@@ -336,7 +338,6 @@ export class IntegrationPipeline {
   private async contentParsingStage(context: PipelineContext): Promise<PipelineResult> {
     this.logger.debug('IntegrationPipeline', 'Parsing content to AST');
 
-    const { MarkdownParser } = await import('./utils/markdown-parser');
     const parser = new MarkdownParser();
 
     const parseResult = await parser.parseContent(context.content);
@@ -361,7 +362,19 @@ export class IntegrationPipeline {
     }
 
     // Create analysis context for proper context sharing
-    const { AnalysisContextFactory } = await import('../shared/types/analysis-context');
+    this.logger.debug('IntegrationPipeline', 'Creating analysis context', { 
+      factoryAvailable: !!AnalysisContextFactory,
+      createMethod: typeof AnalysisContextFactory?.create
+    });
+    
+    if (!AnalysisContextFactory) {
+      throw new Error('AnalysisContextFactory is not available');
+    }
+    
+    if (typeof AnalysisContextFactory.create !== 'function') {
+      throw new Error(`AnalysisContextFactory.create is not a function, got: ${typeof AnalysisContextFactory.create}`);
+    }
+    
     const analysisContext = AnalysisContextFactory.create(context.content);
 
     const languageDetector = this.dependencies.languageDetector;
@@ -856,7 +869,6 @@ export class IntegrationPipeline {
       // Try to clean the content and parse again
       const cleanedContent = this.cleanContentForParsing(context.content);
 
-      const { MarkdownParser } = await import('./utils/markdown-parser');
       const parser = new MarkdownParser();
 
       const parseResult = await parser.parseContent(cleanedContent);

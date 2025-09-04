@@ -244,7 +244,7 @@ export interface ValidationIssue {
 const DEFAULT_REGISTRATION_OPTIONS: RegistrationOptions = {
   validateInterfaces: true,
   allowDuplicates: false,
-  failOnError: false,
+  failOnError: true,
   registrationTimeout: 5000,
   enableLogging: true
 };
@@ -731,6 +731,11 @@ export class EnhancedAnalyzerRegistry implements AnalyzerRegistry {
    * Determine if recovery should be attempted for a failed registration
    */
   protected shouldAttemptRecovery(result: RegistrationResult): boolean {
+    // Don't attempt recovery when failOnError is true
+    if (this.state.options.failOnError) {
+      return false;
+    }
+
     // Don't attempt recovery for certain types of errors
     if (result.error?.includes('already registered') || 
         result.error?.includes('null or undefined')) {

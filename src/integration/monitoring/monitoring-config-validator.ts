@@ -8,7 +8,7 @@
 import Ajv, { JSONSchemaType, ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { MonitoringConfig } from './monitoring-system';
-import { Result, success, failure } from '../../shared/types/result';
+import { Result, success, failure, isFailure } from '../../shared/types/result';
 
 /**
  * Configuration validation error details
@@ -118,7 +118,7 @@ export class MonitoringConfigValidator {
     addFormats(this.ajv);
 
     // Compile the schema
-    this.validateConfig = this.ajv.compile(monitoringConfigSchema as any);
+    this.validateConfig = this.ajv.compile(monitoringConfigSchema) as ValidateFunction<MonitoringConfig>;
   }
 
   /**
@@ -211,7 +211,7 @@ export class MonitoringConfigValidator {
   validateConfigurationStrict(config: Partial<MonitoringConfig>): MonitoringConfig {
     const result = this.validateConfiguration(config);
     
-    if (!result.success) {
+    if (isFailure(result)) {
       throw new Error(`Configuration validation failed: ${result.error.message}`);
     }
 
@@ -460,7 +460,7 @@ export function validateMonitoringConfig(config: Partial<MonitoringConfig>): Res
   const validator = new MonitoringConfigValidator();
   const result = validator.validateConfiguration(config);
 
-  if (!result.success) {
+  if (isFailure(result)) {
     return failure(result.error);
   }
 
