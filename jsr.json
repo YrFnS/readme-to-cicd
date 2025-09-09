@@ -1,0 +1,35 @@
+{
+  "name": "@yrfns/readme-to-cicd",
+  "version": "1.0.0",
+  "description": "Automatically generate optimized GitHub Actions CI/CD workflows from README files",
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YrFnS/readme-to-cicd.git"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli/bin/cli.js"
+  },
+  "bin": {
+    "readme-to-cicd": "./dist/cli/bin/cli.js"
+  },
+  "keywords": [
+    "github-actions",
+    "ci-cd",
+    "readme",
+    "automation",
+    "workflow-generation"
+  ],
+  "include": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "exclude": [
+    "src/",
+    "tests/",
+    "*.test.ts",
+    "*.spec.ts"
+  ]
+}

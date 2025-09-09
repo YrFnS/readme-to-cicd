@@ -18,6 +18,43 @@ out/
 .env.test.local
 .env.production.local
 
+# Temporary files and directories
+temp/
+test-output/
+reports/
+*.tmp
+*.temp
+
+# Debug and test files
+debug-*.js
+test-*.js
+minimal-*.js
+simple-*.js
+*-test.js
+*-debug.js
+
+# Status reports and logs
+*-STATUS-REPORT.md
+*-validation-report.json
+integration-validation-report.json
+*.log
+
+# IDE and editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # IDE and editor files
 .vscode/settings.json
 .vscode/launch.json

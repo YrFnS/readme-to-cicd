@@ -4,7 +4,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Elastic--2.0-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/your-org/readme-to-cicd)
 [![Test Coverage](https://img.shields.io/badge/Coverage-85%25-green.svg)](https://github.com/your-org/readme-to-cicd)
 
@@ -12,45 +12,154 @@
 
 README-to-CICD transforms your project documentation into intelligent automation. Instead of spending hours researching GitHub Actions syntax and debugging YAML, simply write good README files and get production-ready CI/CD workflows automatically.
 
-**🎉 Status: PRODUCTION READY** - Core system fully functional with 85%+ test coverage!
+**🚧 Status: BETA** - Core parsing functionality working, some integration issues being resolved
 
 ### ✨ Key Benefits
 
-- **⚡ 80% reduction** in CI/CD setup time (from hours to minutes)
-- **🔧 Zero YAML debugging** - workflows just work
-- **🛡️ Security by default** - enterprise-grade scanning and compliance
-- **🤖 Smart detection** - automatically identifies frameworks and commands
-- **📊 High accuracy** - 82% confidence in command extraction, 100% in language detection
-- **🔄 Consistent workflows** across all projects
+- **🔍 Smart README Analysis** - Extracts project information from documentation
+- **🤖 Language Detection** - Identifies programming languages and frameworks
+- **⚙️ Command Extraction** - Finds build, test, and run commands
+- **📊 Structured Output** - Provides confidence scores and detailed analysis
+- **�  CLI Interface** - Easy-to-use command-line tool
 
-## 🚀 Quick Start
+## ⚠️ **Current Status & What Works**
 
-### 1. Install CLI Tool
+### ✅ **What's Working Reliably**
+- **README Parsing**: Solid markdown analysis and AST processing
+- **Language Detection**: Identifies programming languages from code blocks
+- **Command Extraction**: Finds install, test, build, and run commands
+- **CLI Interface**: Complete command-line tool with help and options
+- **Confidence Scoring**: Provides reliability metrics for all detections
+- **JSON Output**: Structured data for integration with other tools
+
+### 🚧 **What's Experimental**
+- **Workflow Generation**: Basic functionality works but has integration issues
+- **Advanced Framework Detection**: Partially implemented
+- **Multi-file Analysis**: Limited support
+
+### 📋 **What's Not Ready Yet**
+- **VSCode Extension**: In development
+- **GitHub Integration**: Planned feature
+- **Advanced Templates**: Coming in future versions
+
+### 🎯 **Best Use Cases Right Now**
+- Analyzing README files for project information
+- Extracting build commands from documentation
+- Getting structured data about your project setup
+- Understanding what languages/frameworks are documented
+
+---
+
+## 🚀 Installation
+
+Choose your preferred installation method:
+
+### 📦 **npm (Recommended)**
 ```bash
-# Global installation (recommended)
+# Global installation
 npm install -g readme-to-cicd
 
 # Verify installation
 readme-to-cicd --version
 ```
 
-### 2. Generate Your First Workflow
+### 🐙 **GitHub Packages**
+```bash
+# Configure npm to use GitHub Packages
+npm config set @yrfns:registry https://npm.pkg.github.com
+
+# Install from GitHub Packages
+npm install -g @yrfns/readme-to-cicd
+```
+
+### 🚀 **JSR (JavaScript Registry)**
+```bash
+# Install from JSR (modern npm alternative)
+npx jsr add @yrfns/readme-to-cicd
+
+# Or with Deno
+deno add @yrfns/readme-to-cicd
+
+# Or with Bun
+bunx jsr add @yrfns/readme-to-cicd
+```
+
+### 📂 **Direct from GitHub**
+```bash
+# Install directly from GitHub repository
+npm install -g git+https://github.com/YrFnS/readme-to-cicd.git
+
+# Or install specific version/branch
+npm install -g git+https://github.com/YrFnS/readme-to-cicd.git#main
+```
+
+### 🐳 **Docker**
+```bash
+# Pull and run with Docker
+docker pull ghcr.io/yrfns/readme-to-cicd:latest
+
+# Run analysis on current directory
+docker run --rm -v $(pwd):/workspace ghcr.io/yrfns/readme-to-cicd:latest parse /workspace/README.md
+
+# Create alias for easier usage
+alias readme-to-cicd='docker run --rm -v $(pwd):/workspace ghcr.io/yrfns/readme-to-cicd:latest'
+```
+
+### 🛠️ **Local Development**
+```bash
+# Clone and build locally
+git clone https://github.com/YrFnS/readme-to-cicd.git
+cd readme-to-cicd
+npm install
+npm run build
+
+# Link globally for development
+npm link
+
+# Verify installation
+readme-to-cicd --version
+```
+
+### 📋 **Which Installation Method to Choose?**
+
+| Method | Best For | Pros | Cons |
+|--------|----------|------|------|
+| **npm** | Most users | ✅ Simple, widely supported | ⚠️ Requires npm |
+| **GitHub Packages** | GitHub users | ✅ Integrated with GitHub | ⚠️ Requires GitHub auth |
+| **JSR** | Modern JS developers | ✅ Fast, modern registry | ⚠️ Newer ecosystem |
+| **Direct GitHub** | Latest features | ✅ Always up-to-date | ⚠️ May be unstable |
+| **Docker** | Containerized environments | ✅ Isolated, reproducible | ⚠️ Larger download |
+| **Local Development** | Contributors | ✅ Full control, debugging | ⚠️ Manual setup |
+
+**Recommendation**: Use **npm** for production, **Direct GitHub** for latest features, **Docker** for CI/CD.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Choose Installation Method
+Pick any installation method above. For most users, **npm** is recommended.
+
+### 2. Analyze Your README
+
+### 2. Analyze Your README
 ```bash
 # Navigate to your project with README.md
 cd your-project
 
-# Generate CI/CD workflow
-readme-to-cicd generate
+# Parse and analyze README
+readme-to-cicd parse README.md
 
-# Check generated files
-ls .github/workflows/
+# Generate workflows (experimental)
+readme-to-cicd generate README.md
 ```
 
-### 3. Install VSCode Extension (Optional)
-1. Open VSCode
-2. Extensions (Ctrl+Shift+X) 
-3. Search "README to CICD"
-4. Install and start generating workflows with right-click!
+### 3. Explore the Analysis
+The tool will show you:
+- Detected programming languages
+- Extracted commands (install, test, build, run)
+- Confidence scores for each detection
+- Project metadata and structure
 
 ### 📚 Complete Usage Guides
 - **[HOW_TO_USE.md](HOW_TO_USE.md)** - Comprehensive usage guide with examples
@@ -60,18 +169,17 @@ ls .github/workflows/
 ## 💻 CLI Usage
 
 ```bash
-# Generate workflows
-readme-to-cicd generate                    # Basic generation
-readme-to-cicd generate --type ci,cd       # Specific workflow types
-readme-to-cicd generate --optimization aggressive  # High optimization
+# Parse and analyze README files
+readme-to-cicd parse README.md             # Analyze specific file
+readme-to-cicd parse                       # Analyze ./README.md
 
-# Validate workflows
-readme-to-cicd validate                    # Validate all workflows
-readme-to-cicd validate --file ci.yml      # Validate specific file
+# Generate workflows (experimental)
+readme-to-cicd generate README.md          # Generate from README
+readme-to-cicd generate --dry-run          # Preview generation
 
-# Initialize configuration
-readme-to-cicd init                        # Create config file
-readme-to-cicd init --template enterprise  # Use template
+# Get help
+readme-to-cicd --help                      # Show all commands
+readme-to-cicd parse --help                # Command-specific help
 ```
 
 ## 🔧 API Usage
@@ -95,14 +203,18 @@ if (result.success) {
 
 ## ✨ Features
 
-### 🎉 **SYSTEM STATUS: FULLY FUNCTIONAL**
+### �  **CURRENT STATUS**
 
-✅ **All critical components working with high confidence scores!**
-- **Test Coverage**: 85.4% (1,882 passing tests)
-- **Language Detection**: 100% accuracy
-- **Command Extraction**: 82% confidence (exceeds 75% target)
-- **Integration Pipeline**: All 7 stages working perfectly
-- **Performance**: <6ms processing time (target: <2000ms)
+✅ **Core Functionality Working**
+- **README Parsing**: Fully functional with markdown analysis
+- **Language Detection**: Working with confidence scoring
+- **Command Extraction**: Extracts build/test/run commands
+- **CLI Interface**: Complete command-line tool available
+
+🚧 **Known Issues**
+- **Workflow Generation**: Experimental, may have integration issues
+- **Test Suite**: Some integration tests failing (87% passing)
+- **VSCode Extension**: In development
 
 ### 🚀 **Core Features - PRODUCTION READY**
 
@@ -165,28 +277,30 @@ if (result.success) {
 | **Ruby** | Rails, Sinatra | gem, bundle | ✅ |
 | **PHP** | Laravel, Symfony | composer | ✅ |
 
-## 📊 Live Test Results
+## 📊 What Actually Works
 
-**Real system test demonstrating full functionality:**
+**Core parsing functionality is solid:**
 
 ```bash
-✅ SUCCESS: Parser working!
-📊 Confidence: 82% (exceeds 75% target)
-🔧 Commands found: 5 total
-  - Install: 1 (npm install)
-  - Test: 1 (npm test)  
-  - Run: 1 (npm start)
-🌐 Languages detected: 1 (JavaScript at 100% confidence)
+# Example output from parsing a Node.js README
+$ readme-to-cicd parse README.md
 
-Integration Pipeline Status:
-✅ Initialization
-✅ Content Parsing
-✅ Language Detection  
-✅ Context Inheritance
-✅ Command Extraction
-✅ Result Aggregation
-✅ Validation & Finalization
+✅ README Analysis Complete
+📊 Languages Detected: JavaScript, TypeScript
+🔧 Commands Found:
+  - Install: npm install, npm ci
+  - Test: npm test, npm run test:unit
+  - Build: npm run build
+  - Run: npm start, npm run dev
+📈 Overall Confidence: 85%
 ```
+
+**What you can rely on:**
+- ✅ README parsing and markdown analysis
+- ✅ Programming language detection
+- ✅ Command extraction from code blocks
+- ✅ Confidence scoring and metadata
+- ✅ CLI interface with help and options
 
 ## 🔧 API Reference
 
@@ -353,26 +467,26 @@ npm run lint                    # ESLint
 npm run format                  # Prettier formatting
 ```
 
-### 📊 Test Results
+### 📊 Current Status
 
-**Current test suite status:**
-- **Total Tests**: 2,204
-- **Passing**: 1,882 (85.4%)
-- **Core Functionality**: 100% working
-- **Integration Pipeline**: All stages passing
-- **Performance**: 6ms average (target: <2000ms)
+**Test suite status:**
+- **Total Tests**: 3,463
+- **Passing**: 3,039 (87.8%)
+- **Failing**: 360 (10.4%) - mostly integration tests
+- **Core Parsing**: ✅ Working reliably
+- **CLI Interface**: ✅ Fully functional
 
-```bash
-# Run comprehensive validation
-npm run validate:integration
+**What's working:**
+- ✅ TypeScript compilation successful
+- ✅ Core README parsing and analysis
+- ✅ Language and framework detection
+- ✅ Command extraction with confidence scoring
+- ✅ CLI tool with all commands functional
 
-# Results:
-✅ TypeScript compilation: PASSED
-✅ Component interfaces: PASSED  
-✅ End-to-end pipeline: PASSED
-✅ Performance validation: PASSED (6ms)
-✅ Memory validation: PASSED
-```
+**Known issues:**
+- 🚧 Some integration pipeline connections need fixes
+- 🚧 Workflow generation has integration issues
+- 🚧 Memory usage in some test scenarios
 
 ### VSCode Extension Development
 
@@ -416,25 +530,26 @@ The project follows a clean, organized structure:
 
 ## 🗺️ Roadmap
 
-### Phase 1: Core Data Pipeline ✅ **COMPLETED**
-- [x] README Parser with comprehensive analysis (85.4% test coverage)
-- [x] Integration Pipeline (7 stages working perfectly)
-- [x] Language Detection (100% accuracy)
-- [x] Command Extraction (82% confidence)
-- [x] Performance optimization (<6ms processing)
-- [x] Comprehensive test suite (2,204 tests)
+### Phase 1: Core Data Pipeline ✅ **MOSTLY COMPLETED**
+- [x] README Parser with markdown analysis
+- [x] Language Detection with confidence scoring
+- [x] Command Extraction from code blocks
+- [x] CLI Tool with full interface
+- [x] Basic integration pipeline
+- [x] Comprehensive test suite (87% passing)
 
-### Phase 2: User Interfaces ✅ **COMPLETED**
-- [x] CLI Tool with interactive mode
-- [x] VSCode Extension with real-time generation
-- [x] API integration for programmatic access
-- [x] Configuration management system
+### Phase 2: Integration & Reliability 🚧 **IN PROGRESS**
+- [x] Core parsing functionality stable
+- [x] CLI interface fully working
+- [ ] Fix integration pipeline connections
+- [ ] Resolve workflow generation issues
+- [ ] Improve test suite reliability
 
-### Phase 3: Intelligence Layer 🚧 **IN PROGRESS**
-- [x] Framework Detection system (working)
-- [x] YAML Generator with templates (partial)
-- [ ] Advanced workflow optimization
-- [ ] Multi-environment deployment strategies
+### Phase 3: Advanced Features 📋 **PLANNED**
+- [ ] Reliable workflow generation
+- [ ] VSCode Extension completion
+- [ ] Advanced framework detection
+- [ ] Multi-environment support
 
 ### Phase 4: Advanced Features 📋 **PLANNED**
 - [ ] Agent Hooks for automated optimization
@@ -448,15 +563,17 @@ The project follows a clean, organized structure:
 - [ ] Advanced monitoring and observability
 - [ ] Team collaboration features
 
-## 🎯 Success Metrics Achieved
+## 🎯 Current Metrics
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| Framework Detection Accuracy | >95% | 100% | ✅ |
-| Workflow Generation Time | <2s | 6ms | ✅ |
-| Test Coverage | >90% | 85.4% | 🟡 |
-| Command Extraction Confidence | >75% | 82% | ✅ |
-| Integration Pipeline | Working | 7/7 stages | ✅ |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| README Parsing | ✅ Working | Reliable markdown analysis |
+| Language Detection | ✅ Working | Good confidence scoring |
+| Command Extraction | ✅ Working | Extracts build/test commands |
+| CLI Interface | ✅ Working | All commands functional |
+| Workflow Generation | 🚧 Issues | Integration problems |
+| Test Suite | 🟡 87% Pass | Core functionality solid |
+| VSCode Extension | 📋 Planned | In development |
 
 ## 📖 Documentation
 
@@ -484,7 +601,16 @@ We welcome contributions! Please see our contributing guidelines:
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+**Elastic License 2.0** - see [LICENSE](LICENSE) file for details.
+
+### 🛡️ **What This Means**
+- ✅ **Free to use** - Use, modify, and distribute freely
+- ✅ **Open source development** - Contribute, fork, and collaborate
+- ✅ **Internal business use** - Use within your organization
+- ❌ **No managed services** - Cannot offer as a hosted/managed service
+- ❌ **No SaaS offerings** - Cannot sell access to the software as a service
+
+**Why this license?** We want to keep the project open and collaborative while preventing large companies from taking our work and selling it as a managed service without contributing back to the community.
 
 ## 🙏 Acknowledgments
 
@@ -495,13 +621,34 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🚀 **Ready to automate your CI/CD workflows?**
+## 🚀 **Ready to analyze your README files?**
 
 ```bash
 # Get started in 30 seconds
 npm install -g readme-to-cicd
 cd your-project
-readme-to-cicd generate
+readme-to-cicd parse README.md
 ```
 
-**README-to-CICD**: Where documentation meets intelligence, where automation becomes invisible, and where developers can focus on what they do best - building amazing software. ✨
+**README-to-CICD**: Intelligent README analysis with the goal of automated CI/CD workflow generation. Currently in beta with solid parsing capabilities and experimental workflow generation. ✨
+
+---
+
+### 🔍 **What to Expect**
+
+**✅ Reliable Features:**
+- README parsing and analysis
+- Language and framework detection  
+- Command extraction with confidence scores
+- Structured JSON output
+- Full CLI interface
+
+**🚧 Experimental Features:**
+- CI/CD workflow generation
+- Advanced integration features
+- VSCode extension
+
+**📋 Coming Soon:**
+- Improved workflow generation reliability
+- Enhanced framework detection
+- VSCode extension release

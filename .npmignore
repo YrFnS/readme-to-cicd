@@ -1,0 +1,64 @@
+# Source files (we only want the compiled dist/)
+src/
+tests/
+scripts/
+docs/
+examples/
+temp/
+test-output/
+reports/
+monitoring/
+k8s/
+config/
+
+# Development files
+.kiro/
+.vscode/
+.github/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+debug-*.js
+simple-test.js
+minimal-test.js
+test-*.js
+test-*.md
+
+# Build and development artifacts
+tsconfig.json
+vitest.config.ts
+.eslintrc.json
+docker-compose*.yml
+Dockerfile*
+*.log
+*.tgz
+
+# Documentation (keep README.md but exclude others)
+HOW_TO_USE.md
+SETUP_AND_USAGE.md
+VSCODE_EXTENSION_GUIDE.md
+COMPREHENSIVE_APP_STATUS_REPORT.md
+*.md
+!README.md
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+integration-validation-report.json
+
+# VSCode extension (separate package)
+vscode-extension/
+
+# Keep only what's needed for the CLI
+!dist/
+!package.json
+!README.md
+!LICENSE
