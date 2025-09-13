@@ -65,7 +65,7 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
   async detectFrameworks(projectInfo: ProjectInfo, projectPath?: string): Promise<DetectionResult> {
     const operationId = `detectFrameworks-${projectInfo.name}-${Date.now()}`;
     this.performanceMonitor.startOperation(operationId, 'FrameworkDetector', {
-      languages: projectInfo.languages,
+      languages: projectInfo.languages || [],
       configFiles: projectInfo.configFiles?.length || 0
     });
 
@@ -87,7 +87,7 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
       this.performanceMonitor.recordMetric('cache.miss', 1, 'count', { type: 'detection' });
 
       this.logger.info('FrameworkDetector', 'Starting framework detection', {
-        languages: projectInfo.languages,
+        languages: projectInfo.languages || [],
         configFilesCount: projectInfo.configFiles?.length || 0,
         hasProjectPath: !!projectPath
       });
@@ -110,7 +110,7 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
           { 
             originalError: detectionResult.error.message,
             projectInfo: {
-              languages: projectInfo.languages,
+              languages: projectInfo.languages || [],
               configFiles: projectInfo.configFiles?.length || 0
             }
           }

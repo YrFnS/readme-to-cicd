@@ -359,7 +359,7 @@ export class ComponentOrchestrator {
 
     try {
       // Convert parse result to project info format expected by detector
-      const projectInfo = this.convertToProjectInfo(context.parseResult.data);
+      const projectInfo = this.convertToProjectInfo(context.parseResult?.data || {});
 
       // Execute detection with retry logic
       if (!this.frameworkDetector) {
@@ -693,7 +693,7 @@ export class ComponentOrchestrator {
   /**
    * Convert parse result data to project info format
    */
-  private convertToProjectInfo(parseData: any): any {
+  private convertToProjectInfo(parseData: any = {}): any {
     // Create a proper dependencies array - framework detector expects an array of strings that can be sorted
     const packages = parseData.dependencies?.packages || [];
     const dependenciesArray = packages.map((pkg: any) => {

@@ -225,7 +225,10 @@ export class DetectionEngine {
   /**
    * Analyze project and detect frameworks
    */
-  async analyze(projectInfo: ProjectInfo, projectPath?: string): Promise<Omit<DetectionResult, 'detectedAt' | 'executionTime'>> {
+  async analyze(projectInfo: ProjectInfo | null, projectPath?: string): Promise<Omit<DetectionResult, 'detectedAt' | 'executionTime'>> {
+    if (!projectInfo) {
+      throw new DetectionError('ProjectInfo is required for analysis');
+    }
     return await timeOperation(
       this.logger,
       'DetectionEngine',
@@ -428,7 +431,10 @@ export class DetectionEngine {
   /**
    * Generate CI/CD pipeline from detection results
    */
-  async generateCIPipeline(detectionResult: DetectionResult): Promise<CIPipeline> {
+  async generateCIPipeline(detectionResult: DetectionResult | null): Promise<CIPipeline> {
+    if (!detectionResult) {
+      throw new DetectionError('DetectionResult is required for pipeline generation');
+    }
     return await timeOperation(
       this.logger,
       'DetectionEngine',
