@@ -151,7 +151,7 @@ export class ComponentOrchestrator {
   private async initializeComponents(): Promise<void> {
     if (!this.readmeParser) {
       const ReadmeParserClass = await this.lazyLoader.getReadmeParser();
-      this.readmeParser = new ReadmeParserClass({
+      this.readmeParser = new ReadmeParserClass(undefined, {
         enableCaching: true,
         enablePerformanceMonitoring: this.options.enablePerformanceTracking,
         useIntegrationPipeline: true

@@ -428,7 +428,7 @@ export class CLILazyLoader extends LazyLoader {
    */
   async getFrameworkDetector() {
     const module = await this.load('framework-detection') as any;
-    return module.FrameworkDetector;
+    return module.FrameworkDetectorImpl;
   }
 
   /**
@@ -436,7 +436,7 @@ export class CLILazyLoader extends LazyLoader {
    */
   async getYamlGenerator() {
     const module = await this.load('yaml-generator') as any;
-    return module.YamlGenerator;
+    return module.YAMLGeneratorImpl;
   }
 
   /**

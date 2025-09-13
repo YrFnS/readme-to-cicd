@@ -7,27 +7,24 @@
 
 ## 🔥 **Critical Issues (Blocking Core Functionality)**
 
-### 1. **Integration Pipeline Connection Issues**
+### 1. **Integration Pipeline Connection Issues** 🟡 **PARTIALLY RESOLVED**
 - **Problem**: `this.integrationPipeline.registerAnalyzer is not a function`
 - **Impact**: Analyzers fall back to individual operation instead of pipeline
 - **Location**: `src/parser/readme-parser.ts` integration with `IntegrationPipeline`
-- **Status**: 🚨 Critical - affects workflow generation
-- **Error Log**: 
-  ```
-  warn: Failed to register analyzer through pipeline, using fallback
-  {"analyzerName":"LanguageDetector","error":"this.integrationPipeline.registerAnalyzer is not a function"}
-  ```
+- **Status**: 🟡 **PARTIALLY FIXED** - Main pipeline works, but analyzer registration still has issues
+- **Progress**: 
+  - ✅ Fixed: `getRegisteredAnalyzers` method now works correctly
+  - ✅ Fixed: Pipeline analysis completes successfully (5/10 analyzers)
+  - ⚠️ Remaining: `registerAnalyzer` method still not working properly
+- **Current Error**: Still seeing fallback warnings for analyzer registration
 
-### 2. **Framework Detector Constructor Issue**
+### 2. **Framework Detector Constructor Issue** ✅ **RESOLVED**
 - **Problem**: `FrameworkDetectorClass is not a constructor`
 - **Impact**: Workflow generation completely fails
 - **Location**: Framework detection instantiation
-- **Status**: 🚨 Critical - blocks generate command
-- **Error Log**:
-  ```
-  ERROR: Workflow execution failed
-  {"executionId":"exec_1757450364523_w5l4lnnxk","error":"FrameworkDetectorClass is not a constructor","currentStep":"error"}
-  ```
+- **Status**: ✅ **FIXED** - Framework detector now initializes successfully
+- **Solution**: Fixed lazy loader export names (`FrameworkDetectorImpl` instead of `FrameworkDetector`)
+- **Evidence**: `"Extensions initialized","context":{"pluginAnalyzers":0,"cacheEnabled":true,"performanceMonitoring":true}`
 
 ### 3. **Command-Language Association Broken**
 - **Problem**: Commands not inheriting language context from LanguageDetector

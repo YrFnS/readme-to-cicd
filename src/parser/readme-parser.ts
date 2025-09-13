@@ -382,7 +382,17 @@ export class ReadmeParserImpl implements ReadmeParser {
       }
 
       // Get registered analyzers from the pipeline
-      const registeredAnalyzers = this.integrationPipeline!.getRegisteredAnalyzers();
+      if (!this.integrationPipeline) {
+        console.warn('⚠️ IntegrationPipeline not available, falling back to manual analysis');
+        return await this.executeManualAnalysis(content);
+      }
+      
+      if (typeof this.integrationPipeline.getRegisteredAnalyzers !== 'function') {
+        console.warn('⚠️ IntegrationPipeline does not have getRegisteredAnalyzers method, falling back to manual analysis');
+        return await this.executeManualAnalysis(content);
+      }
+      
+      const registeredAnalyzers = this.integrationPipeline.getRegisteredAnalyzers();
       
       if (registeredAnalyzers.length === 0) {
         console.warn('⚠️ No analyzers registered in IntegrationPipeline, falling back to manual analysis');
@@ -926,7 +936,7 @@ export class ReadmeParserImpl implements ReadmeParser {
    * Get information about registered analyzers
    */
   getAnalyzerInfo(): { name: string; registered: boolean; source: string }[] {
-    const pipelineAnalyzers = this.integrationPipeline ? 
+    const pipelineAnalyzers = (this.integrationPipeline && typeof this.integrationPipeline.getRegisteredAnalyzers === 'function') ? 
       this.integrationPipeline.getRegisteredAnalyzers().map(analyzer => ({
         name: analyzer.name,
         registered: true,
