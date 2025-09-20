@@ -54,9 +54,21 @@ export class FileSystemManager {
   private readonly context: vscode.ExtensionContext;
   private readonly watchers: Map<string, vscode.FileSystemWatcher> = new Map();
   private readonly backups: Map<string, BackupInfo> = new Map();
+  private workspaceRoot: string | null = null;
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context;
+  }
+
+  setWorkspaceRoot(workspaceRoot: string): void {
+    this.workspaceRoot = workspaceRoot;
+  }
+
+  private isPathWithinWorkspace(filePath: string, workspaceRoot: string): boolean {
+    const normalizedFilePath = path.normalize(filePath);
+    const normalizedWorkspaceRoot = path.normalize(workspaceRoot);
+    return normalizedFilePath.startsWith(normalizedWorkspaceRoot + path.sep) ||
+           normalizedFilePath === normalizedWorkspaceRoot;
   }
 
   /**
@@ -67,8 +79,18 @@ export class FileSystemManager {
     workflowFile: WorkflowFile
   ): Promise<void> {
     try {
-      const workflowsDir = path.join(workspaceFolder.uri.fsPath, '.github', 'workflows');
+      const workspaceRoot = workspaceFolder.uri.fsPath;
+      const workflowsDir = path.join(workspaceRoot, '.github', 'workflows');
       const filePath = path.join(workflowsDir, workflowFile.filename);
+
+      // Validate path is within workspace
+      if (!this.isPathWithinWorkspace(filePath, workspaceRoot)) {
+        throw new FileSystemError(
+          'Path access restricted: Cannot create file outside workspace',
+          'security',
+          undefined
+        );
+      }
 
       // Ensure .github/workflows directory exists
       await this.ensureDirectoryExists(workflowsDir);
@@ -81,7 +103,7 @@ export class FileSystemManager {
 
       // Write the workflow file
       await fs.writeFile(filePath, workflowFile.content, 'utf8');
-      
+
       // Show success message
       vscode.window.showInformationMessage(
         `Workflow file created: ${workflowFile.filename}`
@@ -98,7 +120,16 @@ export class FileSystemManager {
   /**
    * Read workflow file content
    */
-  async readWorkflowFile(filePath: string): Promise<string> {
+  async readWorkflowFile(filePath: string, workspaceRoot: string): Promise<string> {
+    // Validate path is within workspace
+    if (!this.isPathWithinWorkspace(filePath, workspaceRoot)) {
+      throw new FileSystemError(
+        'Path access restricted: Cannot read file outside workspace',
+        'security',
+        undefined
+      );
+    }
+
     try {
       return await fs.readFile(filePath, 'utf8');
     } catch (error) {
@@ -113,12 +144,21 @@ export class FileSystemManager {
   /**
    * Write workflow file content
    */
-  async writeWorkflowFile(filePath: string, content: string): Promise<void> {
+  async writeWorkflowFile(filePath: string, content: string, workspaceRoot: string): Promise<void> {
+    // Validate path is within workspace
+    if (!this.isPathWithinWorkspace(filePath, workspaceRoot)) {
+      throw new FileSystemError(
+        'Path access restricted: Cannot write file outside workspace',
+        'security',
+        undefined
+      );
+    }
+
     try {
       // Ensure directory exists
       const directory = path.dirname(filePath);
       await this.ensureDirectoryExists(directory);
-      
+
       await fs.writeFile(filePath, content, 'utf8');
     } catch (error) {
       throw new FileSystemError(
@@ -309,7 +349,16 @@ export class FileSystemManager {
   /**
    * Ensures a directory exists, creating it if necessary
    */
-  private async ensureDirectoryExists(dirPath: string): Promise<void> {
+  private async ensureDirectoryExists(dirPath: string, workspaceRoot: string): Promise<void> {
+    // Validate directory path is within workspace
+    if (!this.isPathWithinWorkspace(dirPath, workspaceRoot)) {
+      throw new FileSystemError(
+        'Path access restricted: Cannot create directory outside workspace',
+        'security',
+        undefined
+      );
+    }
+
     try {
       await fs.access(dirPath);
     } catch (error) {

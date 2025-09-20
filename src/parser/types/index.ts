@@ -52,6 +52,8 @@ export interface ProjectInfo {
   commands: CommandInfo;
   /** Testing framework and tool information */
   testing: TestingInfo;
+  /** CI/CD information */
+  cicd: CICDInfo;
   /** Confidence scores for each analysis category */
   confidence: ConfidenceScores;
 }
@@ -232,6 +234,7 @@ export interface ConfidenceScores {
   commands: number;
   testing: number;
   metadata: number;
+  cicd: number;
 }
 
 // Error handling

@@ -141,7 +141,7 @@ export class DetectionEngine {
     const ecosystemsToCheck = new Set<string>();
     
     // Add ecosystems based on project languages
-    projectInfo.languages.forEach(lang => {
+    (projectInfo.languages || []).forEach(lang => {
       const langLower = lang.toLowerCase();
       if (langLower.includes('javascript') || langLower.includes('typescript')) {
         ecosystemsToCheck.add('nodejs');
@@ -227,7 +227,7 @@ export class DetectionEngine {
    */
   async analyze(projectInfo: ProjectInfo | null, projectPath?: string): Promise<Omit<DetectionResult, 'detectedAt' | 'executionTime'>> {
     if (!projectInfo) {
-      throw new DetectionError('ProjectInfo is required for analysis');
+      throw new DetectionFailureError('ProjectInfo is required for analysis', 'DetectionEngine');
     }
     return await timeOperation(
       this.logger,
@@ -245,7 +245,7 @@ export class DetectionEngine {
 
         // Collect evidence from project information with error handling
         const evidenceResult = await ErrorRecovery.withRetry(
-          () => this.evidenceCollector.collectEvidence(projectInfo, projectPath),
+          () => this.evidenceCollector.collectEvidence({ ...projectInfo, languages: projectInfo.languages || [] }, projectPath),
           { maxAttempts: 2 }
         );
 
@@ -259,7 +259,7 @@ export class DetectionEngine {
           );
         }
 
-        const evidence = evidenceResult.data;
+        const evidence = evidenceResult.data || [];
         this.logger.debug('DetectionEngine', 'Evidence collected', {
           evidenceCount: evidence.length,
           evidenceTypes: [...new Set(evidence.map(e => e.type))]
@@ -433,7 +433,7 @@ export class DetectionEngine {
    */
   async generateCIPipeline(detectionResult: DetectionResult | null): Promise<CIPipeline> {
     if (!detectionResult) {
-      throw new DetectionError('DetectionResult is required for pipeline generation');
+      throw new DetectionFailureError('DetectionResult is required for pipeline generation', 'DetectionEngine');
     }
     return await timeOperation(
       this.logger,

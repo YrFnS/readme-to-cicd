@@ -22,16 +22,18 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           className="action-button preview"
           onClick={onPreview}
           disabled={isLoading}
+          aria-label="Preview the generated workflows before creating files"
           title="Preview the generated workflows before creating files"
         >
           <span className="button-icon">👁️</span>
           <span className="button-text">Preview Workflow</span>
         </button>
-
+    
         <button
           className={`action-button generate ${isValid ? 'enabled' : 'disabled'}`}
           onClick={onGenerate}
           disabled={!isValid || isLoading}
+          aria-label={isValid ? 'Generate workflow files' : 'Fix configuration errors before generating'}
           title={isValid ? 'Generate workflow files' : 'Fix configuration errors before generating'}
         >
           <span className="button-icon">🚀</span>
@@ -44,6 +46,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           className="action-button cancel"
           onClick={onCancel}
           disabled={isLoading}
+          aria-label="Cancel and close configuration panel"
           title="Cancel and close configuration panel"
         >
           <span className="button-icon">❌</span>
@@ -52,13 +55,13 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
       </div>
 
       {isLoading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-          <span className="loading-text">Processing...</span>
+        <div className="loading-overlay" role="status">
+          <div className="spinner" aria-hidden="true"></div>
+          <span className="loading-text" aria-label="Processing...">Processing...</span>
         </div>
       )}
 
-      <div className="action-help">
+      <div className="action-help" role="complementary">
         <div className="help-item">
           <strong>Preview:</strong> See the generated YAML workflows before creating files
         </div>

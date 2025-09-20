@@ -12,8 +12,8 @@
         <header class="preview-header">
             <h1>Workflow Preview</h1>
             <div class="header-actions">
-                <button id="edit-config-btn" class="secondary">Edit Configuration</button>
-                <button id="refresh-btn" class="secondary">Refresh</button>
+                <button id="edit-config-btn" class="secondary" aria-label="Edit workflow configuration">Edit Configuration</button>
+                <button id="refresh-btn" class="secondary" aria-label="Refresh preview">Refresh</button>
             </div>
         </header>
 
@@ -26,8 +26,8 @@
                 <div class="editor-toolbar">
                     <span class="file-name" id="current-file">ci.yml</span>
                     <div class="toolbar-actions">
-                        <button id="copy-btn" class="icon-btn" title="Copy to clipboard">📋</button>
-                        <button id="download-btn" class="icon-btn" title="Download file">💾</button>
+                        <button id="copy-btn" class="icon-btn" title="Copy to clipboard" aria-label="Copy workflow to clipboard">📋</button>
+                        <button id="download-btn" class="icon-btn" title="Download file" aria-label="Download workflow file">💾</button>
                     </div>
                 </div>
                 <pre id="workflow-content" class="yaml-content">
@@ -42,8 +42,8 @@
                 <span id="validation-message">Workflow is valid</span>
             </div>
             <div class="footer-actions">
-                <button id="approve-btn" class="primary">Approve & Generate</button>
-                <button id="cancel-btn" class="tertiary">Cancel</button>
+                <button id="approve-btn" class="primary" aria-label="Approve and generate workflow">Approve & Generate</button>
+                <button id="cancel-btn" class="tertiary" aria-label="Cancel preview">Cancel</button>
             </div>
         </footer>
     </div>

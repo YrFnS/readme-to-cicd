@@ -161,7 +161,7 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
     onDeploymentChange(platform, newConfig);
   };
 
-  const renderConfigField = (field: DeploymentConfigField) => {
+  const renderConfigField = (field: DeploymentConfigField, descId?: string) => {
     const value = localConfig[field.name] || '';
     
     switch (field.type) {
@@ -176,6 +176,7 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
             placeholder={field.defaultValue?.toString() || ''}
             required={field.required}
             className="config-input"
+            aria-describedby={descId}
           />
         );
       
@@ -187,6 +188,7 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
             onChange={(e) => handleConfigChange(field.name, e.target.value)}
             required={field.required}
             className="config-select"
+            aria-describedby={descId}
           >
             <option value="">Select {field.label.toLowerCase()}...</option>
             {field.options?.map(option => (
@@ -202,8 +204,10 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
           <label className="config-checkbox">
             <input
               type="checkbox"
+              id={field.name}
               checked={!!value}
               onChange={(e) => handleConfigChange(field.name, e.target.checked)}
+              aria-describedby={descId}
             />
             <span className="checkbox-label">Enable {field.label}</span>
           </label>
@@ -215,9 +219,9 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
   };
 
   return (
-    <section className="deployment-configuration">
+    <section className="deployment-configuration" role="region" aria-labelledby="deployment-header">
       <div className="section-header">
-        <h2>Deployment Configuration</h2>
+        <h2 id="deployment-header">Deployment Configuration</h2>
         <p>Configure deployment settings for your workflows</p>
       </div>
 
@@ -230,6 +234,7 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
           value={platform}
           onChange={(e) => handlePlatformChange(e.target.value)}
           className="platform-select"
+          aria-label="Select deployment platform"
         >
           <option value="">No deployment</option>
           {DEPLOYMENT_PLATFORMS.map(p => (
@@ -248,18 +253,21 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
           </div>
 
           <div className="config-fields">
-            {selectedPlatform.configFields.map(field => (
-              <div key={field.name} className="config-field">
-                <label htmlFor={field.name} className="config-label">
-                  {field.label}
-                  {field.required && <span className="required-indicator">*</span>}
-                </label>
-                {renderConfigField(field)}
-                {field.description && (
-                  <p className="config-description">{field.description}</p>
-                )}
-              </div>
-            ))}
+            {selectedPlatform.configFields.map(field => {
+              const descId = field.description ? `${field.name}-desc` : undefined;
+              return (
+                <div key={field.name} className="config-field">
+                  <label htmlFor={field.name} className="config-label">
+                    {field.label}
+                    {field.required && <span className="required-indicator">*</span>}
+                  </label>
+                  {renderConfigField(field, descId)}
+                  {field.description && (
+                    <p id={descId} className="config-description">{field.description}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="deployment-preview">
@@ -272,7 +280,7 @@ export const DeploymentConfiguration: React.FC<DeploymentConfigurationProps> = (
       )}
 
       {!platform && (
-        <div className="no-deployment">
+        <div className="no-deployment" role="status" aria-label="No deployment configured">
           <div className="no-deployment-icon">📦</div>
           <h3>No Deployment Configured</h3>
           <p>Select a deployment platform above to configure automatic deployment workflows.</p>

@@ -352,14 +352,14 @@ export class WebviewManager {
    */
   private generateContentSecurityPolicy(): string {
     const nonce = this.generateNonce();
-    
+
     return [
       `default-src 'none'`,
-      `script-src 'nonce-${nonce}' 'unsafe-eval'`,
-      `style-src 'nonce-${nonce}' 'unsafe-inline'`,
+      `script-src 'nonce-${nonce}' vscode-resource:`,
+      `style-src 'nonce-${nonce}' vscode-resource: 'unsafe-inline'`,
       `img-src vscode-resource: https: data:`,
       `font-src vscode-resource: https:`,
-      `connect-src https:`,
+      `connect-src https: vscode-resource:`,
       `worker-src 'none'`,
       `object-src 'none'`,
       `frame-src 'none'`

@@ -665,7 +665,7 @@ export class IntegrationPipeline {
    * Calculate aggregated completeness from analyzer results
    */
   private calculateAggregatedCompleteness(results: Map<string, any>): number {
-    const expectedAnalyzers = ['LanguageDetector', 'CommandExtractor', 'DependencyExtractor', 'TestingDetector', 'MetadataExtractor'];
+    const expectedAnalyzers = ['LanguageDetector', 'CommandExtractor', 'DependencyExtractor', 'TestingDetector', 'CICDDetector', 'MetadataExtractor'];
     const completedAnalyzers = Array.from(results.keys());
 
     return completedAnalyzers.length / expectedAnalyzers.length;
@@ -728,7 +728,7 @@ export class IntegrationPipeline {
 
     // Create integration metadata
     const integrationMetadata: IntegrationMetadata = {
-      analyzersUsed: ['LanguageDetector', 'CommandExtractor', 'DependencyExtractor', 'TestingDetector', 'MetadataExtractor'],
+      analyzersUsed: ['LanguageDetector', 'CommandExtractor', 'DependencyExtractor', 'TestingDetector', 'CICDDetector', 'MetadataExtractor'],
       processingTime: Date.now() - context.metadata.startTime.getTime(),
       dataQuality: this.calculateDataQuality(context),
       completeness: this.calculateCompleteness(context),
@@ -753,7 +753,8 @@ export class IntegrationPipeline {
         dependencies: { packageFiles: [], installCommands: [], packages: [], dependencies: [], devDependencies: [] },
         commands: { install: [], build: [], test: [], run: [], other: [] },
         testing: { frameworks: [], tools: [], configFiles: [], confidence: 0, testFiles: [], commands: [], coverage: { enabled: false, tools: [] } },
-        confidence: { overall: 0, languages: 0, dependencies: 0, commands: 0, testing: 0, metadata: 0 }
+        cicd: { tools: [], configurations: [], confidence: 0 },
+        confidence: { overall: 0, languages: 0, dependencies: 0, commands: 0, testing: 0, metadata: 0, cicd: 0 }
       } as ProjectInfo
     };
   }
@@ -1182,13 +1183,19 @@ export class IntegrationPipeline {
         commands: [],
         coverage: { enabled: false, tools: [] }
       },
+      cicd: {
+        tools: [],
+        configurations: [],
+        confidence: 0
+      },
       confidence: {
         overall: 0.3, // Low confidence for recovery
         languages: context.languageContexts ? 0.4 : 0.1,
         dependencies: 0.1,
         commands: context.commandResults ? 0.3 : 0.1,
         testing: 0.1,
-        metadata: 0.2
+        metadata: 0.2,
+        cicd: 0.1
       }
     };
   }

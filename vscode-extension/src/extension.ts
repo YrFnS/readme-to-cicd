@@ -15,69 +15,97 @@ let sidebarProvider: SidebarProvider;
 export function activate(context: vscode.ExtensionContext) {
     Logger.info('README to CICD extension is now active!');
 
-    // Initialize services
-    const configService = new ConfigService();
-    
-    // Initialize providers
-    const workflowProvider = new WorkflowProvider();
-    statusBarProvider = new StatusBarProvider();
-    sidebarProvider = new SidebarProvider();
+    // Lazy initialization - defer heavy operations
+    let configService: ConfigService | null = null;
+    let workflowProvider: WorkflowProvider | null = null;
+    let statusBarProvider: StatusBarProvider | null = null;
+    let sidebarProvider: SidebarProvider | null = null;
 
-    // Initialize commands
-    const generateCommand = new GenerateWorkflowCommand(workflowProvider);
-    const validateCommand = new ValidateWorkflowCommand();
-    const previewCommand = new PreviewWorkflowCommand(workflowProvider);
-    const initCommand = new InitConfigCommand();
+    // Initialize lightweight services first
+    const initializeServices = () => {
+        if (!configService) configService = new ConfigService();
+        if (!workflowProvider) workflowProvider = new WorkflowProvider();
+        if (!statusBarProvider) statusBarProvider = new StatusBarProvider();
+        if (!sidebarProvider) sidebarProvider = new SidebarProvider();
+    };
 
-    // Register command handlers
+    // Register commands with lazy initialization
     context.subscriptions.push(
-        vscode.commands.registerCommand('readme-to-cicd.generate', 
-            () => generateCommand.execute()),
-        vscode.commands.registerCommand('readme-to-cicd.validate', 
-            () => validateCommand.execute()),
-        vscode.commands.registerCommand('readme-to-cicd.preview', 
-            () => previewCommand.execute()),
-        vscode.commands.registerCommand('readme-to-cicd.init', 
-            () => initCommand.execute()),
-        vscode.commands.registerCommand('readme-to-cicd.refresh', 
-            () => sidebarProvider.refresh())
+        vscode.commands.registerCommand('readme-to-cicd.generate', async () => {
+            initializeServices();
+            const generateCommand = new GenerateWorkflowCommand(workflowProvider!);
+            await generateCommand.execute();
+        }),
+        vscode.commands.registerCommand('readme-to-cicd.validate', async () => {
+            initializeServices();
+            const validateCommand = new ValidateWorkflowCommand();
+            await validateCommand.execute();
+        }),
+        vscode.commands.registerCommand('readme-to-cicd.preview', async () => {
+            initializeServices();
+            const previewCommand = new PreviewWorkflowCommand(workflowProvider!);
+            await previewCommand.execute();
+        }),
+        vscode.commands.registerCommand('readme-to-cicd.init', async () => {
+            initializeServices();
+            const initCommand = new InitConfigCommand();
+            await initCommand.execute();
+        }),
+        vscode.commands.registerCommand('readme-to-cicd.refresh', async () => {
+            initializeServices();
+            if (sidebarProvider) await sidebarProvider.refresh();
+        })
     );
 
-    // Register providers
+    // Register providers on demand
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider('readme-to-cicd-sidebar', sidebarProvider),
-        statusBarProvider
+        vscode.window.registerTreeDataProvider('readme-to-cicd-sidebar', {
+            getTreeItem: (element) => {
+                initializeServices();
+                return sidebarProvider!.getTreeItem(element);
+            },
+            getChildren: (element) => {
+                initializeServices();
+                return sidebarProvider!.getChildren(element);
+            }
+        }),
+        // Status bar will be initialized when first used
+        {
+            dispose: () => {
+                if (statusBarProvider) statusBarProvider.dispose();
+            }
+        }
     );
 
-    // Watch for README changes
+    // Lightweight watcher - defer heavy operations
     const watcher = vscode.workspace.createFileSystemWatcher('**/README.{md,txt}');
     watcher.onDidChange(() => {
-        statusBarProvider.refresh();
-        sidebarProvider.refresh();
+        if (statusBarProvider) statusBarProvider.refresh();
+        if (sidebarProvider) sidebarProvider.refresh();
     });
     watcher.onDidCreate(() => {
-        statusBarProvider.refresh();
-        sidebarProvider.refresh();
+        if (statusBarProvider) statusBarProvider.refresh();
+        if (sidebarProvider) sidebarProvider.refresh();
         updateWorkspaceContext();
     });
     watcher.onDidDelete(() => {
-        statusBarProvider.refresh();
-        sidebarProvider.refresh();
+        if (statusBarProvider) statusBarProvider.refresh();
+        if (sidebarProvider) sidebarProvider.refresh();
         updateWorkspaceContext();
     });
     context.subscriptions.push(watcher);
 
-    // Set initial context
+    // Set initial context (lightweight)
     updateWorkspaceContext();
 
-    // Show welcome message on first activation
+    // Show welcome message on first activation (lightweight)
     const hasShownWelcome = context.globalState.get('hasShownWelcome', false);
     if (!hasShownWelcome) {
         showWelcomeMessage();
         context.globalState.update('hasShownWelcome', true);
     }
 
-    Logger.info('README to CICD extension activated successfully');
+    Logger.info('README to CICD extension activated successfully - optimized for fast startup');
 }
 
 export function deactivate() {

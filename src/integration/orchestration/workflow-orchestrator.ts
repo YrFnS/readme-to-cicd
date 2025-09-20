@@ -527,72 +527,94 @@ export class WorkflowOrchestrator {
 
     // Build dependency graph
     const dependencyGraph = this.buildDependencyGraph(workflow.steps);
-    
-    // Execute steps in dependency order
+
+    // Execute steps in dependency order with concurrency for independent steps
     const executionOrder = this.topologicalSort(dependencyGraph);
 
-    for (const stepId of executionOrder) {
-      const step = workflow.steps.find(s => s.id === stepId);
-      if (!step) {
-        continue;
-      }
+    // Group steps by dependency levels for parallel execution
+    const levels = this.groupByDependencyLevels(executionOrder, dependencyGraph);
 
+    for (const levelSteps of levels) {
       // Check if execution was cancelled
       if (context.status === 'cancelled') {
         break;
       }
 
-      // Check step conditions
-      if (step.conditions && !this.evaluateStepConditions(step.conditions, context)) {
-        this.logger.debug('Step conditions not met, skipping', { stepId });
-        continue;
-      }
-
-      context.currentStep = stepId;
-
-      try {
-        const stepResult = await this.executeStep(step, context);
-        context.stepResults.set(stepId, stepResult);
-        
-        if (stepResult.output) {
-          results.push(stepResult.output);
+      // Execute independent steps in parallel
+      const levelPromises = levelSteps.map(async (stepId) => {
+        const step = workflow.steps.find(s => s.id === stepId);
+        if (!step) {
+          return null;
         }
 
-        // Execute success actions
-        if (step.onSuccess) {
-          await this.executeWorkflowActions(step.onSuccess, context);
+        // Check step conditions
+        if (step.conditions && !this.evaluateStepConditions(step.conditions, context)) {
+          this.logger.debug('Step conditions not met, skipping', { stepId });
+          return null;
         }
 
-      } catch (error) {
-        const stepResult: StepResult = {
-          stepId,
-          status: 'failed',
-          startTime: new Date(),
-          endTime: new Date(),
-          error: error instanceof Error ? error.message : String(error),
-          retryCount: 0
-        };
+        context.currentStep = stepId;
 
-        context.stepResults.set(stepId, stepResult);
+        try {
+          const stepResult = await this.executeStep(step, context);
+          context.stepResults.set(stepId, stepResult);
 
-        // Execute failure actions
-        if (step.onFailure) {
-          await this.executeWorkflowActions(step.onFailure, context);
+          if (stepResult.output) {
+            results.push(stepResult.output);
+          }
+
+          // Execute success actions
+          if (step.onSuccess) {
+            await this.executeWorkflowActions(step.onSuccess, context);
+          }
+
+          return stepResult;
+        } catch (error) {
+          const stepResult: StepResult = {
+            stepId,
+            status: 'failed',
+            startTime: new Date(),
+            endTime: new Date(),
+            error: error instanceof Error ? error.message : String(error),
+            retryCount: 0
+          };
+
+          context.stepResults.set(stepId, stepResult);
+
+          // Execute failure actions
+          if (step.onFailure) {
+            await this.executeWorkflowActions(step.onFailure, context);
+          }
+
+          // Handle error according to policy
+          if (workflow.errorHandling.strategy === 'fail-fast') {
+            throw error;
+          } else if (workflow.errorHandling.strategy === 'rollback') {
+            await this.executeRollback(workflow, context);
+            throw error;
+          }
+          // Continue on error - log and continue
+          this.logger.warn('Step failed but continuing execution', {
+            stepId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+
+          return stepResult;
         }
+      });
 
-        // Handle error according to policy
-        if (workflow.errorHandling.strategy === 'fail-fast') {
-          throw error;
-        } else if (workflow.errorHandling.strategy === 'rollback') {
-          await this.executeRollback(workflow, context);
-          throw error;
-        }
-        // Continue on error - log and continue
-        this.logger.warn('Step failed but continuing execution', {
-          stepId,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
+      // Wait for all steps in this level to complete
+      const levelResults = await Promise.allSettled(levelPromises);
+
+      // Log level completion
+      const completed = levelResults.filter(r => r.status === 'fulfilled').length;
+      const failed = levelResults.filter(r => r.status === 'rejected').length;
+      this.logger.debug('Level execution completed', {
+        level: levels.indexOf(levelSteps) + 1,
+        total: levelSteps.length,
+        completed,
+        failed
+      });
     }
 
     return results;
@@ -732,6 +754,59 @@ export class WorkflowOrchestrator {
     }
 
     return graph;
+  }
+
+  private groupByDependencyLevels(executionOrder: string[], graph: Map<string, string[]>): string[][] {
+    const levels: string[][] = [];
+    const visited = new Set<string>();
+    const inDegree = new Map<string, number>();
+
+    // Calculate in-degree for each node
+    for (const node of executionOrder) {
+      inDegree.set(node, 0);
+    }
+
+    for (const [node, dependencies] of graph) {
+      for (const dep of dependencies) {
+        if (inDegree.has(dep)) {
+          inDegree.set(dep, (inDegree.get(dep) || 0) + 1);
+        }
+      }
+    }
+
+    // Use Kahn's algorithm to find levels
+    const queue = Array.from(inDegree.entries()).filter(([_, degree]) => degree === 0).map(([node]) => node);
+
+    while (queue.length > 0) {
+      const currentLevel = [...queue];
+      levels.push(currentLevel);
+      queue.length = 0;
+
+      for (const node of currentLevel) {
+        visited.add(node);
+
+        const children = graph.get(node) || [];
+        for (const child of children) {
+          if (inDegree.has(child)) {
+            const degree = inDegree.get(child)! - 1;
+            inDegree.set(child, degree);
+
+            if (degree === 0) {
+              queue.push(child);
+            }
+          }
+        }
+      }
+    }
+
+    // Handle cycles or disconnected components
+    for (const node of executionOrder) {
+      if (!visited.has(node)) {
+        levels.push([node]);
+      }
+    }
+
+    return levels;
   }
 
   private topologicalSort(graph: Map<string, string[]>): string[] {

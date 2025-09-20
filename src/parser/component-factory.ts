@@ -97,6 +97,8 @@ export interface ComponentDependencies {
   dependencyExtractor: DependencyExtractor;
   /** Testing framework detector */
   testingDetector: TestingDetector;
+  /** CI/CD detector */
+  cicdDetector: CICDDetector;
   /** Metadata extractor */
   metadataExtractor: MetadataExtractor;
   /** Result aggregator with integration capabilities */
@@ -183,7 +185,7 @@ export class ComponentFactory {
 
     // Create context-aware command extractor
     const commandExtractor = new CommandExtractor();
-    
+
     // Setup context inheritance if enabled
     if (this.config.enableContextInheritance) {
       this.setupContextInheritance(commandExtractor);
@@ -192,6 +194,7 @@ export class ComponentFactory {
     // Create other analyzers
     const dependencyExtractor = new DependencyExtractor();
     const testingDetector = new TestingDetector();
+    const cicdDetector = new CICDDetector();
     const metadataExtractor = new MetadataExtractor();
 
     // Create enhanced result aggregator
@@ -202,6 +205,7 @@ export class ComponentFactory {
       commandExtractor,
       dependencyExtractor,
       testingDetector,
+      cicdDetector,
       metadataExtractor,
       resultAggregator,
       confidenceCalculator,

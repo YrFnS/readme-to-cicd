@@ -5,6 +5,11 @@
     margin: 0 auto;
     font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
+    height: 100vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 h1 {
@@ -27,6 +32,8 @@ section {
     border: 1px solid var(--vscode-panel-border);
     border-radius: 4px;
     background-color: var(--vscode-editor-background);
+    overflow-x: auto;
+    flex: 1;
 }
 
 .framework-list {
@@ -34,6 +41,8 @@ section {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 10px;
     margin-top: 10px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .workflow-options {

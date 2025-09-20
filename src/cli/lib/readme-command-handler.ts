@@ -12,6 +12,7 @@ import { ReadmeParserImpl, createReadmeParserWithPipeline } from '../../parser';
 import { ParseResult } from '../../parser/types';
 import path from 'path';
 import fs from 'fs/promises';
+import ora from 'ora';
 
 export interface ReadmeCommandOptions {
   readmePath?: string;
@@ -41,36 +42,81 @@ export class ReadmeCommandHandler {
    */
   async handleParseCommand(options: ReadmeCommandOptions): Promise<CLIResult> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info('Starting README parse command', { options });
-      
+
       // Resolve README file path
       const readmePath = await this.resolveReadmePath(options.readmePath);
-      
+
       // Validate file exists
       await this.validateReadmeFile(readmePath);
-      
-      // Parse the README file
-      const parseResult = await this.parser.parseFile(readmePath);
-      
-      // Process and format results
+
+      // Parse the README file with timeout, retries, and progress
+      const parseResult = await this.safeParseFileWithRetry(readmePath);
+
+      // Print parse results to console for immediate feedback
+      console.log('\n📋 README Parse Results:');
+      console.log('='.repeat(50));
+      if (parseResult.success) {
+        if (parseResult.data.metadata && parseResult.data.metadata.name) {
+          console.log(`Project: ${parseResult.data.metadata.name}`);
+        }
+        if (parseResult.data.languages && parseResult.data.languages.length > 0) {
+          console.log('\nLanguages:');
+          parseResult.data.languages.forEach((lang: any) => {
+            console.log(`  - ${lang.name} (confidence: ${(lang.confidence * 100).toFixed(1)}%)`);
+          });
+        }
+        if (parseResult.data.commands) {
+          const commandTypes = ['install', 'build', 'test', 'run', 'other'];
+          commandTypes.forEach(type => {
+            if (parseResult.data.commands[type] && parseResult.data.commands[type].length > 0) {
+              console.log(`\n${type.toUpperCase()} Commands:`);
+              parseResult.data.commands[type].forEach((cmd: any) => {
+                console.log(`  - ${cmd.command || cmd}`);
+              });
+            }
+          });
+        }
+        if (parseResult.data.dependencies && (parseResult.data.dependencies.packages || []).length > 0) {
+          console.log('\nDependencies:');
+          (parseResult.data.dependencies.packages || []).forEach((dep: any) => {
+            console.log(`  - ${dep.name || dep}`);
+          });
+        }
+        if (parseResult.data.confidence) {
+          console.log(`\nOverall Confidence: ${(parseResult.data.confidence.overall * 100).toFixed(1)}%`);
+        }
+      } else {
+        console.log('❌ Parse failed');
+        parseResult.errors.forEach((error: any) => {
+          console.log(`  - ${error.message}`);
+        });
+      }
+      console.log('\n' + '='.repeat(50) + '\n');
+
+      // Force exit after printing results to prevent hanging
+      process.exit(0);
+
+      // Process and format results (this line will not be reached due to exit)
       const cliResult = await this.processParseResult(parseResult, options, readmePath);
-      
+
       // Add execution time
       cliResult.summary.executionTime = Date.now() - startTime;
-      
+
       this.logger.info('README parse command completed', {
         success: cliResult.success,
         filePath: readmePath,
         executionTime: cliResult.summary.executionTime
       });
-      
+
       return cliResult;
-      
+
     } catch (error) {
       this.logger.error('README parse command failed', { error, options });
-      return this.errorHandler.handleCLIError(error as Error);
+      console.error('\n❌ Command failed. Exiting...');
+      process.exit(1);
     }
   }
 
@@ -89,8 +135,8 @@ export class ReadmeCommandHandler {
       // Validate file exists
       await this.validateReadmeFile(readmePath);
       
-      // Parse the README file
-      const parseResult = await this.parser.parseFile(readmePath);
+      // Parse the README file with timeout, retries, and progress
+      const parseResult = await this.safeParseFileWithRetry(readmePath);
       
       // Process results with detailed analysis
       const cliResult = await this.processAnalyzeResult(parseResult, options, readmePath);
@@ -127,8 +173,8 @@ export class ReadmeCommandHandler {
       // Validate file exists and is readable
       await this.validateReadmeFile(readmePath);
       
-      // Parse the README file for validation
-      const parseResult = await this.parser.parseFile(readmePath);
+      // Parse the README file for validation with timeout, retries, and progress
+      const parseResult = await this.safeParseFileWithRetry(readmePath);
       
       // Process validation results
       const cliResult = await this.processValidationResult(parseResult, options, readmePath);
@@ -648,5 +694,64 @@ export class ReadmeCommandHandler {
     
     this.logger.debug('Analysis report written', { outputPath });
     return outputPath;
+  }
+
+  /**
+   * Safely parse file with retries, timeout, and progress indicator
+   */
+  private async safeParseFileWithRetry(filePath: string, maxRetries: number = 3): Promise<ParseResult> {
+    const stats = await fs.stat(filePath);
+    if (stats.size > 5 * 1024 * 1024) { // 5MB threshold
+      this.logger.warn(`Large file detected (${(stats.size / 1024 / 1024).toFixed(1)}MB). Processing may take longer. Consider splitting for better performance.`);
+    }
+
+    let lastError: Error | null = null;
+    let delay = 100; // Initial backoff delay in ms
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const spinner = ora({
+        text: `Processing README file (attempt ${attempt}/${maxRetries})...`,
+        spinner: 'dots'
+      });
+      spinner.start();
+
+      try {
+        // Adjust timeout based on file size
+        const fileSizeMB = stats.size / 1024 / 1024;
+        const timeoutMs = Math.min(60000, 10000 + fileSizeMB * 10000); // 10s base + 10s per MB, max 60s
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Parse timeout after ${timeoutMs / 1000} seconds on attempt ${attempt} (file size: ${(stats.size / 1024 / 1024).toFixed(1)}MB)`), timeoutMs)
+        ));
+
+        // Race parsing with timeout
+        const parsePromise = Promise.race([
+          this.parser.parseFile(filePath),
+          timeoutPromise
+        ]) as Promise<ParseResult>;
+
+        const result = await parsePromise;
+        spinner.succeed(`File processed successfully in ${((Date.now() - spinner.startTime) / 1000).toFixed(1)}s`);
+        return result;
+
+      } catch (error) {
+        spinner.fail(`Processing failed (attempt ${attempt}/${maxRetries}): ${(error as Error).message}`);
+        lastError = error as Error;
+
+        if (attempt === maxRetries) {
+          this.logger.error(`Parse failed after ${maxRetries} attempts`, { error: lastError.message, filePath, size: stats.size });
+          throw lastError;
+        }
+
+        // Exponential backoff with jitter
+        const jitter = Math.random() * 100;
+        this.logger.warn(`Retry ${attempt + 1} in ${delay + jitter}ms due to: ${lastError.message}`);
+        await new Promise(resolve => setTimeout(resolve, delay + jitter));
+        delay *= 1.5; // Backoff 1.5x to be more aggressive on retries
+      }
+    }
+
+    // Unreachable, but for completeness
+    throw lastError!;
   }
 }

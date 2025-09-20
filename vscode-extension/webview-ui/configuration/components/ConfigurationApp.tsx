@@ -146,12 +146,12 @@ export const ConfigurationApp: React.FC = () => {
 
   return (
     <div className="configuration-container">
-      <header className="configuration-header">
+      <header className="configuration-header" role="banner">
         <h1>CI/CD Workflow Configuration</h1>
         <p>Configure your GitHub Actions workflow generation settings</p>
       </header>
 
-      <main className="configuration-content">
+      <main className="configuration-content" role="main">
         <FrameworkSelection
           frameworks={availableFrameworks}
           selectedFrameworks={configuration.frameworks}
@@ -175,7 +175,7 @@ export const ConfigurationApp: React.FC = () => {
         />
       </main>
 
-      <footer className="configuration-footer">
+      <footer className="configuration-footer" role="contentinfo">
         <ActionButtons
           onPreview={handlePreview}
           onGenerate={handleGenerate}
