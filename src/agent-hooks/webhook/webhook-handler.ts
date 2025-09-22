@@ -4,7 +4,6 @@ import {
   WebhookValidationResult,
   WebhookSignatureVerification,
   RepositoryInfo,
-  WebhookEvent,
   WebhookEventType,
   EventPriority
 } from '../types';
@@ -292,15 +291,6 @@ export class WebhookHandler {
    * Validate client IP against trusted IPs
    */
   private validateClientIP(clientIP: string): WebhookValidationResult {
-    // GitHub's webhook IPs are well-known and documented
-    // In production, you should validate against GitHub's IP ranges
-    const githubIPRanges = [
-      '192.30.252.0/22',
-      '185.199.108.0/22',
-      '140.82.112.0/20',
-      '143.55.64.0/20'
-    ];
-
     // For now, we'll do a simple check
     const isTrusted = this.config.trustedIPs!.some(trustedIP => {
       return clientIP === trustedIP || this.ipMatchesRange(clientIP, trustedIP);
@@ -366,7 +356,13 @@ export class WebhookHandler {
       case 'pull_request': return WebhookEventType.PULL_REQUEST;
       case 'release': return WebhookEventType.RELEASE;
       case 'workflow_run': return WebhookEventType.WORKFLOW_RUN;
+      case 'workflow_job': return WebhookEventType.WORKFLOW_JOB;
       case 'repository': return WebhookEventType.REPOSITORY;
+      case 'deployment': return WebhookEventType.DEPLOYMENT;
+      case 'deployment_status': return WebhookEventType.DEPLOYMENT_STATUS;
+      case 'security_advisory': return WebhookEventType.SECURITY_ADVISORY;
+      case 'issues': return WebhookEventType.ISSUES;
+      case 'issue_comment': return WebhookEventType.ISSUE_COMMENT;
       default: return WebhookEventType.PUSH; // fallback
     }
   }
@@ -391,6 +387,18 @@ export class WebhookHandler {
         return EventPriority.HIGH;
       case WebhookEventType.WORKFLOW_RUN:
         return EventPriority.CRITICAL;
+      case WebhookEventType.WORKFLOW_JOB:
+        return EventPriority.HIGH;
+      case WebhookEventType.DEPLOYMENT:
+        return EventPriority.HIGH;
+      case WebhookEventType.DEPLOYMENT_STATUS:
+        return EventPriority.HIGH;
+      case WebhookEventType.SECURITY_ADVISORY:
+        return EventPriority.CRITICAL;
+      case WebhookEventType.ISSUES:
+        return EventPriority.MEDIUM;
+      case WebhookEventType.ISSUE_COMMENT:
+        return EventPriority.MEDIUM;
       case WebhookEventType.RELEASE:
         return EventPriority.HIGH;
       case WebhookEventType.REPOSITORY:

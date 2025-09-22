@@ -138,7 +138,13 @@ export enum WebhookEventType {
   PULL_REQUEST = 'pull_request',
   RELEASE = 'release',
   WORKFLOW_RUN = 'workflow_run',
-  REPOSITORY = 'repository'
+  REPOSITORY = 'repository',
+  WORKFLOW_JOB = 'workflow_job',
+  DEPLOYMENT = 'deployment',
+  DEPLOYMENT_STATUS = 'deployment_status',
+  SECURITY_ADVISORY = 'security_advisory',
+  ISSUES = 'issues',
+  ISSUE_COMMENT = 'issue_comment'
 }
 
 export interface PerformanceMetrics {
@@ -254,13 +260,6 @@ export interface PullRequestData {
   base: string;
   draft?: boolean;
   maintainer_can_modify?: boolean;
-}
-
-export interface PullRequestResult {
-  success: boolean;
-  prNumber?: number;
-  prUrl?: string;
-  error?: string;
 }
 
 export interface WorkflowRunInfo {

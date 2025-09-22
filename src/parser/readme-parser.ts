@@ -27,6 +27,7 @@ import { ASTCache, globalASTCache } from './utils/ast-cache';
 import { PerformanceMonitor, globalPerformanceMonitor } from './utils/performance-monitor';
 import { StreamingFileReader } from './utils/streaming-file-reader';
 import { IntegrationPipeline } from './integration-pipeline';
+import { ComponentFactory } from './component-factory';
 
 /**
  * Main README Parser implementation that orchestrates content analysis across multiple analyzers.
@@ -116,8 +117,9 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   private initializeIntegrationPipelineSync(): void {
     try {
-      // Use the imported IntegrationPipeline class directly
-      this.integrationPipeline = new IntegrationPipeline();
+      // Use the ComponentFactory to create IntegrationPipeline
+      const factory = ComponentFactory.getInstance();
+      this.integrationPipeline = new IntegrationPipeline(factory);
       logger.info('IntegrationPipeline initialized successfully in constructor');
     } catch (error) {
       logger.warn('Failed to initialize IntegrationPipeline during construction', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -131,8 +133,9 @@ export class ReadmeParserImpl implements ReadmeParser {
    */
   private async initializeIntegrationPipeline(): Promise<void> {
     try {
-      // Use the imported IntegrationPipeline class directly
-      this.integrationPipeline = new IntegrationPipeline();
+      // Use the ComponentFactory to create IntegrationPipeline
+      const factory = ComponentFactory.getInstance();
+      this.integrationPipeline = new IntegrationPipeline(factory);
       logger.info('IntegrationPipeline initialized successfully');
     } catch (error) {
       logger.warn('Failed to initialize IntegrationPipeline, falling back to standard analyzers', { error: error instanceof Error ? error.message : 'Unknown error' });

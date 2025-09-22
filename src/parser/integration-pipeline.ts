@@ -1,22 +1,18 @@
 /**
  * Integration Pipeline
- * 
+ *
  * This module provides the main integration pipeline that connects all enhanced
  * components with proper data flow, error handling, and performance monitoring.
  */
 
 import { ComponentFactory, ComponentConfig, ComponentDependencies } from './component-factory';
-import { LanguageDetector, EnhancedDetectionResult } from './analyzers/language-detector';
-import { CommandExtractor } from './analyzers/command-extractor';
-import { ResultAggregator } from './utils/result-aggregator';
 import {
   ParseResult,
   ProjectInfo,
   CommandExtractionResult,
   IntegrationMetadata,
   ValidationStatus,
-  ConflictResolution,
-  AnalyzerResult
+  ConflictResolution
 } from './types';
 import { LanguageContext } from '../shared/types/language-context';
 import { AnalysisContextFactory } from '../shared/types/analysis-context';
@@ -113,7 +109,7 @@ export class IntegrationPipeline {
   private logger: Logger;
   private config: PipelineConfig;
 
-  constructor(config: PipelineConfig = {}) {
+  constructor(factory: ComponentFactory, config: PipelineConfig = {}) {
     this.config = {
       enableLogging: true,
       logLevel: 'info' as const,
@@ -123,7 +119,7 @@ export class IntegrationPipeline {
       ...config
     };
 
-    this.factory = ComponentFactory.getInstance();
+    this.factory = factory;
     this.factory.initialize(this.config);
     this.dependencies = this.factory.createDependencies();
 

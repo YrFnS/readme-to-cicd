@@ -1,11 +1,6 @@
 import {
   WebhookEvent,
-  RepositoryChanges,
-  FileChange,
-  ConfigChange,
-  DependencyChange,
-  FrameworkImpact,
-  RepositoryInfo
+  RepositoryChanges
 } from '../types';
 import { ChangeDetector } from './change-detector';
 
@@ -25,8 +20,16 @@ export class EventProcessor {
         return this.processPushEvent(event);
       case 'pull_request':
         return this.processPullRequestEvent(event);
+      case 'workflow_run':
+        return this.processWorkflowRunEvent(event);
       case 'repository':
         return this.processRepositoryEvent(event);
+      case 'deployment':
+        return this.processDeploymentEvent(event);
+      case 'security_advisory':
+        return this.processSecurityEvent(event);
+      case 'issues':
+        return this.processIssuesEvent(event);
       default:
         return this.createEmptyChanges();
     }
@@ -98,8 +101,8 @@ export class EventProcessor {
   /**
    * Process pull request events
    */
-  private async processPullRequestEvent(event: WebhookEvent): Promise<RepositoryChanges> {
-    const payload = event.payload;
+  private async processPullRequestEvent(_event: WebhookEvent): Promise<RepositoryChanges> {
+    const payload = _event.payload;
 
     // For PR events, we can analyze the PR diff
     if (payload.pull_request && payload.pull_request.changed_files) {
@@ -122,9 +125,70 @@ export class EventProcessor {
   /**
    * Process repository events (like manifest changes)
    */
-  private async processRepositoryEvent(event: WebhookEvent): Promise<RepositoryChanges> {
+  private async processRepositoryEvent(_event: WebhookEvent): Promise<RepositoryChanges> {
     // Repository events typically don't include detailed file changes
     // Return empty changes for now
+    return this.createEmptyChanges();
+  }
+
+  /**
+   * Process workflow run events (failures, successes, timeouts)
+   */
+  private async processWorkflowRunEvent(event: WebhookEvent): Promise<RepositoryChanges> {
+    const payload = event.payload;
+    const changes: RepositoryChanges = {
+      modifiedFiles: [],
+      addedFiles: [],
+      deletedFiles: [],
+      configurationChanges: [],
+      dependencyChanges: []
+    };
+
+    // Workflow run events are important for monitoring and automation
+    // They indicate CI/CD pipeline status and can trigger optimizations
+    if (payload.workflow_run) {
+      const workflowRun = payload.workflow_run;
+
+      // If workflow failed, we might want to analyze what went wrong
+      if (workflowRun.conclusion === 'failure' || workflowRun.conclusion === 'timed_out') {
+        // This could trigger automated PR creation for fixes
+        // For now, just log the failure for analysis
+        console.log(`Workflow ${workflowRun.name} failed:`, workflowRun.conclusion);
+      }
+    }
+
+    return changes;
+  }
+
+  /**
+   * Process deployment events
+   */
+  private async processDeploymentEvent(_event: WebhookEvent): Promise<RepositoryChanges> {
+    // Deployment events indicate production releases
+    // These are important for performance monitoring and optimization
+    return this.createEmptyChanges();
+  }
+
+  /**
+   * Process security advisory events
+   */
+  private async processSecurityEvent(event: WebhookEvent): Promise<RepositoryChanges> {
+    // Security events require immediate attention and automated responses
+    const payload = event.payload;
+
+    if (payload.security_advisory) {
+      // This should trigger security automation
+      console.log('Security advisory received:', payload.security_advisory.summary);
+    }
+
+    return this.createEmptyChanges();
+  }
+
+  /**
+   * Process issues events
+   */
+  private async processIssuesEvent(_event: WebhookEvent): Promise<RepositoryChanges> {
+    // Issues events for tracking bug reports and feature requests
     return this.createEmptyChanges();
   }
 
