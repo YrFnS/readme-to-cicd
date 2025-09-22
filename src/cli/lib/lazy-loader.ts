@@ -353,19 +353,19 @@ export class CLILazyLoader extends LazyLoader {
     // Core components (critical)
     this.register(
       'readme-parser',
-      () => import('../../parser/readme-parser'),
+      () => import('../../parser'),
       { critical: true }
     );
 
     this.register(
       'framework-detection',
-      () => import('../../detection/framework-detector'),
+      () => import('../../detection'),
       { critical: true }
     );
 
     this.register(
       'yaml-generator',
-      () => import('../../generator/yaml-generator'),
+      () => import('../../generator'),
       { critical: true }
     );
 
@@ -420,7 +420,7 @@ export class CLILazyLoader extends LazyLoader {
    */
   async getReadmeParser() {
     const module = await this.load('readme-parser') as any;
-    return module.ReadmeParserImpl;
+    return module.ReadmeParserImpl || module.default;
   }
 
   /**
@@ -428,7 +428,7 @@ export class CLILazyLoader extends LazyLoader {
    */
   async getFrameworkDetector() {
     const module = await this.load('framework-detection') as any;
-    return module.FrameworkDetectorImpl;
+    return module.FrameworkDetectorImpl || module.default;
   }
 
   /**
@@ -436,7 +436,7 @@ export class CLILazyLoader extends LazyLoader {
    */
   async getYamlGenerator() {
     const module = await this.load('yaml-generator') as any;
-    return module.YAMLGeneratorImpl;
+    return module.YAMLGeneratorImpl || module.default;
   }
 
   /**

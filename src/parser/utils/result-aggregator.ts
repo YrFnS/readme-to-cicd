@@ -17,7 +17,8 @@ import {
   IntegrationMetadata,
   ValidationStatus,
   ValidationIssue,
-  ConflictResolution
+  ConflictResolution,
+  CICDInfo
 } from '../types';
 
 /**
@@ -109,6 +110,57 @@ export class ResultAggregator {
       optional: true
     }
   ];
+
+  /**
+   * Resolve all conflicts between analyzer results
+   */
+  private resolveConflicts(results: Map<string, EnhancedAnalyzerResult>): Map<string, EnhancedAnalyzerResult> {
+    // Create analyzer priority mapping for conflict resolution
+    const analyzerPriority: Record<string, number> = {
+      'LanguageDetector': 3,
+      'DependencyExtractor': 2,
+      'CommandExtractor': 2,
+      'TestingDetector': 2,
+      'MetadataExtractor': 2,
+      'CICDDetector': 2,
+      'default': 1
+    };
+
+    // Resolve confidence conflicts first
+    this.resolveConfidenceConflicts(results, analyzerPriority);
+
+    // Resolve data consistency conflicts
+    this.resolveDataConsistencyConflicts(results, analyzerPriority);
+
+    // Resolve language-specific conflicts
+    this.resolveLanguageConflictsFromMap(results);
+
+    return results;
+  }
+
+  /**
+   * Resolve language conflicts from map results
+   */
+  private resolveLanguageConflictsFromMap(results: Map<string, EnhancedAnalyzerResult>): void {
+    const languageResults = Array.from(results.values()).filter(r =>
+      r.analyzerName === 'LanguageDetector' ||
+      r.analyzerName.includes('Language')
+    );
+
+    if (languageResults.length > 1) {
+      const resolvedLanguageResults = this.resolveLanguageConflicts(languageResults);
+      // Update the map with resolved results
+      for (const resolvedResult of resolvedLanguageResults) {
+        results.set(resolvedResult.analyzerName, resolvedResult);
+      }
+      // Remove other language results if they were merged
+      for (const result of languageResults) {
+        if (!resolvedLanguageResults.find(r => r.analyzerName === result.analyzerName)) {
+          results.delete(result.analyzerName);
+        }
+      }
+    }
+  }
 
   /**
    * Enhanced aggregate method with data flow sequencing and dependency resolution
@@ -244,7 +296,12 @@ export class ResultAggregator {
       dependencies,
       commands,
       testing,
-      confidence
+      confidence,
+      cicd: {
+        tools: [],
+        configurations: [],
+        confidence: 0
+      } // Default CICD info when no CICD detector is available
     };
   }
 
@@ -852,7 +909,8 @@ export class ResultAggregator {
       dependencies: normalizeConfidence(dependencyConfidence),
       commands: normalizeConfidence(commandConfidence),
       testing: normalizeConfidence(testingConfidence),
-      metadata: normalizeConfidence(metadataConfidence)
+      metadata: normalizeConfidence(metadataConfidence),
+      cicd: 0 // Default CICD confidence when no CICD detector is available
     };
 
     // Calculate overall confidence
@@ -860,7 +918,8 @@ export class ResultAggregator {
 
     return {
       ...scores,
-      overall
+      overall,
+      cicd: 0 // Default CICD confidence when no CICD detector is available
     };
   }
 
@@ -916,7 +975,7 @@ export class ResultAggregator {
       }
 
       // Handle partial failures gracefully
-      const processedResult = this.handlePartialAnalyzerFailure(result);
+      const processedResult = this.handlePartialFailure(result.analyzerName, result, result);
 
       // Check for duplicate analyzers
       if (mergedResults.has(result.analyzerName)) {
@@ -971,50 +1030,6 @@ export class ResultAggregator {
   }
 
   /**
-   * Resolve conflicts between different analyzers using predefined priority rules
-   */
-  private resolveConflicts(results: Map<string, EnhancedAnalyzerResult>): Map<string, EnhancedAnalyzerResult> {
-    // Define analyzer priority for conflict resolution
-    const analyzerPriority: Record<string, number> = {
-      'LanguageDetector': 10,
-      'DependencyExtractor': 9,
-      'CommandExtractor': 8,
-      'TestingDetector': 7,
-      'MetadataExtractor': 6,
-      'default': 5
-    };
-
-    // Resolve language detection conflicts
-    const languageResults = Array.from(results.values()).filter(r => 
-      r.analyzerName === 'LanguageDetector' || 
-      r.analyzerName === 'AlternativeLanguageDetector' ||
-      (r.data && (Array.isArray(r.data) || r.data.languages))
-    );
-
-    if (languageResults.length > 1) {
-      const resolved = this.resolveLanguageConflicts(languageResults);
-      
-      // Remove all conflicting analyzers
-      for (const result of languageResults) {
-        results.delete(result.analyzerName);
-      }
-      
-      // Add the resolved result
-      for (const result of resolved) {
-        results.set(result.analyzerName, result);
-      }
-    }
-
-    // Resolve confidence conflicts between analyzers
-    this.resolveConfidenceConflicts(results, analyzerPriority);
-
-    // Resolve data consistency conflicts
-    this.resolveDataConsistencyConflicts(results, analyzerPriority);
-
-    return results;
-  }
-
-  /**
    * Resolve conflicts between language detection results
    */
   private resolveLanguageConflicts(results: EnhancedAnalyzerResult[]): EnhancedAnalyzerResult[] {
@@ -1026,7 +1041,7 @@ export class ResultAggregator {
 
     // Merge languages from all results, prioritizing higher confidence
     const allLanguages = new Map<string, any>();
-    
+
     for (const result of results.sort((a, b) => b.confidence - a.confidence)) {
       const languages = Array.isArray(result.data) ? result.data : result.data?.languages || [];
       for (const lang of languages) {
@@ -1086,7 +1101,8 @@ export class ResultAggregator {
         Object.values(extractedData.commands).reduce((sum, arr) => sum + arr.length, 0)),
       testing: this.calculateCategoryConfidence('TestingDetector', analyzerResults, extractedData.testing.frameworks.length),
       metadata: this.calculateCategoryConfidence('MetadataExtractor', analyzerResults, 
-        extractedData.metadata.name ? 1 : 0)
+        extractedData.metadata.name ? 1 : 0),
+      cicd: this.calculateCategoryConfidence('CICDDetector', analyzerResults, 0)
     };
 
     // Calculate overall confidence with advanced aggregation and conflict resolution

@@ -7,13 +7,13 @@ export class CICDDetector extends BaseAnalyzer<CICDInfo> {
   readonly name = 'CICDDetector';
 
   private cicdPatterns = {
-    githubActions: [/github\\s+actions/i, /\\.github\\/workflows/i, /actions\\/checkout/i, /GITHUB_TOKEN/i],
-    gitlabCI: [/gitlab\\s+ci/i, /\\.gitlab-ci\\.yml/i, /CI_JOB_TOKEN/i],
+    githubActions: [/github\s+actions/i, /\.github\/workflows/i, /actions\/checkout/i, /GITHUB_TOKEN/i],
+    gitlabCI: [/gitlab\s+ci/i, /\.gitlab-ci\.yml/i, /CI_JOB_TOKEN/i],
     jenkins: [/jenkins/i, /jenkinsfile/i, /JENKINS_URL/i],
-    circleCI: [/circleci/i, /config\\.yml/i, /CIRCLECI/i],
-    azureDevOps: [/azure\\s+devops/i, /azure-pipelines\\.yml/i, /AZURE_DEVOPS/i],
-    travisCI: [/travis\\s+ci/i, /\\.travis\\.yml/i],
-    general: [/ci\\/cd/i, /continuous\\s+integration/i, /continuous\\s+delivery/i]
+    circleCI: [/circleci/i, /config\.yml/i, /CIRCLECI/i],
+    azureDevOps: [/azure\s+devops/i, /azure-pipelines\.yml/i, /AZURE_DEVOPS/i],
+    travisCI: [/travis\s+ci/i, /\.travis\.yml/i],
+    general: [/ci\/cd/i, /continuous\s+integration/i, /continuous\s+delivery/i]
   };
 
   async analyze(ast: MarkdownAST, content: string, context?: AnalysisContext): Promise<AnalyzerResult<CICDInfo>> {
@@ -49,7 +49,6 @@ export class CICDDetector extends BaseAnalyzer<CICDInfo> {
     } catch (error) {
       return {
         success: false,
-        data: null,
         confidence: 0,
         errors: [{
           code: 'CICD_DETECTION_ERROR',
@@ -70,7 +69,7 @@ export class CICDDetector extends BaseAnalyzer<CICDInfo> {
       let file: string | undefined;
 
       patterns.forEach(pattern => {
-        const regex = new RegExp(pattern.source || pattern, 'gi');
+        const regex = new RegExp(pattern, 'gi');
         let match;
         while ((match = regex.exec(content)) !== null) {
           mentionCount++;
@@ -93,17 +92,15 @@ export class CICDDetector extends BaseAnalyzer<CICDInfo> {
     return matches;
   }
 
-  private calculateConfidence(matches: any[]): number {
+  protected calculateConfidence(matches: any[]): number {
     if (matches.length === 0) return 0;
 
-    const totalConfidence = matches.reduce((sum, match) => sum + match.confidence, 0);
-    return totalConfidence / matches.length;
-  }
-}
+    // Convert matches to factors for the base class method
+    const factors = matches.map(match => ({
+      weight: 1,
+      score: match.confidence
+    }));
 
-// Extend types if needed
-export interface CICDInfo {
-  tools: Array<{ name: string; confidence: number; evidence: string[] }>;
-  configurations: Array<{ tool: string; file: string | null; mentions: number }>;
-  confidence: number;
+    return super.calculateConfidence(factors);
+  }
 }

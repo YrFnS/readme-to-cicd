@@ -53,7 +53,7 @@ export interface ProjectInfo {
   /** Testing framework and tool information */
   testing: TestingInfo;
   /** CI/CD information */
-  cicd: CICDInfo;
+  cicd?: CICDInfo;
   /** Confidence scores for each analysis category */
   confidence: ConfidenceScores;
 }
@@ -217,6 +217,13 @@ export interface TestingTool {
 }
 
 export type TestingToolType = 'runner' | 'coverage' | 'reporter' | 'assertion' | 'mocking' | 'other';
+
+// CI/CD information
+export interface CICDInfo {
+  tools: Array<{ name: string; confidence: number; evidence: string[] }>;
+  configurations: Array<{ tool: string; file: string | null; mentions: number }>;
+  confidence: number;
+}
 
 // Environment variables
 export interface EnvironmentVariable {

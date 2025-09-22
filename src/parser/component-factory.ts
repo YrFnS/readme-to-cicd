@@ -10,22 +10,16 @@ import { ReadmeParserImpl } from './readme-parser';
 import { LanguageDetector } from './analyzers/language-detector';
 import { CommandExtractor } from './analyzers/command-extractor';
 import { DependencyExtractor } from './analyzers/dependency-extractor';
+import { ContentAnalyzer, AnalysisResult } from './types';
 import { TestingDetector } from './analyzers/testing-detector';
 import { MetadataExtractor } from './analyzers/metadata-extractor';
-import { ResultAggregator } from './utils/result-aggregator';
 import { ConfidenceCalculator } from './analyzers/confidence-calculator';
-import { SourceTracker } from './analyzers/source-tracker';
 import { ContextCollection } from '../shared/types/context-manager';
-import { LanguageContext } from '../shared/types/language-context';
-import { ContentAnalyzer, AnalysisResult } from './types';
-import { 
-  EnhancedAnalyzerRegistry, 
-  AnalyzerRegistry, 
-  AnalyzerConfig, 
-  RegistrationResult,
-  AnalyzerInterface,
-  createAnalyzerRegistry 
-} from './analyzers/enhanced-analyzer-registry';
+import { CICDDetector } from './analyzers/cicd-detector';
+import { ResultAggregator } from './utils/result-aggregator';
+import { LanguageContext } from '../shared/types';
+import { AnalyzerRegistry, createAnalyzerRegistry, AnalyzerConfig, RegistrationResult, AnalyzerInterface } from './analyzers';
+import { SourceTracker } from './analyzers/source-tracker';
 
 /**
  * Configuration options for component initialization
@@ -238,6 +232,7 @@ export class ComponentFactory {
     parser.registerAnalyzer(new EnhancedCommandExtractorAdapter(dependencies.commandExtractor));
     parser.registerAnalyzer(new EnhancedDependencyExtractorAdapter(dependencies.dependencyExtractor));
     parser.registerAnalyzer(new EnhancedTestingDetectorAdapter(dependencies.testingDetector));
+    parser.registerAnalyzer(new EnhancedCICDDetectorAdapter(dependencies.cicdDetector));
     parser.registerAnalyzer(new EnhancedMetadataExtractorAdapter(dependencies.metadataExtractor));
 
     // Register custom analyzers from config parameter first
@@ -560,6 +555,38 @@ class EnhancedTestingDetectorAdapter implements ContentAnalyzer {
   
   constructor(private detector: TestingDetector) {}
   
+  async analyze(ast: any, rawContent: string): Promise<AnalysisResult> {
+    const result = await this.detector.analyze(ast, rawContent);
+    return this.convertResult(result);
+  }
+
+  private convertResult(result: any): AnalysisResult {
+    if (result.success) {
+      return {
+        data: result.data,
+        confidence: result.confidence,
+        sources: result.sources || [],
+        errors: result.errors
+      };
+    } else {
+      return {
+        data: null,
+        confidence: result.confidence,
+        sources: result.sources || [],
+        errors: result.errors
+      };
+    }
+  }
+}
+
+/**
+ * Enhanced adapter for CI/CD detector
+ */
+class EnhancedCICDDetectorAdapter implements ContentAnalyzer {
+  readonly name = 'EnhancedCICDDetector';
+
+  constructor(private detector: CICDDetector) {}
+
   async analyze(ast: any, rawContent: string): Promise<AnalysisResult> {
     const result = await this.detector.analyze(ast, rawContent);
     return this.convertResult(result);

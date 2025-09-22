@@ -1145,13 +1145,14 @@ export class ReadmeParserImpl implements ReadmeParser {
         commands: [], 
         coverage: { enabled: false, tools: [] } 
       },
-      confidence: { 
-        overall: 0, 
-        languages: 0, 
-        dependencies: 0, 
-        commands: 0, 
-        testing: 0, 
-        metadata: 0 
+      confidence: {
+        overall: 0,
+        languages: 0,
+        dependencies: 0,
+        commands: 0,
+        testing: 0,
+        metadata: 0,
+        cicd: 0
       }
     };
   }

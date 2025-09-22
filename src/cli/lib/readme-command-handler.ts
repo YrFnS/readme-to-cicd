@@ -56,7 +56,7 @@ export class ReadmeCommandHandler {
       const parseResult = await this.safeParseFileWithRetry(readmePath);
 
       // Print parse results to console for immediate feedback
-      console.log('\n📋 README Parse Results:');
+      
       console.log('='.repeat(50));
       if (parseResult.success) {
         if (parseResult.data.metadata && parseResult.data.metadata.name) {
@@ -713,6 +713,7 @@ export class ReadmeCommandHandler {
         text: `Processing README file (attempt ${attempt}/${maxRetries})...`,
         spinner: 'dots'
       });
+      const startTime = Date.now();
       spinner.start();
 
       try {
@@ -720,9 +721,9 @@ export class ReadmeCommandHandler {
         const fileSizeMB = stats.size / 1024 / 1024;
         const timeoutMs = Math.min(60000, 10000 + fileSizeMB * 10000); // 10s base + 10s per MB, max 60s
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Parse timeout after ${timeoutMs / 1000} seconds on attempt ${attempt} (file size: ${(stats.size / 1024 / 1024).toFixed(1)}MB)`), timeoutMs)
-        ));
+        const timeoutPromise = new Promise<never>((resolve, reject) =>
+          setTimeout(() => reject(new Error(`Parse timeout after ${timeoutMs / 1000} seconds on attempt ${attempt} (file size: ${(stats.size / 1024 / 1024).toFixed(1)}MB)`)), timeoutMs)
+        );
 
         // Race parsing with timeout
         const parsePromise = Promise.race([
@@ -731,7 +732,7 @@ export class ReadmeCommandHandler {
         ]) as Promise<ParseResult>;
 
         const result = await parsePromise;
-        spinner.succeed(`File processed successfully in ${((Date.now() - spinner.startTime) / 1000).toFixed(1)}s`);
+        spinner.succeed(`File processed successfully in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
         return result;
 
       } catch (error) {
