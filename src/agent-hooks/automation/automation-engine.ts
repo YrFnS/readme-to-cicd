@@ -739,7 +739,7 @@ jobs:
       run: ${analysis.buildCommand}
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: |

@@ -1397,7 +1397,7 @@ ${buildSteps.join('\n        \n')}
 ${testSteps.join('\n        \n')}
         
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build-artifacts

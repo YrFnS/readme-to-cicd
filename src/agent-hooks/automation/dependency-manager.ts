@@ -359,7 +359,7 @@ jobs:
 
     - name: Upload dependency report
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dependency-update-report
         path: dep-report.md
