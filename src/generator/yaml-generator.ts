@@ -25,6 +25,7 @@ import { MonitoringGenerator } from './workflow-specialization/monitoring-genera
 import { MultiEnvironmentGenerator } from './workflow-specialization/multi-environment-generator';
 import { TestingStrategyGenerator } from './workflow-specialization/testing-strategy-generator';
 import { EnhancedWorkflowValidator } from './validators/enhanced-validator';
+import { SimpleWorkflowGenerator } from './simple-workflow-generator';
 import * as path from 'path';
 
 /**
@@ -53,6 +54,7 @@ export class YAMLGeneratorImpl implements YAMLGenerator {
   private monitoringGenerator: MonitoringGenerator;
   private multiEnvironmentGenerator: MultiEnvironmentGenerator;
   private testingStrategyGenerator: TestingStrategyGenerator;
+  private simpleWorkflowGenerator: SimpleWorkflowGenerator;
   private generatorVersion: string = '2.0.0';
 
   constructor(options?: {
@@ -104,6 +106,9 @@ export class YAMLGeneratorImpl implements YAMLGenerator {
     this.monitoringGenerator = new MonitoringGenerator();
     this.multiEnvironmentGenerator = new MultiEnvironmentGenerator(this.environmentManager);
     this.testingStrategyGenerator = new TestingStrategyGenerator();
+    
+    // Initialize simple workflow generator as fallback
+    this.simpleWorkflowGenerator = new SimpleWorkflowGenerator();
   }
 
   /**
@@ -499,8 +504,32 @@ jobs:
    * Implements requirement 10.3: Intelligent workflow recommendation
    */
   async generateRecommendedWorkflows(detectionResult: DetectionResult, options?: GenerationOptions): Promise<WorkflowOutput[]> {
-    const baseOptions = this.setDefaultOptions(options);
-    return this.workflowSpecializationManager.generateRecommendedWorkflows(detectionResult, baseOptions);
+    try {
+      const baseOptions = this.setDefaultOptions(options);
+      return await this.workflowSpecializationManager.generateRecommendedWorkflows(detectionResult, baseOptions);
+    } catch (error) {
+      // Fallback to simple generator if the complex system fails
+      console.warn('Complex workflow generation failed, falling back to simple generator:', error);
+      
+      // Convert DetectionResult to SimpleDetectionResult
+      const simpleDetectionResult = {
+        frameworks: detectionResult.frameworks?.map(f => ({
+          name: f.name,
+          version: f.version,
+          confidence: f.confidence
+        })) || [],
+        languages: detectionResult.languages?.map(l => ({
+          name: l.name,
+          primary: l.primary
+        })) || [],
+        buildTools: detectionResult.buildTools?.map(bt => ({
+          name: bt.name
+        })) || [],
+        projectMetadata: detectionResult.projectMetadata || {}
+      };
+      
+      return this.simpleWorkflowGenerator.generateRecommended(simpleDetectionResult);
+    }
   }
 
   /**

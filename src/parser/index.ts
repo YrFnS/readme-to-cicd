@@ -37,6 +37,7 @@ import { ReadmeParserImpl } from './readme-parser';
 
 // Import IntegrationPipeline for factory functions
 import { IntegrationPipeline } from './integration-pipeline';
+import { ComponentFactory } from './component-factory';
 
 /**
  * Create a new README parser instance
@@ -65,6 +66,7 @@ export function createReadmeParserWithErrorHandling(
  * Create a new README parser instance with IntegrationPipeline
  */
 export function createReadmeParserWithPipeline(): ReadmeParserImpl {
-  const pipeline = new IntegrationPipeline();
+  const factory = ComponentFactory.getInstance();
+  const pipeline = new IntegrationPipeline(factory);
   return new ReadmeParserImpl(pipeline);
 }

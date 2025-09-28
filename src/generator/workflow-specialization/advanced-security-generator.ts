@@ -454,13 +454,15 @@ export class AdvancedSecurityGenerator {
     }
 
     // Compliance Validation Job
-    if (securityConfig.compliance.frameworks.length > 0) {
+    // FIXED: Safe array access with fallback  
+    const complianceFrameworks = securityConfig.compliance?.frameworks || [];
+    if (complianceFrameworks.length > 0) {
       jobs.push({
         name: 'compliance-validation',
         runsOn: 'ubuntu-latest',
         strategy: {
           matrix: {
-            framework: securityConfig.compliance.frameworks
+            framework: complianceFrameworks
           }
         },
         steps: this.generateComplianceMatrixSteps(detectionResult, options.securityLevel || 'enterprise')
@@ -1756,7 +1758,9 @@ export class AdvancedSecurityGenerator {
       warnings.push('DAST scanning is disabled but web framework detected - consider enabling DAST');
     }
 
-    if (securityConfig.compliance.frameworks.length === 0) {
+    // FIXED: Safe array access with fallback
+    const complianceFrameworks = securityConfig.compliance?.frameworks || [];
+    if (complianceFrameworks.length === 0) {
       warnings.push('No compliance frameworks configured - consider adding relevant compliance validation');
     }
 

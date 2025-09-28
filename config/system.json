@@ -1,0 +1,193 @@
+{
+  "version": "1.0.0",
+  "system": {
+    "environment": "development",
+    "logLevel": "info",
+    "maxConcurrentWorkflows": 10,
+    "defaultTimeout": 300000,
+    "retryAttempts": 3,
+    "enableMetrics": true,
+    "enableHealthChecks": true,
+    "healthCheckInterval": 60000
+  },
+  "components": {
+    "readmeParser": {
+      "enableCaching": true,
+      "cacheSize": 100,
+      "cacheTtl": 3600000,
+      "enablePerformanceMonitoring": true
+    },
+    "frameworkDetector": {
+      "confidenceThreshold": 0.7,
+      "enableCustomRules": false
+    },
+    "yamlGenerator": {
+      "templatePath": "./templates",
+      "enableAdvancedPatterns": true,
+      "defaultWorkflowTypes": [
+        "ci",
+        "cd"
+      ],
+      "optimizationLevel": "standard"
+    },
+    "cliTool": {
+      "enableInteractiveMode": true,
+      "defaultOutputDir": "./.github/workflows",
+      "enableColorOutput": true
+    },
+    "framework-detector": {
+      "confidenceThreshold": 0.8,
+      "enableCaching": true,
+      "cacheSize": 200
+    },
+    "system": {
+      "maxConcurrentWorkflows": 8,
+      "defaultTimeout": 45000,
+      "enableMetrics": true
+    },
+    "readme-parser": {
+      "enableCaching": true,
+      "cacheSize": 200
+    },
+    "yaml-generator": {
+      "enableCaching": true,
+      "cacheSize": 200
+    }
+  },
+  "deployment": {
+    "strategies": {
+      "default": "rolling",
+      "blueGreen": {
+        "switchTrafficDelay": 30000,
+        "rollbackTimeout": 300000
+      },
+      "canary": {
+        "stages": [
+          10,
+          25,
+          50,
+          100
+        ],
+        "progressionDelay": 60000,
+        "rollbackThreshold": 0.05
+      },
+      "rolling": {
+        "batchSize": 25,
+        "maxUnavailable": 1
+      }
+    },
+    "environments": {
+      "development": {
+        "replicas": 1,
+        "resources": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "secrets": [],
+        "configMaps": [],
+        "ingress": {
+          "enabled": false
+        }
+      },
+      "staging": {
+        "replicas": 2,
+        "resources": {
+          "cpu": "200m",
+          "memory": "256Mi"
+        },
+        "secrets": [],
+        "configMaps": [],
+        "ingress": {
+          "enabled": true
+        }
+      },
+      "production": {
+        "replicas": 3,
+        "resources": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        },
+        "secrets": [],
+        "configMaps": [],
+        "ingress": {
+          "enabled": true,
+          "tls": true
+        }
+      }
+    }
+  },
+  "security": {
+    "authentication": {
+      "enabled": false,
+      "type": "jwt",
+      "configuration": {}
+    },
+    "authorization": {
+      "enabled": false,
+      "rbac": {
+        "enabled": false,
+        "roles": []
+      }
+    },
+    "encryption": {
+      "atRest": true,
+      "inTransit": true,
+      "algorithm": "AES-256-GCM"
+    },
+    "secrets": {
+      "provider": "local",
+      "configuration": {}
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics": {
+      "enabled": true,
+      "port": 9090,
+      "path": "/metrics",
+      "interval": 15000
+    },
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "output": "console"
+    },
+    "tracing": {
+      "enabled": false,
+      "sampler": 0.1
+    },
+    "alerts": {
+      "enabled": false,
+      "channels": [],
+      "thresholds": {}
+    }
+  },
+  "integrations": {
+    "webhooks": {
+      "enabled": false,
+      "endpoints": []
+    },
+    "apis": {
+      "enabled": true,
+      "port": 3000,
+      "cors": true,
+      "rateLimit": {
+        "enabled": true,
+        "requests": 100,
+        "window": 60000
+      }
+    },
+    "databases": {
+      "primary": {
+        "type": "postgresql",
+        "host": "localhost",
+        "port": 5432,
+        "database": "readme_to_cicd",
+        "username": "postgres",
+        "password": "password",
+        "ssl": false,
+        "poolSize": 10
+      }
+    }
+  }
+}

@@ -28,13 +28,44 @@ export class CommandParser {
       // Reset parsed options
       this.parsedOptions = null;
       
+      // Check if this is a help command before parsing
+      const isHelpCommand = args.includes('--help') || args.includes('-h') || 
+                           args.includes('help') || args.length <= 2;
+      
       // Configure commander to not exit on errors
       this.program.exitOverride((err) => {
+        // Special handling for help commands - don't treat them as errors
+        if (err.code === 'commander.helpDisplayed' || err.message.includes('outputHelp')) {
+          // Create a successful help result
+          this.parsedOptions = {
+            command: 'help',
+            dryRun: false,
+            verbose: false,
+            debug: false,
+            quiet: false,
+            interactive: false,
+            ci: false
+          };
+          return; // Don't throw for help
+        }
         throw new CommanderError(err.exitCode, err.code, err.message);
       });
       
       // Parse arguments - this will trigger action handlers
       this.program.parse(args);
+      
+      // Handle case where help was displayed but no options were set
+      if (!this.parsedOptions && isHelpCommand) {
+        this.parsedOptions = {
+          command: 'help',
+          dryRun: false,
+          verbose: false,
+          debug: false,
+          quiet: false,
+          interactive: false,
+          ci: false
+        };
+      }
       
       // Return the parsed options set by action handlers
       if (!this.parsedOptions) {
@@ -111,6 +142,7 @@ export class CommandParser {
     this.setupExportCommand();
     this.setupImportCommand();
     this.setupReadmeCommands();
+    this.setupStatusCommand(); // Phase 4: Add status command
   }
 
   /**
@@ -128,6 +160,17 @@ export class CommandParser {
         .default(['ci', 'cd']))
       .addOption(new Option('-f, --framework <frameworks...>', 'Override automatic framework detection'))
       .addOption(new Option('--dry-run', 'Show what would be generated without creating files')
+        .default(false))
+      
+      // Phase 3: Enhanced CLI options for better control
+      .addOption(new Option('--timeout <seconds>', 'Set custom timeout for detection and generation')
+        .argParser(parseInt)
+        .default(15))
+      .addOption(new Option('--use-fallback', 'Skip complex detection, use simple generator')
+        .default(false))
+      .addOption(new Option('--no-progress', 'Disable progress indicators')
+        .default(false))
+      .addOption(new Option('--debug-detection', 'Enable detailed detection logging')
         .default(false))
       
       // Batch processing options
@@ -250,7 +293,7 @@ export class CommandParser {
    */
   private buildCLIOptions(command: string, options: any): CLIOptions {
     // Validate command
-    const validCommands = ['generate', 'validate', 'init', 'export', 'import', 'parse', 'analyze', 'readme-validate'];
+    const validCommands = ['generate', 'validate', 'init', 'export', 'import', 'parse', 'analyze', 'readme-validate', 'status'];
     if (!validCommands.includes(command)) {
       throw new Error(`Invalid command: ${command}. Valid commands are: ${validCommands.join(', ')}`);
     }
@@ -302,7 +345,13 @@ export class CommandParser {
       includeMetadata: Boolean(options.includeMetadata),
       includeConfidence: Boolean(options.includeConfidence),
       includeRecommendations: Boolean(options.includeRecommendations),
-      includeDiagnostics: Boolean(options.includeDiagnostics)
+      includeDiagnostics: Boolean(options.includeDiagnostics),
+      
+      // Phase 3: Enhanced CLI options
+      timeout: options.timeout,
+      useFallback: Boolean(options.useFallback),
+      noProgress: Boolean(options.noProgress),
+      debugDetection: Boolean(options.debugDetection)
     };
   }
 
@@ -599,6 +648,31 @@ Examples:
   }
 
   /**
+   * Setup the status command (Phase 4)
+   */
+  private setupStatusCommand(): void {
+    const statusCommand = this.program
+      .command('status')
+      .description('Show system status, performance metrics, and usage statistics')
+      .addOption(new Option('--telemetry', 'Show detailed telemetry data')
+        .default(false))
+      .addOption(new Option('--performance', 'Show performance insights')
+        .default(false))
+      .addOption(new Option('--export', 'Export telemetry data for analysis')
+        .default(false))
+      .addHelpText('after', this.getStatusExamples());
+
+    statusCommand.action((options, command) => {
+      const globalOptions = this.program.opts();
+      const commandOptions = statusCommand.opts();
+      this.parsedOptions = this.buildCLIOptions('status', {
+        ...globalOptions,
+        ...commandOptions
+      });
+    });
+  }
+
+  /**
    * Extract command from arguments array
    */
   private extractCommandFromArgs(args: string[]): string | null {
@@ -650,6 +724,19 @@ Examples:
   $ readme-to-cicd readme-validate                 # Validate ./README.md
   $ readme-to-cicd readme-validate ./docs/README.md # Validate specific file
   $ readme-to-cicd readme-validate --verbose       # Detailed validation output
+`;
+  }
+
+  /**
+   * Get status command examples (Phase 4)
+   */
+  private getStatusExamples(): string {
+    return `
+Examples:
+  $ readme-to-cicd status                           # Basic system status
+  $ readme-to-cicd status --performance             # Show performance insights
+  $ readme-to-cicd status --telemetry               # Show detailed telemetry
+  $ readme-to-cicd status --export                  # Export data for analysis
 `;
   }
 

@@ -118,7 +118,43 @@ export class FrameworkDetectorImpl implements FrameworkDetector {
       }
 
       const result: DetectionResult = {
-        ...detectionResult.data,
+        frameworks: detectionResult.data?.frameworks || [],
+        buildTools: detectionResult.data?.buildTools || [],
+        containers: detectionResult.data?.containers || [],
+        confidence: detectionResult.data?.confidence || {
+          score: 0.0,
+          level: 'low',
+          breakdown: {
+            frameworks: { 
+              score: 0.0, 
+              detectedCount: 0, 
+              evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0 }, 
+              factors: [] 
+            },
+            buildTools: { 
+              score: 0.0, 
+              detectedCount: 0, 
+              evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0 }, 
+              factors: [] 
+            },
+            containers: { 
+              score: 0.0, 
+              detectedCount: 0, 
+              evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0 }, 
+              factors: [] 
+            },
+            languages: { 
+              score: 0.0, 
+              detectedCount: 0, 
+              evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0 }, 
+              factors: [] 
+            }
+          },
+          factors: [],
+          recommendations: ['Ensure README contains clear project information', 'Add framework-specific configuration files']
+        },
+        alternatives: detectionResult.data?.alternatives || [],
+        warnings: detectionResult.data?.warnings || [],
         detectedAt: new Date(),
         executionTime: 0 // Will be set by performance monitor
       };

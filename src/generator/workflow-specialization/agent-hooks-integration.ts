@@ -2750,7 +2750,9 @@ recovery-recommendations.md`
    */
   private getWebhookWarnings(detectionResult: DetectionResult): string[] {
     const warnings: string[] = [];
-    if (detectionResult.frameworks.length === 0) {
+    // FIXED: Safe array access with fallback
+    const frameworks = detectionResult.frameworks || [];
+    if (frameworks.length === 0) {
       warnings.push('No frameworks detected - webhook responses may be limited');
     }
     return warnings;

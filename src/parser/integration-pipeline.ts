@@ -109,7 +109,7 @@ export class IntegrationPipeline {
   private logger: Logger;
   private config: PipelineConfig;
 
-  constructor(factory: ComponentFactory, config: PipelineConfig = {}) {
+  constructor(factory?: ComponentFactory, config: PipelineConfig = {}) {
     this.config = {
       enableLogging: true,
       logLevel: 'info' as const,
@@ -119,6 +119,11 @@ export class IntegrationPipeline {
       ...config
     };
 
+    // Initialize factory if not provided
+    if (!factory) {
+      factory = ComponentFactory.getInstance();
+    }
+    
     this.factory = factory;
     this.factory.initialize(this.config);
     this.dependencies = this.factory.createDependencies();
@@ -1657,7 +1662,8 @@ export async function executeIntegrationPipeline(
   content: string,
   config?: PipelineConfig
 ): Promise<PipelineResult> {
-  const pipeline = new IntegrationPipeline(config);
+  const factory = ComponentFactory.getInstance();
+  const pipeline = new IntegrationPipeline(factory, config);
   return await pipeline.execute(content);
 }
 
@@ -1665,7 +1671,8 @@ export async function executeIntegrationPipeline(
  * Factory function to create integration pipeline instance
  */
 export function createIntegrationPipeline(config?: PipelineConfig): IntegrationPipeline {
-  return new IntegrationPipeline(config);
+  const factory = ComponentFactory.getInstance();
+  return new IntegrationPipeline(factory, config);
 }
 
 /**

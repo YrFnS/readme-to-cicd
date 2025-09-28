@@ -57,7 +57,15 @@ export class CLIApplication {
     );
     this.configExporter = new ConfigExporter();
     this.initCommand = new InitCommand(this.logger, this.errorHandler);
-    this.readmeCommandHandler = new ReadmeCommandHandler(this.logger, this.errorHandler);
+    
+    // Initialize ReadmeCommandHandler with error handling
+    try {
+      this.readmeCommandHandler = new ReadmeCommandHandler(this.logger, this.errorHandler);
+    } catch (error) {
+      this.logger.error('Failed to initialize ReadmeCommandHandler:', error);
+      // Create a fallback handler that reports the initialization error
+      this.readmeCommandHandler = this.createFallbackReadmeHandler(error as Error);
+    }
   }
 
   /**
@@ -141,6 +149,10 @@ export class CLIApplication {
         return this.executeAnalyzeCommand(options);
       case 'readme-validate':
         return this.executeReadmeValidateCommand(options);
+      case 'status':
+        return this.executeStatusCommand(options); // Phase 4: Add status command
+      case 'help':
+        return this.executeHelpCommand(options);
       default:
         throw new Error(`Unknown command: ${options.command}`);
     }
@@ -677,5 +689,153 @@ export class CLIApplication {
       this.logger.error('README validate command failed', { error });
       return this.errorHandler.handleCLIError(error as Error);
     }
+  }
+
+  /**
+   * Execute status command (Phase 4)
+   */
+  private async executeStatusCommand(options: CLIOptions): Promise<CLIResult> {
+    this.logger.info('Executing status command', { options });
+
+    try {
+      // Get telemetry insights from the component orchestrator
+      const insights = this.componentOrchestrator.getTelemetryInsights();
+      
+      let output = '';
+      
+      if (options.performance) {
+        output += '🚀 Performance Insights:\n';
+        output += JSON.stringify(insights.performance, null, 2) + '\n\n';
+      }
+      
+      if (options.telemetry) {
+        output += '📊 Usage Statistics:\n';
+        output += JSON.stringify(insights.usage, null, 2) + '\n\n';
+      }
+      
+      if (options.export) {
+        const exportData = insights.exportData();
+        output += '📦 Telemetry Export:\n';
+        output += JSON.stringify(exportData, null, 2) + '\n\n';
+      }
+      
+      if (!options.performance && !options.telemetry && !options.export) {
+        // Basic status
+        output += '✅ System Status: Operational\n';
+        output += '📊 Basic Statistics:\n';
+        output += JSON.stringify(insights.usage, null, 2) + '\n';
+      }
+
+      console.log(output);
+
+      return {
+        success: true,
+        generatedFiles: [],
+        errors: [],
+        warnings: [],
+        summary: {
+          totalTime: 0,
+          filesGenerated: 0,
+          workflowsCreated: 0,
+          frameworksDetected: [],
+          optimizationsApplied: 0,
+          executionTime: 0,
+          filesProcessed: 0,
+          workflowsGenerated: 0
+        }
+      };
+    } catch (error) {
+      this.logger.error('Status command failed', { error });
+      return {
+        success: false,
+        generatedFiles: [],
+        errors: [{
+          code: 'STATUS_FAILED',
+          message: `Status command failed: ${error instanceof Error ? error.message : String(error)}`,
+          category: 'processing',
+          severity: 'error',
+          suggestions: ['Try running with --debug flag for more information']
+        }],
+        warnings: [],
+        summary: {
+          totalTime: 0,
+          filesGenerated: 0,
+          workflowsCreated: 0,
+          frameworksDetected: [],
+          optimizationsApplied: 0,
+          executionTime: 0,
+          filesProcessed: 0,
+          workflowsGenerated: 0
+        }
+      };
+    }
+  }
+
+  /**
+   * Execute help command - special handling to avoid treating help as error
+   */
+  private async executeHelpCommand(options: CLIOptions): Promise<CLIResult> {
+    this.logger.info('Executing help command', { options });
+    
+    // Help has already been displayed by Commander.js, just return success
+    return {
+      success: true,
+      generatedFiles: [],
+      errors: [],
+      warnings: [],
+      summary: {
+        totalTime: 0,
+        filesGenerated: 0,
+        workflowsCreated: 0,
+        frameworksDetected: [],
+        optimizationsApplied: 0,
+        executionTime: 0,
+        filesProcessed: 0,
+        workflowsGenerated: 0
+      }
+    };
+  }
+
+  /**
+   * Create a fallback ReadmeCommandHandler when initialization fails
+   */
+  private createFallbackReadmeHandler(initError: Error): ReadmeCommandHandler {
+    // Create a mock ReadmeCommandHandler that returns initialization errors
+    const mockHandler = Object.create(ReadmeCommandHandler.prototype);
+    
+    const createErrorResult = (): CLIResult => ({
+      success: false,
+      generatedFiles: [],  
+      errors: [{
+        code: 'INITIALIZATION_ERROR',
+        message: `ReadmeCommandHandler failed to initialize: ${initError.message}`,
+        category: 'processing' as const,
+        severity: 'error' as const,
+        suggestions: [
+          'Check that all dependencies are properly installed',
+          'Try reinstalling the package',
+          'Verify your Node.js version is 18 or higher'
+        ],
+        context: { originalError: initError.message }
+      }],
+      warnings: [],
+      summary: {
+        totalTime: 0,
+        filesGenerated: 0,
+        workflowsCreated: 0,
+        frameworksDetected: [],
+        optimizationsApplied: 0,
+        executionTime: 0,
+        filesProcessed: 0,
+        workflowsGenerated: 0
+      }
+    });
+    
+    // Override the methods to return the error result
+    mockHandler.handleParseCommand = async () => createErrorResult();
+    mockHandler.handleAnalyzeCommand = async () => createErrorResult();
+    mockHandler.handleValidateCommand = async () => createErrorResult();
+    
+    return mockHandler;
   }
 }

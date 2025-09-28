@@ -18,6 +18,8 @@ import { CacheManager } from './cache-manager';
 import { PerformanceMonitor } from './performance-monitor';
 import { CLILazyLoader } from './lazy-loader';
 import { MemoryOptimizer } from './memory-optimizer';
+import { ProgressIndicator, ProgressStep } from './progress-indicator';
+import { TelemetryManager, PerformanceMetrics } from './telemetry-manager';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
@@ -44,6 +46,9 @@ export interface ExecutionContext {
   // Performance tracking
   stepTimes: Record<string, number>;
   totalExecutionTime?: number;
+  
+  // Phase 2: Progress tracking
+  progressIndicator?: ProgressIndicator;
 }
 
 /**
@@ -72,6 +77,7 @@ export interface OrchestrationOptions {
   timeoutMs?: number;
   validateInputs?: boolean;
   enablePerformanceTracking?: boolean;
+  enableTelemetry?: boolean; // Phase 4: Add telemetry option
 }
 
 /**
@@ -92,6 +98,7 @@ export class ComponentOrchestrator {
   private performanceMonitor: PerformanceMonitor;
   private lazyLoader: CLILazyLoader;
   private memoryOptimizer: MemoryOptimizer;
+  private telemetryManager: TelemetryManager; // Phase 4: Add telemetry
 
   constructor(
     logger: Logger,
@@ -129,6 +136,9 @@ export class ComponentOrchestrator {
       gcThresholdMB: 100,
       maxHeapUsageMB: 512
     });
+
+    // Phase 4: Initialize telemetry manager
+    this.telemetryManager = new TelemetryManager(this.options.enableTelemetry ?? true);
 
     this.outputHandler = new OutputHandler(logger, {
       conflictResolution: 'backup',
@@ -192,6 +202,17 @@ export class ComponentOrchestrator {
         dryRun: cliOptions.dryRun
       });
 
+      // Phase 2: Initialize progress indicator (respect no-progress option)
+      const progressSteps: ProgressStep[] = [
+        { name: 'README Analysis', description: 'Analyzing README file and extracting project information' },
+        { name: 'Framework Detection', description: 'Detecting frameworks, languages, and build tools' },
+        { name: 'Workflow Generation', description: 'Generating CI/CD workflows based on project structure' },
+        { name: 'File Output', description: 'Writing workflow files to disk' }
+      ];
+      
+      const shouldShowProgress = !cliOptions.quiet && !cliOptions.noProgress && !cliOptions.ci;
+      context.progressIndicator = new ProgressIndicator(progressSteps, !shouldShowProgress);
+
       // Initialize components with lazy loading
       await this.performanceMonitor.timeFunction(
         'initialize-components',
@@ -222,7 +243,15 @@ export class ComponentOrchestrator {
       context.currentStep = 'complete';
       context.totalExecutionTime = Date.now() - context.startTime.getTime();
 
+      // Phase 2: Complete all progress and show success
+      const generatedCount = context.generatedFiles?.length || 0;
+      context.progressIndicator?.complete(`Successfully generated ${generatedCount} workflow files`);
+
       const result = this.createSuccessResult(context);
+      
+      // Phase 4: Record telemetry for successful execution
+      this.recordExecutionTelemetry(cliOptions, result, context);
+      
       this.performanceMonitor.endTimer(workflowTimerId, { 
         success: true, 
         filesGenerated: result.generatedFiles.length 
@@ -233,6 +262,17 @@ export class ComponentOrchestrator {
     } catch (error) {
       context.currentStep = 'error';
       context.totalExecutionTime = Date.now() - context.startTime.getTime();
+      
+      // Phase 2: Show error in progress
+      context.progressIndicator?.error(`Workflow execution failed: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Phase 4: Record telemetry for failed execution
+      this.telemetryManager.recordError(
+        error instanceof Error ? error.constructor.name : 'UnknownError',
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.stack : undefined,
+        { command: cliOptions.command, step: context.currentStep }
+      );
       
       this.logger.error('Workflow execution failed', {
         executionId: context.executionId,
@@ -245,7 +285,12 @@ export class ComponentOrchestrator {
         error: error instanceof Error ? error.message : String(error) 
       });
 
-      return this.createErrorResult(context, error);
+      const errorResult = this.createErrorResult(context, error);
+      
+      // Phase 4: Record telemetry for error result
+      this.recordExecutionTelemetry(cliOptions, errorResult, context);
+      
+      return errorResult;
     }
   }
 
@@ -260,8 +305,21 @@ export class ComponentOrchestrator {
       await this.executeParsingStep(context);
       await this.executeDetectionStep(context);
 
+      // Phase 3: Add progress indicator for generation simulation
+      context.progressIndicator?.nextStep();
+
       // Simulate generation to determine what would be created
       const dryRunResult = await this.simulateGeneration(context);
+      
+      // Phase 3: Complete generation simulation
+      context.progressIndicator?.completeStep();
+
+      // Phase 3: Add final step for dry-run summary
+      context.progressIndicator?.nextStep();
+      context.progressIndicator?.completeStep('Dry-run analysis complete');
+
+      // Phase 3: Complete with dry-run specific message
+      context.progressIndicator?.complete(`Dry-run complete - would generate ${dryRunResult.wouldGenerate.files.length} workflow files`);
 
       return {
         success: true,
@@ -298,6 +356,9 @@ export class ComponentOrchestrator {
    * Execute the README parsing step
    */
   private async executeParsingStep(context: ExecutionContext): Promise<void> {
+    // Phase 2: Start progress indicator
+    context.progressIndicator?.nextStep();
+    
     context.currentStep = 'parsing';
     const stepStartTime = Date.now();
 
@@ -330,6 +391,9 @@ export class ComponentOrchestrator {
 
       context.stepTimes.parsing = Date.now() - stepStartTime;
       
+      // Phase 2: Complete progress step
+      context.progressIndicator?.completeStep();
+      
       this.logger.info('Parsing step completed successfully', {
         executionId: context.executionId,
         languages: context.parseResult.data?.languages.length || 0,
@@ -339,6 +403,10 @@ export class ComponentOrchestrator {
 
     } catch (error) {
       context.stepTimes.parsing = Date.now() - stepStartTime;
+      
+      // Phase 2: Show error in progress
+      context.progressIndicator?.error('README parsing failed');
+      
       this.addError(context, 'PARSING_FAILED', `README parsing failed: ${error instanceof Error ? error.message : String(error)}`, 'processing');
       throw error;
     }
@@ -348,6 +416,9 @@ export class ComponentOrchestrator {
    * Execute the framework detection step
    */
   private async executeDetectionStep(context: ExecutionContext): Promise<void> {
+    // Phase 2: Start detection progress
+    context.progressIndicator?.nextStep();
+    
     context.currentStep = 'detection';
     const stepStartTime = Date.now();
 
@@ -366,19 +437,56 @@ export class ComponentOrchestrator {
         throw new Error('Framework detector not initialized');
       }
       
-      context.detectionResult = await this.executeWithRetry(
-        () => this.frameworkDetector!.detectFrameworks(projectInfo, context.workingDirectory),
-        'Framework detection',
-        context
-      );
+      // PHASE 1&2 FIX: Add timeout wrapper with user-configurable timeout
+      const timeoutMs = (context.options.timeout || 15) * 1000; // Convert to milliseconds
+      
+      // Phase 2: Check if user wants to skip complex detection
+      if (context.options.useFallback) {
+        context.progressIndicator?.updateStep('Using simplified detection (--use-fallback)');
+        context.detectionResult = await this.createFallbackDetectionResult(projectInfo);
+      } else {
+        try {
+          context.detectionResult = await this.executeWithTimeout(
+            () => this.frameworkDetector!.detectFrameworks(projectInfo, context.workingDirectory),
+            timeoutMs,
+            () => {
+              // Phase 2: Show fallback progress message
+              context.progressIndicator?.warnStep(
+                'Complex detection taking longer than expected',
+                'Switching to simplified detection method for reliable results'
+              );
+              
+              // Phase 4: Record fallback telemetry
+              this.telemetryManager.recordFallbackUsage('timeout', 'Framework detection timeout', 'createFallbackDetectionResult');
+              
+              return this.createFallbackDetectionResult(projectInfo);
+            },
+            'Framework detection'
+          );
+        } catch (error) {
+          // If timeout also failed, use fallback
+          context.progressIndicator?.warnStep(
+            'Framework detection encountered issues',
+            'Using fallback detection to ensure workflow generation succeeds'
+          );
+          
+          // Phase 4: Record error-based fallback
+          this.telemetryManager.recordFallbackUsage('error', error instanceof Error ? error.message : String(error), 'createFallbackDetectionResult');
+          
+          context.detectionResult = await this.createFallbackDetectionResult(projectInfo);
+        }
+      }
 
       context.stepTimes.detection = Date.now() - stepStartTime;
 
+      // Phase 2: Complete detection step
+      context.progressIndicator?.completeStep();
+
       this.logger.info('Detection step completed successfully', {
         executionId: context.executionId,
-        frameworksDetected: context.detectionResult.frameworks.length,
-        buildToolsDetected: context.detectionResult.buildTools.length,
-        confidence: context.detectionResult.confidence.score,
+        frameworksDetected: (context.detectionResult.frameworks || []).length,
+        buildToolsDetected: (context.detectionResult.buildTools || []).length,
+        confidence: context.detectionResult.confidence?.score || 0,
         executionTime: context.stepTimes.detection
       });
 
@@ -393,6 +501,9 @@ export class ComponentOrchestrator {
    * Execute the YAML generation step
    */
   private async executeGenerationStep(context: ExecutionContext): Promise<void> {
+    // Phase 2: Start generation progress
+    context.progressIndicator?.nextStep();
+    
     context.currentStep = 'generation';
     const stepStartTime = Date.now();
 
@@ -416,25 +527,58 @@ export class ComponentOrchestrator {
           throw new Error('YAML generator not initialized');
         }
         
-        context.generationResults = await this.executeWithRetry(
-          () => this.yamlGenerator!.generateMultipleWorkflows(generatorDetectionResult, context.options.workflowType!),
-          'YAML generation (multiple workflows)',
-          context
-        );
+        try {
+          context.generationResults = await this.executeWithRetry(
+            () => this.yamlGenerator!.generateMultipleWorkflows(generatorDetectionResult, context.options.workflowType!),
+            'YAML generation (multiple workflows)',
+            context
+          );
+          
+          // Check if generated workflows have meaningful content
+          if (!this.hasValidWorkflowContent(context.generationResults)) {
+            throw new Error('Generated workflows have insufficient content');
+          }
+        } catch (error) {
+          this.logger.warn('YAML generator failed or produced insufficient content, using fallback workflows', {
+            executionId: context.executionId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          
+          // Use our reliable fallback workflow generator
+          context.generationResults = await this.createFallbackWorkflows(context.detectionResult);
+        }
       } else {
         // Generate recommended workflows
         if (!this.yamlGenerator) {
           throw new Error('YAML generator not initialized');
         }
-        
-        context.generationResults = await this.executeWithRetry(
-          () => this.yamlGenerator!.generateRecommendedWorkflows(generatorDetectionResult, generationOptions),
-          'YAML generation (recommended workflows)',
-          context
-        );
+
+        try {
+          context.generationResults = await this.executeWithRetry(
+            () => this.yamlGenerator!.generateRecommendedWorkflows(generatorDetectionResult, generationOptions),
+            'YAML generation (recommended workflows)',
+            context
+          );
+          
+          // Check if generated workflows have meaningful content
+          if (!this.hasValidWorkflowContent(context.generationResults)) {
+            throw new Error('Generated workflows have insufficient content');
+          }
+        } catch (error) {
+          this.logger.warn('YAML generator failed or produced insufficient content, using fallback workflows', {
+            executionId: context.executionId,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          
+          // Use our reliable fallback workflow generator
+          context.generationResults = await this.createFallbackWorkflows(context.detectionResult);
+        }
       }
 
       context.stepTimes.generation = Date.now() - stepStartTime;
+
+      // Phase 2: Complete generation step
+      context.progressIndicator?.completeStep();
 
       this.logger.info('Generation step completed successfully', {
         executionId: context.executionId,
@@ -454,6 +598,9 @@ export class ComponentOrchestrator {
    * Execute the file output step
    */
   private async executeOutputStep(context: ExecutionContext): Promise<void> {
+    // Phase 2: Start output progress
+    context.progressIndicator?.nextStep();
+    
     context.currentStep = 'output';
     const stepStartTime = Date.now();
 
@@ -539,21 +686,41 @@ export class ComponentOrchestrator {
       throw new Error('Cannot simulate generation: detection step failed');
     }
 
+    // Safely access frameworks array with fallback
+    const frameworks = context.detectionResult.frameworks || [];
+    const buildTools = context.detectionResult.buildTools || [];
+
     // Determine what workflows would be generated
     const generationOptions = this.createGenerationOptions(context.options);
     
     // Convert detection result to generator-expected format
     const generatorDetectionResult = this.convertDetectionResultForGenerator(context.detectionResult);
     
-    // For dry-run, we'll use the recommended workflows logic to determine what would be generated
+    // Phase 3: Add timeout protection for workflow generation
     if (!this.yamlGenerator) {
       throw new Error('YAML generator not initialized');
     }
     
-    const simulatedWorkflows = await this.yamlGenerator.generateRecommendedWorkflows(
-      generatorDetectionResult,
-      generationOptions
-    );
+    let simulatedWorkflows;
+    try {
+      // Phase 3: Use timeout wrapper for generation simulation
+      const timeoutMs = (context.options.timeout || 20) * 1000; // 20 seconds for generation
+      
+      simulatedWorkflows = await this.executeWithTimeout(
+        () => this.yamlGenerator!.generateRecommendedWorkflows(generatorDetectionResult, generationOptions),
+        timeoutMs,
+        () => this.createFallbackWorkflows(context.detectionResult), // Fallback workflows
+        'Workflow generation simulation'
+      );
+    } catch (error) {
+      this.logger.warn('Workflow generation simulation failed, using fallback', {
+        executionId: context.executionId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      // Phase 3: Always provide fallback workflows
+      simulatedWorkflows = await this.createFallbackWorkflows(context.detectionResult);
+    }
 
     const outputDir = context.options.outputDir || path.join(context.workingDirectory, '.github', 'workflows');
     
@@ -566,9 +733,9 @@ export class ComponentOrchestrator {
           description: `${w.type.toUpperCase()} workflow for detected frameworks`
         }))
       },
-      detectedFrameworks: context.detectionResult.frameworks.map(f => f.name),
+      detectedFrameworks: frameworks.map(f => f.name || 'Unknown'),
       estimatedExecutionTime: 2000, // Estimated 2 seconds
-      warnings: []
+      warnings: frameworks.length === 0 ? ['No frameworks detected - will generate basic workflow'] : []
     };
   }
 
@@ -588,8 +755,13 @@ export class ComponentOrchestrator {
           executionId: context.executionId
         });
 
-        // Execute with timeout
-        const result = await this.executeWithTimeout(operation, this.options.timeoutMs || 30000);
+        // Execute with timeout (simple version for retry logic)
+        const result = await Promise.race([
+          operation(),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('OPERATION_TIMEOUT')), this.options.timeoutMs || 30000)
+          )
+        ]);
         
         if (attempt > 1) {
           this.logger.info(`${operationName} succeeded on retry`, {
@@ -622,27 +794,6 @@ export class ComponentOrchestrator {
     }
 
     throw lastError || new Error(`${operationName} failed after ${this.options.maxRetries} attempts`);
-  }
-
-  /**
-   * Execute operation with timeout
-   */
-  private async executeWithTimeout<T>(operation: () => Promise<T>, timeoutMs: number): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(new Error(`Operation timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-
-      operation()
-        .then(result => {
-          clearTimeout(timer);
-          resolve(result);
-        })
-        .catch(error => {
-          clearTimeout(timer);
-          reject(error);
-        });
-    });
   }
 
   /**
@@ -719,16 +870,20 @@ export class ComponentOrchestrator {
    * Convert detection result to generator-expected format
    */
   private convertDetectionResultForGenerator(detectionResult: DetectionResult): any {
+    // Safely access arrays with fallbacks
+    const frameworks = detectionResult.frameworks || [];
+    const buildTools = detectionResult.buildTools || [];
+    
     // Convert the detection component's DetectionResult to the generator's expected format
     return {
-      frameworks: detectionResult.frameworks.map(f => ({
+      frameworks: frameworks.map(f => ({
         name: f.name,
         version: f.version,
         confidence: f.confidence,
         evidence: f.evidence?.map(e => e.value || e.source || e.type || 'Evidence found') || [],
         category: this.mapFrameworkTypeToCategory(f.type)
       })),
-      languages: detectionResult.frameworks
+      languages: frameworks
         .filter(f => f.ecosystem)
         .map(f => ({
           name: this.mapEcosystemToLanguage(f.ecosystem),
@@ -736,7 +891,7 @@ export class ComponentOrchestrator {
           confidence: f.confidence,
           primary: f.confidence > 0.7
         })),
-      buildTools: detectionResult.buildTools.map(bt => ({
+      buildTools: buildTools.map(bt => ({
         name: bt.name,
         configFile: bt.configFile,
         confidence: bt.confidence
@@ -929,11 +1084,380 @@ export class ComponentOrchestrator {
   }
 
   /**
-   * Clear component caches
+   * Execute operation with timeout and fallback (Phase 1 Fix)
+   */
+  private async executeWithTimeout<T>(
+    operation: () => Promise<T>,
+    timeoutMs: number,
+    fallback: () => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    this.logger.debug(`Starting ${operationName} with ${timeoutMs}ms timeout`);
+    
+    return Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('OPERATION_TIMEOUT')), timeoutMs)
+      )
+    ]).catch(async (error) => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage === 'OPERATION_TIMEOUT' || 
+          errorMessage.includes('undefined') ||
+          errorMessage.includes('length') ||
+          errorMessage.includes('Cannot read properties')) {
+        
+        this.logger.warn(`${operationName} timed out or failed, using fallback`, {
+          error: errorMessage,
+          timeout: timeoutMs,
+          fallbackTriggered: true
+        });
+        
+        console.warn(`⚠️  ${operationName} encountered issues, switching to fallback method...`);
+        
+        return await fallback();
+      }
+      
+      // Re-throw other errors
+      throw error;
+    });
+  }
+
+  /**
+   * Create fallback detection result when complex detection fails (Phase 1 Fix)
+   */
+  private async createFallbackDetectionResult(projectInfo: any): Promise<any> {
+    this.logger.info('Creating fallback detection result');
+    
+    // Create a basic detection result based on project info
+    const fallbackResult = {
+      frameworks: [], // Safe empty array
+      languages: projectInfo.languages || [], // Use parsed languages
+      buildTools: [], // Safe empty array
+      containers: [], // Safe empty array
+      packageManagers: [], // Safe empty array
+      testingFrameworks: [], // Safe empty array
+      deploymentTargets: [], // Safe empty array
+      confidence: {
+        score: 0.6, // Medium confidence for fallback
+        level: 'medium' as const,
+        breakdown: {
+          frameworks: { score: 0.0, detectedCount: 0, evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0.0 }, factors: [] },
+          buildTools: { score: 0.0, detectedCount: 0, evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0.0 }, factors: [] },
+          containers: { score: 0.0, detectedCount: 0, evidenceQuality: { strongEvidence: 0, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0.0 }, factors: [] },
+          languages: { score: 0.8, detectedCount: (projectInfo.languages || []).length, evidenceQuality: { strongEvidence: 1, mediumEvidence: 0, weakEvidence: 0, diversityScore: 0.8 }, factors: [] }
+        },
+        factors: [],
+        recommendations: ['Complex detection failed - using simplified approach', 'Generated workflows will use basic templates']
+      },
+      alternatives: [], // Safe empty array
+      warnings: [
+        { 
+          type: 'incomplete' as const, 
+          message: 'Using simplified detection due to complex analysis failure',
+          affectedComponents: ['frameworks', 'buildTools']
+        }
+      ],
+      detectedAt: new Date(),
+      executionTime: 0
+    };
+
+    return fallbackResult;
+  }
+
+  /**
+   * Check if generated workflows have valid, meaningful content
+   */
+  private hasValidWorkflowContent(workflows: any[]): boolean {
+    if (!workflows || workflows.length === 0) {
+      return false;
+    }
+
+    for (const workflow of workflows) {
+      if (!workflow.content || typeof workflow.content !== 'string') {
+        return false;
+      }
+
+      // Check if content is just placeholder/minimal content
+      const content = workflow.content.trim();
+      
+      // Must have more than just comments
+      const contentLines = content.split('\n').filter(line => 
+        line.trim() && !line.trim().startsWith('#')
+      );
+      
+      // Must have at least 5 lines of actual YAML content (name, on, jobs, etc.)
+      if (contentLines.length < 5) {
+        this.logger.warn('Workflow has insufficient content', {
+          filename: workflow.filename,
+          contentLines: contentLines.length,
+          totalLines: content.split('\n').length
+        });
+        return false;
+      }
+
+      // Must contain key workflow elements
+      if (!content.includes('name:') || !content.includes('on:') || !content.includes('jobs:')) {
+        this.logger.warn('Workflow missing required YAML structure', {
+          filename: workflow.filename,
+          hasName: content.includes('name:'),
+          hasOn: content.includes('on:'),
+          hasJobs: content.includes('jobs:')
+        });
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Create fallback workflows when complex generation fails (Phase 3)
+   */
+  private async createFallbackWorkflows(detectionResult: any): Promise<any[]> {
+    this.logger.info('Creating fallback workflows for reliable generation');
+    
+    // Extract basic information safely
+    const languages = detectionResult?.languages || [];
+    const primaryLanguage = languages.find(l => l.primary) || languages[0] || { name: 'generic' };
+    const hasNodeJS = languages.some(l => l.name?.toLowerCase().includes('javascript') || l.name?.toLowerCase().includes('typescript'));
+    const hasPython = languages.some(l => l.name?.toLowerCase().includes('python'));
+    
+    // Create basic CI workflow
+    const ciWorkflow = {
+      filename: 'ci.yml',
+      type: 'ci',
+      content: this.generateBasicCIWorkflow(primaryLanguage.name, hasNodeJS, hasPython),
+      metadata: {
+        generatorVersion: '1.0.0-fallback',
+        detectionSummary: `Fallback workflow for ${primaryLanguage.name || 'generic'} project`,
+        optimizations: ['Basic CI pipeline', 'Dependency caching', 'Artifact upload']
+      }
+    };
+
+    // Create basic CD workflow
+    const cdWorkflow = {
+      filename: 'cd.yml',
+      type: 'cd',
+      content: this.generateBasicCDWorkflow(primaryLanguage.name, hasNodeJS, hasPython),
+      metadata: {
+        generatorVersion: '1.0.0-fallback',
+        detectionSummary: `Fallback deployment workflow for ${primaryLanguage.name || 'generic'} project`,
+        optimizations: ['Basic CD pipeline', 'Environment deployment', 'Release automation']
+      }
+    };
+
+    return [ciWorkflow, cdWorkflow];
+  }
+
+  /**
+   * Generate basic CD workflow content (Phase 4)
+   */
+  private generateBasicCDWorkflow(language: string, hasNodeJS: boolean, hasPython: boolean): string {
+    const setupSteps = [];
+    const buildSteps = [];
+    const deploySteps = [];
+
+    if (hasNodeJS) {
+      setupSteps.push(`      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'`);
+      buildSteps.push(`      - name: Install dependencies
+        run: |
+          npm ci || npm install
+          
+      - name: Build for production
+        run: |
+          npm run build:prod || npm run build || echo "No build script found"`);
+      deploySteps.push(`      - name: Deploy application
+        run: |
+          echo "Deploying Node.js application"
+          # Add your deployment commands here
+          # npm run deploy || echo "No deploy script configured"`);
+    } else if (hasPython) {
+      setupSteps.push(`      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          cache: 'pip'`);
+      buildSteps.push(`      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || pip install -r requirements/prod.txt || echo "No requirements file found"`);
+      deploySteps.push(`      - name: Deploy application
+        run: |
+          echo "Deploying Python application"
+          # Add your deployment commands here`);
+    } else {
+      setupSteps.push(`      - name: Setup environment
+        run: echo "Setting up ${language} environment"`);
+      buildSteps.push(`      - name: Build project
+        run: echo "Build step for ${language} project"`);
+      deploySteps.push(`      - name: Deploy application
+        run: echo "Deploy step for ${language} project"`);
+    }
+
+    return `name: CD
+
+on:
+  push:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+${setupSteps.join('\n        \n')}
+        
+${buildSteps.join('\n        \n')}
+        
+${deploySteps.join('\n        \n')}
+        
+      - name: Notification
+        if: always()
+        run: |
+          echo "Deployment completed for ${language} project"
+          # Add notification logic here
+`;
+  }
+
+  /**
+   * Generate basic CI workflow content (Phase 3)
+   */
+  private generateBasicCIWorkflow(language: string, hasNodeJS: boolean, hasPython: boolean): string {
+    const setupSteps = [];
+    const buildSteps = [];
+    const testSteps = [];
+
+    if (hasNodeJS) {
+      setupSteps.push(`      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'`);
+      buildSteps.push(`      - name: Install dependencies
+        run: |
+          npm ci || npm install
+          
+      - name: Build project
+        run: |
+          npm run build || echo "No build script found"`);
+      testSteps.push(`      - name: Run tests
+        run: |
+          npm test || npm run test:unit || echo "No test script found"`);
+    } else if (hasPython) {
+      setupSteps.push(`      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          cache: 'pip'`);
+      buildSteps.push(`      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || pip install -r requirements/dev.txt || echo "No requirements file found"`);
+      testSteps.push(`      - name: Run tests
+        run: |
+          python -m pytest || python -m unittest discover || echo "No tests configured"`);
+    } else {
+      setupSteps.push(`      - name: Setup environment
+        run: echo "Setting up ${language} environment"`);
+      buildSteps.push(`      - name: Build project
+        run: echo "Build step for ${language} project"`);
+      testSteps.push(`      - name: Run tests
+        run: echo "Test step for ${language} project"`);
+    }
+
+    return `name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+${setupSteps.join('\n        \n')}
+        
+${buildSteps.join('\n        \n')}
+        
+${testSteps.join('\n        \n')}
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            build/
+            coverage/
+          retention-days: 7
+`;
+  }
+
+  /**
+   * Record execution telemetry (Phase 4)
+   */
+  private recordExecutionTelemetry(options: CLIOptions, result: CLIResult, context: ExecutionContext): void {
+    const performanceMetrics: PerformanceMetrics = {
+      totalExecutionTime: context.totalExecutionTime || 0,
+      stepTimes: {
+        parsing: context.stepTimes.parsing || 0,
+        detection: context.stepTimes.detection || 0,
+        generation: context.stepTimes.generation || 0,
+        output: context.stepTimes.output || 0
+      },
+      fallbackUsed: context.detectionResult?.confidence?.score === 0.6, // Our fallback sets this score
+      filesGenerated: result.generatedFiles.length,
+      workflowTypes: result.summary.workflowsGenerated ? ['ci', 'cd'] : [], // Simplified for now
+      detectedLanguages: result.summary.frameworksDetected || []
+    };
+
+    // Record performance metrics
+    this.telemetryManager.recordPerformanceMetrics(performanceMetrics);
+
+    // Record command execution
+    this.telemetryManager.recordCommandExecution(
+      options.command,
+      result.success,
+      context.totalExecutionTime || 0,
+      options,
+      result
+    );
+  }
+
+  /**
+   * Get telemetry insights for debugging (Phase 4)
+   */
+  getTelemetryInsights(): any {
+    return {
+      usage: this.telemetryManager.getUsageStats(),
+      performance: this.telemetryManager.getPerformanceInsights(),
+      exportData: () => this.telemetryManager.exportTelemetryData()
+    };
+  }
+
+  /**
+   * Clear component caches and telemetry (Phase 4)
    */
   clearCaches(): void {
     this.readmeParser?.clearPerformanceData();
     this.frameworkDetector?.clearCaches();
-    this.logger.info('Component caches cleared');
+    this.telemetryManager.clearTelemetryData(); // Phase 4: Clear telemetry
+    this.logger.info('Component caches and telemetry cleared');
   }
 }

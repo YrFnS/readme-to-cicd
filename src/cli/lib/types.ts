@@ -23,7 +23,7 @@ export interface CLIResult {
 }
 
 export interface CLIOptions {
-  command: 'generate' | 'validate' | 'init' | 'export' | 'import' | 'parse' | 'analyze' | 'readme-validate';
+  command: 'generate' | 'validate' | 'init' | 'export' | 'import' | 'parse' | 'analyze' | 'readme-validate' | 'status' | 'help';
   readmePath?: string;
   outputDir?: string;
   workflowType?: WorkflowType[];
@@ -59,6 +59,17 @@ export interface CLIOptions {
   includeConfidence?: boolean;
   includeRecommendations?: boolean;
   includeDiagnostics?: boolean;
+  
+  // Phase 2: Enhanced CLI options for better control
+  timeout?: number;          // Custom timeout in seconds
+  useFallback?: boolean;     // Skip complex detection, use simple generator
+  noProgress?: boolean;      // Disable progress indicators
+  debugDetection?: boolean;  // Enable detailed detection logging
+  
+  // Phase 4: Status command options
+  performance?: boolean;
+  telemetry?: boolean;
+  export?: boolean;
 }
 
 export interface CLIConfig {

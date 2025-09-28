@@ -125,7 +125,9 @@ export class WorkflowSpecializationManager {
     types.push('ci');
 
     // CD is recommended if deployment targets are detected
-    if (detectionResult.deploymentTargets.length > 0 || options.environments) {
+    // FIXED: Safe array access with fallback
+    const deploymentTargets = detectionResult.deploymentTargets || [];
+    if (deploymentTargets.length > 0 || options.environments) {
       types.push('cd');
     }
 
@@ -145,7 +147,8 @@ export class WorkflowSpecializationManager {
    */
   private isLibraryProject(detectionResult: DetectionResult): boolean {
     // Check for common library indicators
-    const packageManagers = detectionResult.packageManagers.map(pm => pm.name);
+    // FIXED: Safe array access with fallback
+    const packageManagers = (detectionResult.packageManagers || []).map(pm => pm.name);
     
     // Node.js libraries typically have package.json
     if (packageManagers.includes('npm') || packageManagers.includes('yarn') || packageManagers.includes('pnpm')) {
@@ -192,12 +195,16 @@ export class WorkflowSpecializationManager {
     }
 
     // Check for release without package managers
-    if (workflowTypes.includes('release') && detectionResult.packageManagers.length === 0) {
+    // FIXED: Safe array access with fallback
+    const packageManagers = detectionResult.packageManagers || [];
+    if (workflowTypes.includes('release') && packageManagers.length === 0) {
       warnings.push('Release workflow may have limited functionality without detected package managers');
     }
 
     // Check for maintenance without languages
-    if (workflowTypes.includes('maintenance') && detectionResult.languages.length === 0) {
+    // FIXED: Safe array access with fallback
+    const languages = detectionResult.languages || [];
+    if (workflowTypes.includes('maintenance') && languages.length === 0) {
       warnings.push('Maintenance workflow will use generic dependency management');
     }
 
